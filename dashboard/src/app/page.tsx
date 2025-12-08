@@ -12,6 +12,7 @@ import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
 import { MetaPeriodTable, MetaAdTable } from '@/components/meta'
+import { ReportList } from '@/components/report/ReportList'
 import type { NaverPeriodDataResponse } from '@/types/naver-analytics'
 import type { MetaPeriodDataResponse } from '@/types/meta-analytics'
 
@@ -89,7 +90,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
-  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>('summary')
   const [naverData, setNaverData] = useState<NaverPeriodDataResponse | null>(null)
   const [naverLoading, setNaverLoading] = useState(false)
   const [metaData, setMetaData] = useState<MetaPeriodDataResponse | null>(null)
@@ -431,6 +432,16 @@ function DashboardContent() {
                   }`}
                 >
                   네이버 상세
+                </button>
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'reports'
+                      ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  리포트
                 </button>
               </div>
             )}
@@ -1136,6 +1147,11 @@ function DashboardContent() {
                   </Card>
                 )}
               </div>
+            )}
+
+            {/* 리포트 탭 */}
+            {activeTab === 'reports' && showTabs && (
+              <ReportList clientSlug={clientSlug} isAdmin={isAdminView} />
             )}
           </>
         ) : null}

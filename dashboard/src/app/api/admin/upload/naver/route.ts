@@ -14,7 +14,7 @@ import { sendNaverUploadNotification } from '@/lib/telegram'
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
   const adminKey = request.headers.get('x-admin-key')
-  return adminKey === process.env.NEXT_PUBLIC_ADMIN_KEY
+  return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
 }
 
 // 날짜 형식 변환 (2025.11.29. → 2025-11-29)

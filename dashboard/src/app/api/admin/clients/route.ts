@@ -10,7 +10,8 @@ import { TABLES } from '@/lib/supabase'
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
   const adminKey = request.headers.get('x-admin-key')
-  return adminKey === process.env.NEXT_PUBLIC_ADMIN_KEY
+  const serverAdminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
+  return adminKey === serverAdminKey
 }
 
 // 서비스 종료일 계산 (시작일 + 3개월 - 1일)

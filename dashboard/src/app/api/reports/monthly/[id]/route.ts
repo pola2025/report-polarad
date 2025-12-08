@@ -3,6 +3,8 @@
  * GET /api/reports/monthly/[id]
  */
 
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { TABLES } from '@/lib/supabase'
@@ -33,6 +35,7 @@ export async function GET(
           updated_at
         ),
         polarad_clients (
+          id,
           client_name,
           slug
         )
@@ -50,7 +53,7 @@ export async function GET(
 
     // 공개되지 않은 리포트는 관리자만 접근 가능
     const adminKey = request.headers.get('x-admin-key')
-    const isAdmin = adminKey === process.env.NEXT_PUBLIC_ADMIN_KEY
+    const isAdmin = adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
 
     if (report.status !== 'published' && !isAdmin) {
       return NextResponse.json({ error: '접근 권한이 없습니다.' }, { status: 403 })
@@ -63,11 +66,14 @@ export async function GET(
       client: report.polarad_clients || null,
     }
 
+    // 클라이언트 UUID 가져오기 (Meta 데이터 조회용)
+    const clientUuid = report.polarad_clients?.id
+
     // Meta 일별 데이터 조회
     const { data: metaDaily } = await supabase
       .from(TABLES.META_DATA)
       .select('date, impressions, clicks, leads, spend')
-      .eq('client_id', report.client_id)
+      .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
       .order('date', { ascending: true })
@@ -76,7 +82,7 @@ export async function GET(
     const { data: metaCampaigns } = await supabase
       .from(TABLES.META_DATA)
       .select('campaign_name, impressions, clicks, leads, spend')
-      .eq('client_id', report.client_id)
+      .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
 
@@ -115,7 +121,7 @@ export async function GET(
     const { data: naverKeywords } = await supabase
       .from(TABLES.NAVER_DATA)
       .select('keyword, impressions, clicks, total_cost, ctr, avg_cpc, avg_rank')
-      .eq('client_id', report.client_id)
+      .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
 

@@ -12,7 +12,7 @@ import { TABLES } from '@/lib/supabase'
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
   const adminKey = request.headers.get('x-admin-key')
-  return adminKey === process.env.NEXT_PUBLIC_ADMIN_KEY
+  return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
 }
 
 // GET: 키워드 통계 조회
