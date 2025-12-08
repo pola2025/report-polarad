@@ -80,11 +80,10 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
 
   // 리포트 라벨 생성
   const getReportLabel = (report: Report) => {
-    if (report.label) return report.label
     if (report.report_type === 'monthly') {
       return `${report.year}년 ${report.month}월 리포트`
     }
-    return `${report.year}년 ${report.week}주차 리포트`
+    return `${report.year}년 ${report.month}월 ${report.week}주차 리포트`
   }
 
   // 상태 뱃지
@@ -172,7 +171,7 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
           {filteredReports.map((report) => (
             <Link
               key={report.id}
-              href={report.url || `/report/${report.report_type}/${report.id}`}
+              href={`/report/monthly/${report.id}`}
               className="block"
             >
               <Card className="hover:border-[#F5A623] hover:shadow-md transition-all cursor-pointer">
