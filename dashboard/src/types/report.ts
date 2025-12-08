@@ -101,6 +101,12 @@ export interface ReportUpdate {
   summary_data?: ReportSummaryData | null
   ai_insights?: ReportAIInsights | null
   ai_generated_at?: string | null
+  // 기간 필드 업데이트 지원
+  period_start?: string
+  period_end?: string
+  year?: number
+  month?: number | null
+  week?: number | null
 }
 
 // 리포트 코멘트 Row 타입

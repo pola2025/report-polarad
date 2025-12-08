@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { id, status, summary_data, ai_insights } = body
+    const { id, status, summary_data, ai_insights, period_start, period_end, year, month, week } = body
 
     if (!id) {
       return NextResponse.json({ error: 'id는 필수입니다.' }, { status: 400 })
@@ -172,6 +172,12 @@ export async function PATCH(request: NextRequest) {
       updateData.ai_insights = ai_insights
       updateData.ai_generated_at = new Date().toISOString()
     }
+    // 기간 필드 업데이트 지원
+    if (period_start !== undefined) updateData.period_start = period_start
+    if (period_end !== undefined) updateData.period_end = period_end
+    if (year !== undefined) updateData.year = year
+    if (month !== undefined) updateData.month = month
+    if (week !== undefined) updateData.week = week
 
     const { data: report, error } = await supabase
       .from(TABLES.REPORTS)
