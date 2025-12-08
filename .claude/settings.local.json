@@ -34,7 +34,11 @@
       "Bash(git remote add:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(for pid in 26392 44948 44936 45692 39896 44236 46932 54020 54376)",
+      "Bash(do taskkill //F //PID $pid)",
+      "Bash(done)",
+      "Bash(__NEW_LINE__ echo \"Update completed\")"
     ],
     "deny": [],
     "ask": []

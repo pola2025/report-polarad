@@ -73,6 +73,7 @@ interface Client {
 function DashboardContent() {
   const searchParams = useSearchParams()
   const clientSlugFromUrl = searchParams.get('client')
+  const tabFromUrl = searchParams.get('tab')
 
   // 관리자 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -90,7 +91,9 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
-  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>(
+    tabFromUrl === 'reports' ? 'reports' : 'summary'
+  )
   const [naverData, setNaverData] = useState<NaverPeriodDataResponse | null>(null)
   const [naverLoading, setNaverLoading] = useState(false)
   const [metaData, setMetaData] = useState<MetaPeriodDataResponse | null>(null)

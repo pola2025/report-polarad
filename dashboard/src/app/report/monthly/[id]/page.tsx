@@ -10,6 +10,10 @@ import {
   AIInsightsSection,
   AdminCommentSection,
   DailyPerformanceSection,
+  DailyTrendChart,
+  WeekdayHeatmap,
+  ChannelComparisonSection,
+  DateHeatmap,
 } from '@/components/report'
 import { Card } from '@/components/ui/card'
 import type { MonthlyReportData, ReportComment } from '@/types/report'
@@ -106,14 +110,10 @@ export default function MonthlyReportPage() {
 
   const { report, meta, naver } = data
 
-  // USD → KRW 환율 ($1 = ₩1,500)
-  const USD_TO_KRW = 1500
-
-  // KPI 데이터 계산 (Meta spend는 USD이므로 KRW로 변환)
+  // KPI 데이터 계산 (API에서 이미 KRW로 변환됨)
   const totalImpressions = meta.daily.reduce((sum, d) => sum + d.impressions, 0)
   const totalClicks = meta.daily.reduce((sum, d) => sum + d.clicks, 0)
-  const totalSpendUSD = meta.daily.reduce((sum, d) => sum + d.spend, 0)
-  const totalSpend = totalSpendUSD * USD_TO_KRW  // KRW로 변환
+  const totalSpend = meta.daily.reduce((sum, d) => sum + d.spend, 0) // 이미 KRW
   const totalLeads = meta.daily.reduce((sum, d) => sum + d.leads, 0)
   const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0
@@ -127,6 +127,8 @@ export default function MonthlyReportPage() {
     cpc: avgCpc,
     leads: totalLeads,
     cpl: avgCpl,
+    videoViews: meta.videoViews || 0,
+    avgWatchTime: meta.avgWatchTime || 0,
     budgetUsage: 92,
     prevPeriod: report.summary_data?.meta?.prevPeriod,
   }
@@ -174,9 +176,33 @@ export default function MonthlyReportPage() {
         {/* KPI 섹션 */}
         <KPISection data={kpiData} />
 
+        {/* 채널별 성과 비교 - 월간 리포트에서만 표시 */}
+        {report.report_type === 'monthly' && (meta.campaigns.length > 0 || naver.keywords.length > 0) && (
+          <ChannelComparisonSection
+            metaCampaigns={meta.campaigns}
+            naverKeywords={naver.keywords}
+            usdToKrw={1}
+          />
+        )}
+
+        {/* 일별 추이 차트 - 월간 리포트에서만 표시 */}
+        {report.report_type === 'monthly' && meta.daily.length > 0 && (
+          <DailyTrendChart daily={meta.daily} usdToKrw={1} />
+        )}
+
+        {/* 요일별 성과 히트맵 - 월간 리포트에서만 표시 */}
+        {report.report_type === 'monthly' && meta.daily.length > 0 && (
+          <WeekdayHeatmap daily={meta.daily} usdToKrw={1} />
+        )}
+
+        {/* 날짜별 성과 패턴 - 월간 리포트에서만 표시 */}
+        {report.report_type === 'monthly' && meta.daily.length > 0 && (
+          <DateHeatmap daily={meta.daily} usdToKrw={1} />
+        )}
+
         {/* 일별 성과 추이 섹션 - 주간 리포트에서만 표시 */}
         {report.report_type === 'weekly' && meta.daily.length > 0 && (
-          <DailyPerformanceSection daily={meta.daily} usdToKrw={USD_TO_KRW} />
+          <DailyPerformanceSection daily={meta.daily} usdToKrw={1} />
         )}
 
         {/* Meta 캠페인 섹션 */}
@@ -190,7 +216,47 @@ export default function MonthlyReportPage() {
         )}
 
         {/* AI 인사이트 섹션 */}
-        <AIInsightsSection insights={report.ai_insights} />
+        <AIInsightsSection
+          insights={report.ai_insights}
+          isAdmin={isAdmin}
+          analysisData={{
+            reportType: report.report_type,
+            period: {
+              start: report.period_start,
+              end: report.period_end,
+              year: report.year,
+              month: report.month ?? undefined,
+              week: report.week ?? undefined,
+            },
+            meta: {
+              impressions: totalImpressions,
+              clicks: totalClicks,
+              leads: totalLeads,
+              spend: totalSpend, // 이미 KRW
+              ctr: avgCtr,
+              cpc: avgCpc,
+              cpl: avgCpl,
+              videoViews: meta.videoViews,
+              avgWatchTime: meta.avgWatchTime,
+              campaigns: meta.campaigns,
+              daily: meta.daily,
+            },
+            naver: {
+              impressions: naver.keywords.reduce((sum, k) => sum + k.impressions, 0),
+              clicks: naver.keywords.reduce((sum, k) => sum + k.clicks, 0),
+              spend: naver.keywords.reduce((sum, k) => sum + k.totalCost, 0),
+              ctr: naver.keywords.length > 0
+                ? naver.keywords.reduce((sum, k) => sum + k.ctr, 0) / naver.keywords.length
+                : 0,
+              avgCpc: naver.keywords.length > 0
+                ? naver.keywords.reduce((sum, k) => sum + k.avgCpc, 0) / naver.keywords.length
+                : 0,
+              keywords: naver.keywords,
+            },
+            clientName: report.client?.client_name,
+            metricType: meta.videoViews && meta.videoViews > 0 ? 'video' : 'lead',
+          }}
+        />
 
         {/* 관리자 코멘트 섹션 - 월간 리포트에서만 표시 */}
         {report.report_type !== 'weekly' && (

@@ -39,7 +39,6 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
               <th className="py-3 px-3 text-right font-semibold text-gray-600">노출</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600">클릭</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600">CTR</th>
-              <th className="py-3 px-3 text-right font-semibold text-gray-600">리드</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600">지출</th>
             </tr>
           </thead>
@@ -57,7 +56,6 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
                 <td className={`py-3 px-3 text-right ${campaign.ctr > 2 ? 'text-green-600' : campaign.ctr < 1.5 ? 'text-red-600' : ''}`}>
                   {formatPercent(campaign.ctr)}
                 </td>
-                <td className="py-3 px-3 text-right">{formatNumber(campaign.leads)}</td>
                 <td className="py-3 px-3 text-right">{formatCurrency(campaign.spend, 'KRW')}</td>
               </tr>
             ))}

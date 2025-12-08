@@ -12,6 +12,8 @@ interface KPIData {
   cpc: number
   leads: number
   cpl: number
+  videoViews?: number
+  avgWatchTime?: number
   budgetUsage?: number
   prevPeriod?: {
     impressions: number
@@ -43,6 +45,16 @@ function TrendBadge({ current, previous, invert = false }: { current: number, pr
   )
 }
 
+// 시간 포맷 (초 -> "Xm Ys" 또는 "Xs")
+function formatTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}초`
+  }
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.round(seconds % 60)
+  return secs > 0 ? `${mins}분 ${secs}초` : `${mins}분`
+}
+
 function KPICard({
   title,
   value,
@@ -55,7 +67,7 @@ function KPICard({
   title: string
   value: number
   previousValue?: number
-  format?: 'number' | 'currency' | 'percent'
+  format?: 'number' | 'currency' | 'percent' | 'time'
   invert?: boolean
   showProgress?: boolean
   progressValue?: number
@@ -64,6 +76,8 @@ function KPICard({
     ? formatCurrency(value, 'KRW')
     : format === 'percent'
     ? formatPercent(value)
+    : format === 'time'
+    ? formatTime(value)
     : formatNumber(value)
 
   return (
@@ -134,15 +148,13 @@ export function KPISection({ data }: KPISectionProps) {
           invert
         />
         <KPICard
-          title="리드수"
-          value={data.leads}
-          previousValue={data.prevPeriod?.leads}
+          title="영상 조회수"
+          value={data.videoViews || 0}
         />
         <KPICard
           title="평균 시청시간"
-          value={data.cpl}
-          format="currency"
-          invert
+          value={data.avgWatchTime || 0}
+          format="time"
         />
         <KPICard
           title="예산 소진율"

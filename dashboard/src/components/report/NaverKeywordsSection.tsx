@@ -32,26 +32,34 @@ export function NaverKeywordsSection({ keywords }: NaverKeywordsSectionProps) {
 
       {/* 키워드별 비용 바 차트 */}
       <div className="space-y-3 mb-6">
-        {top5.map((keyword) => {
+        {top5.map((keyword, index) => {
           const percentage = totalCost > 0 ? (keyword.totalCost / totalCost) * 100 : 0
+          const barWidth = Math.max(percentage, 8) // 최소 8%로 텍스트 표시 공간 확보
           return (
             <div key={keyword.keyword} className="flex items-center gap-4">
-              <div className="w-24 text-sm font-medium text-gray-700 truncate" title={keyword.keyword}>
+              <div className="w-28 text-sm font-medium text-gray-700 truncate" title={keyword.keyword}>
+                <span className="text-gray-400 mr-1">{index + 1}.</span>
                 {keyword.keyword}
               </div>
-              <div className="flex-1 flex items-center gap-3">
-                <div className="flex-1 bg-gray-100 rounded-full h-8 overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.max(percentage, 5)}%`,
-                      background: 'linear-gradient(90deg, #03C75A 0%, #00a549 100%)'
-                    }}
-                  />
+              <div className="flex-1 bg-gray-100 rounded-lg h-10 overflow-hidden relative">
+                <div
+                  className="h-full rounded-lg flex items-center justify-end px-3"
+                  style={{
+                    width: `${barWidth}%`,
+                    background: 'linear-gradient(90deg, #03C75A 0%, #00a549 100%)'
+                  }}
+                >
+                  {percentage >= 15 && (
+                    <span className="text-sm font-semibold text-white whitespace-nowrap">
+                      {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
+                    </span>
+                  )}
                 </div>
-                <span className="text-sm font-medium text-gray-700 whitespace-nowrap min-w-[120px] text-right">
-                  {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
-                </span>
+                {percentage < 15 && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-700 whitespace-nowrap">
+                    {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
+                  </span>
+                )}
               </div>
             </div>
           )
@@ -106,7 +114,8 @@ export function NaverKeywordsSection({ keywords }: NaverKeywordsSectionProps) {
           )}
         </ul>
         <p className="text-xs text-gray-500 mt-3 italic">
-          * 네이버 플레이스광고는 위치 기반 자동 키워드 배정으로, 제외 키워드 설정만 가능합니다.
+          * 네이버 플레이스광고는 위치 기반 자동 키워드 배정으로, 제외 키워드 설정만 가능합니다.<br />
+          * 네이버 키워드 데이터는 월 마감 후 익월에 업데이트됩니다.
         </p>
       </div>
     </Card>
