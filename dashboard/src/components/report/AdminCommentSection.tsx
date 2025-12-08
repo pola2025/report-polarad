@@ -26,7 +26,7 @@ export function AdminCommentSection({
 
     setIsSaving(true)
     try {
-      const adminKey = localStorage.getItem('adminKey') || ''
+      const adminKey = localStorage.getItem('polarad_admin_key') || ''
       const method = comment ? 'PUT' : 'POST'
       const url = comment
         ? `/api/reports/comment/${comment.id}`

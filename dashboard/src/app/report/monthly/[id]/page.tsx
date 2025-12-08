@@ -24,7 +24,7 @@ export default function MonthlyReportPage() {
 
   useEffect(() => {
     // 관리자 모드 확인
-    const adminKey = localStorage.getItem('adminKey')
+    const adminKey = localStorage.getItem('polarad_admin_key')
     setIsAdmin(!!adminKey)
 
     // 리포트 데이터 로드
