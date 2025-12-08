@@ -1,5 +1,16 @@
 # Polarad Meta 프로젝트
 
+## ⛔ 24년 데이터 절대 금지 (CRITICAL)
+
+**이 프로젝트의 모든 데이터는 2025년 이상이어야 합니다.**
+
+- 2024년 날짜 사용 금지
+- period_start, period_end, year 필드는 반드시 2025년 이상
+- 리포트 생성, 데이터 백필 시 연도 확인 필수
+- 2024년 데이터 발견 시 즉시 2025년으로 수정
+
+---
+
 ## 주의사항
 
 ### Vercel 프로덕션
@@ -49,24 +60,25 @@
 
 ## 다음 세션 작업 목록
 
-### 1. [버그] 리포트 API 수정 (최우선)
-- **파일**: `dashboard/src/app/api/reports/monthly/[id]/route.ts`
-- **70행**: `const clientUuid = report.polarad_clients?.id` 확인
-- Meta/네이버 데이터 조회 시 UUID 사용 필요
+### 1. [긴급] 프로덕션 API 캐시 문제 해결
+- **문제**: 프로덕션 API가 2024년 데이터를 계속 반환
+- **원인**: Vercel Edge 캐시 또는 CDN 캐시
+- **해결 시도**:
+  - DB는 이미 2025년으로 수정 완료
+  - 로컬 API는 정상 (2025년 반환)
+  - `Cache-Control: no-store` 헤더 추가함 (배포 필요)
+- **확인 방법**: `curl https://report.polarad.co.kr/api/reports/monthly/1a7a5ff2-a5eb-40f3-9d10-7831bdf4de70`
+- 배포 후 period_start가 2025-11-01이어야 정상
 
-### 2. 주간 리포트 담당자 코멘트 섹션 제거
-- **파일**: `dashboard/src/app/report/monthly/[id]/page.tsx`
-- 183~189행: `report.report_type === 'weekly'`일 때 `AdminCommentSection` 숨김
+### 2. 모바일 최적화 수정
+- **파일**: `dashboard/src/components/report/KPISection.tsx`
+- KPI 그리드: 이미 `grid-cols-2 md:grid-cols-4`로 되어 있음
+- 모바일(390px)에서 4열로 표시되는 문제 확인 필요
 
-### 3. 네이버 키워드 그래프 가독성 개선
-- **파일**: `dashboard/src/components/report/NaverKeywordsSection.tsx`
-- 바 높이 h-6 → h-8 이상으로
-- 값 표시를 바 바깥에 배치
-
-### 4. AI 인사이트 생성 (실제 분석 내용)
-- 현재 "월말 성과 마무리", "12월 준비" 같은 빈말임
-- 필요: 10월 월간, 11월 월간, 11월 주간 (1~4주차)
-- DB 업데이트 필요 (`polarad_reports.ai_insights`)
+### 3. 대시보드 KPI 카드 모바일 반응형
+- **파일**: `dashboard/src/app/page.tsx` (463행)
+- 현재: `grid-cols-1 md:grid-cols-2 lg:grid-cols-5`
+- 모바일에서 확인 필요
 
 ---
 
