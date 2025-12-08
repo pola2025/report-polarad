@@ -176,36 +176,36 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
             >
               <Card className="hover:border-[#F5A623] hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
                         report.report_type === 'monthly'
                           ? 'bg-blue-100 text-blue-600'
                           : 'bg-purple-100 text-purple-600'
                       }`}>
                         <FileText className="h-5 w-5" />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-gray-900 text-sm md:text-base">
                           {getReportLabel(report)}
                         </h3>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                          <span className={`px-2 py-0.5 rounded text-xs ${
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1 text-xs md:text-sm text-gray-500">
+                          <span className={`px-2 py-0.5 rounded whitespace-nowrap ${
                             report.report_type === 'monthly'
                               ? 'bg-blue-50 text-blue-600'
                               : 'bg-purple-50 text-purple-600'
                           }`}>
                             {report.report_type === 'monthly' ? '월간' : '주간'}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
+                          <span className="flex items-center gap-1 whitespace-nowrap">
+                            <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
                             {report.period_start} ~ {report.period_end}
                           </span>
                           {getStatusBadge(report.status)}
                         </div>
                       </div>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                    <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>

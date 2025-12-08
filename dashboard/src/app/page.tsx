@@ -30,8 +30,8 @@ interface DashboardData {
     previousAvgCPL: number
   }
   meta: {
-    current: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number }
-    previous: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number }
+    current: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number }
+    previous: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number }
   }
   exchange_rate?: number
   naver: {
@@ -347,8 +347,52 @@ function DashboardContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-[#F5A623] border-b border-[#E09000]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4">
+          {/* 모바일: 2줄 레이아웃 */}
+          <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/images/logo.png"
+                  alt="Polarad"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                />
+                <div>
+                  <h1 className="text-lg font-bold text-white whitespace-nowrap">Polarad Report</h1>
+                  <p className="text-xs text-white/80 whitespace-nowrap">폴라애드 공식 광고 성과 리포트</p>
+                </div>
+              </div>
+              <div className="text-xs font-medium text-white bg-white/20 px-2 py-1 rounded-full whitespace-nowrap">
+                {clientInfo?.name || clientSlug}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              {isAdminView && (
+                <button
+                  onClick={() => {
+                    setSelectedClientSlug('')
+                    setData(null)
+                    setActiveTab('summary')
+                  }}
+                  className="text-xs text-white/80 hover:text-white underline whitespace-nowrap"
+                >
+                  클라이언트 변경
+                </button>
+              )}
+              <div className={isAdminView ? '' : 'ml-auto'}>
+                <DateRangePicker
+                  startDate={dateRange.start}
+                  endDate={dateRange.end}
+                  onDateChange={(start, end) => setDateRange({ start, end })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 데스크톱: 1줄 레이아웃 */}
+          <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Image
                 src="/images/logo.png"
@@ -363,7 +407,6 @@ function DashboardContent() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* 관리자: 클라이언트 변경 버튼 */}
               {isAdminView && (
                 <button
                   onClick={() => {
@@ -376,7 +419,6 @@ function DashboardContent() {
                   클라이언트 변경
                 </button>
               )}
-              {/* 날짜 범위 선택 */}
               <DateRangePicker
                 startDate={dateRange.start}
                 endDate={dateRange.end}
@@ -405,10 +447,10 @@ function DashboardContent() {
           <>
             {/* 탭 네비게이션 */}
             {showTabs && (
-              <div className="flex gap-1 border-b border-gray-200 mb-6">
+              <div className="grid grid-cols-4 gap-1 border-b border-gray-200 mb-6">
                 <button
                   onClick={() => setActiveTab('summary')}
-                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'summary'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -418,7 +460,7 @@ function DashboardContent() {
                 </button>
                 <button
                   onClick={() => setActiveTab('meta')}
-                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'meta'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -428,7 +470,7 @@ function DashboardContent() {
                 </button>
                 <button
                   onClick={() => setActiveTab('naver')}
-                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'naver'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -438,7 +480,7 @@ function DashboardContent() {
                 </button>
                 <button
                   onClick={() => setActiveTab('reports')}
-                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'reports'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -460,7 +502,44 @@ function DashboardContent() {
                   {data.period.start} ~ {data.period.end}
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+
+              {/* 모바일: 총 지출액 상단 + 2x2 그리드 */}
+              <div className="md:hidden space-y-3">
+                {/* 총 지출액 - 전체 너비 */}
+                <KPICard
+                  title="총 지출액"
+                  value={data.kpi.totalSpend}
+                  previousValue={data.kpi.previousTotalSpend}
+                  format="currencyKRW"
+                />
+                {/* 나머지 4개 - 2x2 그리드 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <KPICard
+                    title="총 노출수"
+                    value={data.kpi.totalImpressions}
+                    previousValue={data.kpi.previousTotalImpressions}
+                  />
+                  <KPICard
+                    title="총 클릭수"
+                    value={data.kpi.totalClicks}
+                    previousValue={data.kpi.previousTotalClicks}
+                  />
+                  <KPICard
+                    title="Meta 클릭수"
+                    value={data.meta.current.clicks}
+                    previousValue={data.meta.previous.clicks}
+                  />
+                  <KPICard
+                    title="평균 CPC"
+                    value={data.meta.current.clicks > 0 ? data.meta.current.spend / data.meta.current.clicks : 0}
+                    previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
+                    format="currency"
+                  />
+                </div>
+              </div>
+
+              {/* 데스크톱: 기존 5열 그리드 */}
+              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <KPICard
                   title="총 노출수"
                   value={data.kpi.totalImpressions}
@@ -490,7 +569,7 @@ function DashboardContent() {
                 />
               </div>
 
-              {/* 광고비 요약 테이블 */}
+              {/* 광고비 요약 - 모바일: 카드, 데스크톱: 테이블 */}
               <div className="mt-6">
                 <Card>
                   <CardHeader>
@@ -500,7 +579,131 @@ function DashboardContent() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="overflow-x-auto">
+                    {/* 모바일 카드 뷰 */}
+                    <div className="md:hidden space-y-4">
+                      {/* Meta */}
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                          <span className="font-semibold text-blue-700">Meta</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">노출수</span>
+                            <p className="font-medium">{data.meta.current.impressions.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">클릭수</span>
+                            <p className="font-medium">{data.meta.current.clicks.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CTR</span>
+                            <p className="font-medium">
+                              {data.meta.current.impressions > 0
+                                ? ((data.meta.current.clicks / data.meta.current.impressions) * 100).toFixed(2)
+                                : 0}%
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CPC</span>
+                            <p className="font-medium">
+                              {data.meta.current.clicks > 0
+                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks).toLocaleString()
+                                : 0}원
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <span className="text-gray-500 text-sm">광고비</span>
+                          <p className="font-bold text-blue-600 text-lg">
+                            {(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))).toLocaleString()}원
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 네이버 */}
+                      <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                          <span className="font-semibold text-green-700">네이버</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">노출수</span>
+                            <p className="font-medium">{data.naver.current.impressions.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">클릭수</span>
+                            <p className="font-medium">{data.naver.current.clicks.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CTR</span>
+                            <p className="font-medium">
+                              {data.naver.current.impressions > 0
+                                ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                                : 0}%
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CPC</span>
+                            <p className="font-medium">
+                              {data.naver.current.clicks > 0
+                                ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                                : 0}원
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-green-200">
+                          <span className="text-gray-500 text-sm">광고비</span>
+                          <p className="font-bold text-green-600 text-lg">
+                            {data.naver.current.spend.toLocaleString()}원
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 합계 */}
+                      <div className="bg-[#FFF8E7] rounded-lg p-4 border border-[#F5A623]/30">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-3 h-3 rounded-full bg-[#F5A623]"></div>
+                          <span className="font-semibold text-[#D48C00]">합계</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">노출수</span>
+                            <p className="font-medium">{(data.meta.current.impressions + data.naver.current.impressions).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">클릭수</span>
+                            <p className="font-medium">{(data.meta.current.clicks + data.naver.current.clicks).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CTR</span>
+                            <p className="font-medium">
+                              {(data.meta.current.impressions + data.naver.current.impressions) > 0
+                                ? (((data.meta.current.clicks + data.naver.current.clicks) / (data.meta.current.impressions + data.naver.current.impressions)) * 100).toFixed(2)
+                                : 0}%
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">CPC</span>
+                            <p className="font-medium">
+                              {(data.meta.current.clicks + data.naver.current.clicks) > 0
+                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + data.naver.current.spend) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
+                                : 0}원
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-[#F5A623]/30">
+                          <span className="text-gray-500 text-sm">총 광고비</span>
+                          <p className="font-bold text-[#D48C00] text-xl">
+                            {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + data.naver.current.spend).toLocaleString()}원
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 데스크톱 테이블 뷰 */}
+                    <div className="hidden md:block">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
@@ -880,9 +1083,13 @@ function DashboardContent() {
                         <Card>
                           <CardContent className="pt-6">
                             <div className="text-2xl font-bold text-teal-600">
-                              {data.meta.current.leads?.toLocaleString() || 0}
+                              {clientInfo?.metaMetricType === 'video'
+                                ? (data.meta.current.video_views?.toLocaleString() || 0)
+                                : (data.meta.current.leads?.toLocaleString() || 0)}
                             </div>
-                            <div className="text-sm text-gray-500">리드/영상조회</div>
+                            <div className="text-sm text-gray-500">
+                              {clientInfo?.metaMetricType === 'video' ? '영상조회' : '리드'}
+                            </div>
                           </CardContent>
                         </Card>
                         <Card>
@@ -1002,110 +1209,79 @@ function DashboardContent() {
                       </div>
                     </div>
 
-                    {/* 선택 기간 KPI */}
+                    {/* 선택 기간 KPI - 모바일: 2x4, 데스크톱: 4열 */}
                     <div>
                       <h3 className="text-sm font-medium text-green-600 mb-3 flex items-center gap-2">
                         <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
                         선택 기간 ({data.period.start} ~ {data.period.end})
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                         <Card className="border-blue-200">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-2xl font-bold text-blue-600">
-                                  {data.naver.current.impressions.toLocaleString()}
-                                </div>
-                                <div className="text-sm text-gray-500">노출수</div>
-                              </div>
-                              <div className="p-3 rounded-lg bg-blue-100">
-                                <BarChart3 className="h-6 w-6 text-blue-600" />
-                              </div>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-blue-600">
+                              {data.naver.current.impressions.toLocaleString()}
                             </div>
+                            <div className="text-xs md:text-sm text-gray-500">노출수</div>
                           </CardContent>
                         </Card>
                         <Card className="border-green-200">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-2xl font-bold text-green-600">
-                                  {data.naver.current.clicks.toLocaleString()}
-                                </div>
-                                <div className="text-sm text-gray-500">클릭수</div>
-                              </div>
-                              <div className="p-3 rounded-lg bg-green-100">
-                                <BarChart3 className="h-6 w-6 text-green-600" />
-                              </div>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-green-600">
+                              {data.naver.current.clicks.toLocaleString()}
                             </div>
+                            <div className="text-xs md:text-sm text-gray-500">클릭수</div>
                           </CardContent>
                         </Card>
                         <Card className="border-purple-200">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-2xl font-bold text-purple-600">
-                                  {data.naver.current.spend.toLocaleString()}원
-                                </div>
-                                <div className="text-sm text-gray-500">비용</div>
-                              </div>
-                              <div className="p-3 rounded-lg bg-purple-100">
-                                <BarChart3 className="h-6 w-6 text-purple-600" />
-                              </div>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-purple-600">
+                              {data.naver.current.spend.toLocaleString()}원
                             </div>
+                            <div className="text-xs md:text-sm text-gray-500">비용</div>
                           </CardContent>
                         </Card>
                         <Card className="border-orange-200">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-2xl font-bold text-orange-600">
-                                  {data.naver.current.impressions > 0
-                                    ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
-                                    : '0.00'}%
-                                </div>
-                                <div className="text-sm text-gray-500">CTR</div>
-                              </div>
-                              <div className="p-3 rounded-lg bg-orange-100">
-                                <BarChart3 className="h-6 w-6 text-orange-600" />
-                              </div>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-orange-600">
+                              {data.naver.current.impressions > 0
+                                ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                                : '0.00'}%
                             </div>
+                            <div className="text-xs md:text-sm text-gray-500">CTR</div>
                           </CardContent>
                         </Card>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold text-indigo-600">
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-indigo-600">
                               {data.naver.current.clicks > 0
                                 ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
                                 : 0}원
                             </div>
-                            <div className="text-sm text-gray-500">CPC</div>
+                            <div className="text-xs md:text-sm text-gray-500">CPC</div>
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold text-teal-600">
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-teal-600">
                               {naverData.summary.avg_rank.toFixed(1)}
                             </div>
-                            <div className="text-sm text-gray-500">평균 순위</div>
+                            <div className="text-xs md:text-sm text-gray-500">평균 순위</div>
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold text-pink-600">
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-pink-600">
                               {naverData.summary.unique_keywords}개
                             </div>
-                            <div className="text-sm text-gray-500">고유 키워드</div>
+                            <div className="text-xs md:text-sm text-gray-500">고유 키워드</div>
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold text-gray-600">
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-gray-600">
                               {data.dailyTrend.filter(d => d.naver_impressions > 0).length}일
                             </div>
-                            <div className="text-sm text-gray-500">데이터 일수</div>
+                            <div className="text-xs md:text-sm text-gray-500">데이터 일수</div>
                           </CardContent>
                         </Card>
                       </div>
@@ -1139,6 +1315,7 @@ function DashboardContent() {
                     <NaverKeywordTable
                       keywords={naverData.keywords}
                       loading={false}
+                      dateRange={naverData.summary?.date_range}
                     />
                   </>
                 ) : (

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useRef } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
 import {
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   TrendingUp,
   TrendingDown,
   Calendar,
@@ -30,6 +31,62 @@ interface MetaPeriodTableProps {
   summary?: MetaKPISummary
 }
 
+// 모바일 카드 컴포넌트
+interface MobileCardProps {
+  period: string
+  subPeriod?: string
+  impressions: number
+  clicks: number
+  ctr: number
+  spend: number
+  metric: number
+  metricLabel: string
+  metricValue: string
+  change?: number
+  isHighlighted?: boolean
+}
+
+function MobileDataCard({ period, subPeriod, impressions, clicks, ctr, spend, metricLabel, metricValue, change, isHighlighted }: MobileCardProps) {
+  return (
+    <div className={`flex-shrink-0 w-[85%] snap-center ${isHighlighted ? 'bg-[#FFF7E6] border-[#F5A623]' : 'bg-white border-gray-200'} border rounded-xl p-4 shadow-sm`}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className={`font-semibold ${isHighlighted ? 'text-[#F5A623]' : 'text-gray-900'}`}>{period}</p>
+          {subPeriod && <p className="text-xs text-gray-500">{subPeriod}</p>}
+        </div>
+        {change !== undefined && change !== 0 && (
+          <div className={`flex items-center text-xs px-2 py-1 rounded-full ${change > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {change > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+            {Math.abs(change).toFixed(1)}%
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-gray-500 text-xs">노출수</p>
+          <p className="font-medium">{formatNumber(impressions)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 text-xs">클릭수</p>
+          <p className="font-medium">{formatNumber(clicks)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 text-xs">CTR</p>
+          <p className="font-medium">{ctr.toFixed(2)}%</p>
+        </div>
+        <div>
+          <p className="text-gray-500 text-xs">{metricLabel}</p>
+          <p className="font-medium">{metricValue}</p>
+        </div>
+      </div>
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <p className="text-gray-500 text-xs">지출</p>
+        <p className={`text-lg font-bold ${isHighlighted ? 'text-[#F5A623]' : 'text-blue-600'}`}>{formatNumber(spend)}원</p>
+      </div>
+    </div>
+  )
+}
+
 export function MetaPeriodTable({
   daily,
   weekly,
@@ -41,6 +98,8 @@ export function MetaPeriodTable({
   const [viewMode, setViewMode] = useState<ViewMode>('monthly')
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+  const [mobileCardIndex, setMobileCardIndex] = useState(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const toggleMonth = (month: string) => {
     const newExpanded = new Set(expandedMonths)
@@ -87,33 +146,132 @@ export function MetaPeriodTable({
     )
   }
 
+  // 모바일용 데이터 준비
+  const getMobileCards = () => {
+    const cards: Array<{
+      period: string
+      subPeriod?: string
+      impressions: number
+      clicks: number
+      ctr: number
+      spend: number
+      metricLabel: string
+      metricValue: string
+      change?: number
+      isHighlighted?: boolean
+    }> = []
+
+    if (viewMode === 'monthly') {
+      monthly.forEach(m => {
+        cards.push({
+          period: m.month_label,
+          impressions: m.impressions,
+          clicks: m.clicks,
+          ctr: m.ctr,
+          spend: m.spend_krw,
+          metricLabel: metricType === 'video' ? '영상조회' : '리드',
+          metricValue: metricType === 'video' ? formatNumber(m.video_views || 0) : formatNumber(m.leads),
+          change: m.spend_change,
+        })
+      })
+    } else if (viewMode === 'weekly') {
+      weekly.forEach(w => {
+        cards.push({
+          period: w.week_label,
+          subPeriod: `${w.week_start} ~ ${w.week_end}`,
+          impressions: w.impressions,
+          clicks: w.clicks,
+          ctr: w.ctr,
+          spend: w.spend_krw,
+          metricLabel: metricType === 'video' ? '영상조회' : '리드',
+          metricValue: metricType === 'video' ? formatNumber(w.video_views || 0) : formatNumber(w.leads),
+          change: w.spend_change,
+        })
+      })
+    } else {
+      daily.forEach(d => {
+        cards.push({
+          period: d.date,
+          impressions: d.impressions,
+          clicks: d.clicks,
+          ctr: d.ctr,
+          spend: d.spend_krw,
+          metricLabel: metricType === 'video' ? '영상조회' : '리드',
+          metricValue: metricType === 'video' ? formatNumber(d.video_views || 0) : formatNumber(d.leads),
+        })
+      })
+    }
+
+    // 합계 카드 추가
+    if (summary && cards.length > 0) {
+      cards.unshift({
+        period: '전체 합계',
+        subPeriod: `${summary.date_range.start} ~ ${summary.date_range.end}`,
+        impressions: summary.total_impressions,
+        clicks: summary.total_clicks,
+        ctr: summary.avg_ctr,
+        spend: summary.total_spend_krw,
+        metricLabel: metricType === 'video' ? '영상조회' : '리드',
+        metricValue: metricType === 'video' ? formatNumber(summary.total_video_views) : formatNumber(summary.total_leads),
+        isHighlighted: true,
+      })
+    }
+
+    return cards
+  }
+
+  const mobileCards = getMobileCards()
+
+  // 스크롤 핸들러
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      const cardWidth = container.scrollWidth / mobileCards.length
+      const newIndex = Math.round(container.scrollLeft / cardWidth)
+      setMobileCardIndex(newIndex)
+    }
+  }
+
+  // 네비게이션 버튼 핸들러
+  const scrollToCard = (index: number) => {
+    if (scrollContainerRef.current && mobileCards.length > 0) {
+      const container = scrollContainerRef.current
+      const cardWidth = container.scrollWidth / mobileCards.length
+      container.scrollTo({ left: cardWidth * index, behavior: 'smooth' })
+      setMobileCardIndex(index)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            기간별 Meta 광고 성과
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg whitespace-nowrap">
+            <BarChart3 className="h-5 w-5 flex-shrink-0" />
+            <span>기간별 Meta 광고 성과</span>
           </CardTitle>
           <div className="flex gap-1">
             <Button
               variant={viewMode === 'monthly' ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => setViewMode('monthly')}
+              onClick={() => { setViewMode('monthly'); setMobileCardIndex(0) }}
+              className="text-xs md:text-sm px-2 md:px-3"
             >
               월별
             </Button>
             <Button
               variant={viewMode === 'weekly' ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => setViewMode('weekly')}
+              onClick={() => { setViewMode('weekly'); setMobileCardIndex(0) }}
+              className="text-xs md:text-sm px-2 md:px-3"
             >
               주별
             </Button>
             <Button
               variant={viewMode === 'daily' ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => setViewMode('daily')}
+              onClick={() => { setViewMode('daily'); setMobileCardIndex(0) }}
+              className="text-xs md:text-sm px-2 md:px-3"
             >
               일별
             </Button>
@@ -121,7 +279,82 @@ export function MetaPeriodTable({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        {/* 모바일: 스와이프 카드 캐러셀 */}
+        <div className="md:hidden">
+          {mobileCards.length > 0 ? (
+            <>
+              {/* 캐러셀 컨테이너 */}
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-2 px-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {mobileCards.map((card, index) => (
+                  <MobileDataCard
+                    key={index}
+                    period={card.period}
+                    subPeriod={card.subPeriod}
+                    impressions={card.impressions}
+                    clicks={card.clicks}
+                    ctr={card.ctr}
+                    spend={card.spend}
+                    metric={0}
+                    metricLabel={card.metricLabel}
+                    metricValue={card.metricValue}
+                    change={card.change}
+                    isHighlighted={card.isHighlighted}
+                  />
+                ))}
+              </div>
+
+              {/* 네비게이션 컨트롤 */}
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <button
+                  onClick={() => scrollToCard(Math.max(0, mobileCardIndex - 1))}
+                  disabled={mobileCardIndex === 0}
+                  className="p-1 rounded-full bg-gray-100 disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                </button>
+
+                {/* 도트 인디케이터 */}
+                <div className="flex gap-1.5">
+                  {mobileCards.slice(0, Math.min(mobileCards.length, 10)).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => scrollToCard(index)}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        index === mobileCardIndex ? 'bg-[#F5A623]' : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                  {mobileCards.length > 10 && (
+                    <span className="text-xs text-gray-400 ml-1">+{mobileCards.length - 10}</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => scrollToCard(Math.min(mobileCards.length - 1, mobileCardIndex + 1))}
+                  disabled={mobileCardIndex === mobileCards.length - 1}
+                  className="p-1 rounded-full bg-gray-100 disabled:opacity-30"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+
+              {/* 카드 카운터 */}
+              <p className="text-center text-xs text-gray-400 mt-2">
+                {mobileCardIndex + 1} / {mobileCards.length}
+              </p>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">데이터가 없습니다.</div>
+          )}
+        </div>
+
+        {/* 데스크톱: 기존 테이블 */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>

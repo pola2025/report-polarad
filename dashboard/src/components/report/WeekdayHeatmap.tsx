@@ -107,18 +107,25 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
   }
 
   return (
-    <Card className="p-6 mb-6">
-      <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-4">
-        <span>🗓️</span>
-        <span>요일별 성과 패턴</span>
+    <Card className="p-4 md:p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-800">
+          <span>🗓️</span>
+          <span>요일별 성과 패턴</span>
+        </div>
+        <span className="text-xs text-gray-400 md:hidden">← 스와이프 →</span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* 터치 스와이프 가능한 가로 스크롤 */}
+      <div
+        className="overflow-x-auto -mx-4 px-4"
+        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <table className="w-full min-w-[500px]">
           <thead>
             {/* 계층 헤더: 평일 / 주말 */}
             <tr>
-              <th className="py-1 px-3 w-20"></th>
+              <th className="py-1 px-2 md:px-3 w-14 md:w-20"></th>
               <th colSpan={5} className="py-1 px-2 text-center text-xs font-medium text-gray-500 bg-blue-50 border-b border-blue-100">
                 평일
               </th>
@@ -128,11 +135,11 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
             </tr>
             {/* 요일 헤더 */}
             <tr>
-              <th className="py-2 px-3 text-left text-sm font-medium text-gray-600 w-20"></th>
+              <th className="py-2 px-2 md:px-3 text-left text-xs md:text-sm font-medium text-gray-600 w-14 md:w-20"></th>
               {weekDays.map((day) => (
                 <th
                   key={day.name}
-                  className={`py-2 px-3 text-center text-sm font-medium ${
+                  className={`py-2 px-1.5 md:px-3 text-center text-xs md:text-sm font-medium ${
                     day.type === 'weekend' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-600'
                   }`}
                 >
@@ -144,11 +151,11 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
           <tbody>
             {/* 노출 행 */}
             <tr>
-              <td className="py-2 px-3 text-sm font-medium text-gray-600">노출</td>
+              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">노출</td>
               {weekdayData.map((data, i) => (
-                <td key={i} className="py-2 px-2">
+                <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
                   <div
-                    className={`w-full h-10 rounded-md flex items-center justify-center text-xs font-medium ${getHeatClass(
+                    className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
                       getHeatLevel(data.impressions, impressionMax, impressionMin)
                     )}`}
                   >
@@ -159,11 +166,11 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
             </tr>
             {/* 클릭 행 */}
             <tr>
-              <td className="py-2 px-3 text-sm font-medium text-gray-600">클릭</td>
+              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">클릭</td>
               {weekdayData.map((data, i) => (
-                <td key={i} className="py-2 px-2">
+                <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
                   <div
-                    className={`w-full h-10 rounded-md flex items-center justify-center text-xs font-medium ${getHeatClass(
+                    className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
                       getHeatLevel(data.clicks, clickMax, clickMin)
                     )}`}
                   >
@@ -174,11 +181,11 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
             </tr>
             {/* CTR 행 */}
             <tr>
-              <td className="py-2 px-3 text-sm font-medium text-gray-600">CTR</td>
+              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">CTR</td>
               {weekdayData.map((data, i) => (
-                <td key={i} className="py-2 px-2">
+                <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
                   <div
-                    className={`w-full h-10 rounded-md flex items-center justify-center text-xs font-medium ${getHeatClass(
+                    className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
                       getHeatLevel(data.ctr, ctrMax, ctrMin)
                     )}`}
                   >
@@ -192,46 +199,55 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
       </div>
 
       {/* 범례 */}
-      <div className="flex gap-4 justify-center mt-4">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded bg-gray-100 border border-gray-200"></div>
-          <span className="text-xs text-gray-600">낮음</span>
+      <div className="flex gap-2 md:gap-4 justify-center mt-4 flex-wrap">
+        <div className="flex items-center gap-1 md:gap-2">
+          <div className="w-4 md:w-6 h-3 md:h-4 rounded bg-gray-100 border border-gray-200"></div>
+          <span className="text-[10px] md:text-xs text-gray-600">낮음</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded bg-green-100 border border-green-200"></div>
-          <span className="text-xs text-gray-600">적절</span>
+        <div className="flex items-center gap-1 md:gap-2">
+          <div className="w-4 md:w-6 h-3 md:h-4 rounded bg-green-100 border border-green-200"></div>
+          <span className="text-[10px] md:text-xs text-gray-600">적절</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded bg-green-400"></div>
-          <span className="text-xs text-gray-600">양호</span>
+        <div className="flex items-center gap-1 md:gap-2">
+          <div className="w-4 md:w-6 h-3 md:h-4 rounded bg-green-400"></div>
+          <span className="text-[10px] md:text-xs text-gray-600">양호</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded bg-red-400"></div>
-          <span className="text-xs text-gray-600">높음</span>
+        <div className="flex items-center gap-1 md:gap-2">
+          <div className="w-4 md:w-6 h-3 md:h-4 rounded bg-red-400"></div>
+          <span className="text-[10px] md:text-xs text-gray-600">높음</span>
         </div>
       </div>
 
       {/* 인사이트 */}
-      <div className="rounded-lg p-4 mt-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
-        <p className="text-gray-700 text-sm font-medium mb-2">💡 인사이트:</p>
-        <ul className="text-sm text-gray-600 mt-2 space-y-1 pl-6 list-disc">
+      <div className="rounded-lg p-3 md:p-4 mt-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
+        <p className="text-gray-700 text-xs md:text-sm font-medium mb-2">💡 인사이트:</p>
+        <ul className="text-xs md:text-sm text-gray-600 mt-2 space-y-2 pl-4 md:pl-6 list-disc">
           <li>
-            최고 성과 요일: <strong>{weekDays[bestCtrIndex].name}</strong> (CTR {ctrValues[bestCtrIndex].toFixed(2)}%, 평균 대비 +{((ctrValues[bestCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%)
+            <span>최고 성과 요일: <strong>{weekDays[bestCtrIndex].name}</strong></span>
+            <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+              CTR {ctrValues[bestCtrIndex].toFixed(2)}%, 평균 대비 +{((ctrValues[bestCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%
+            </span>
           </li>
           <li>
-            최저 성과 요일: <strong>{weekDays[worstCtrIndex].name}</strong> (CTR {ctrValues[worstCtrIndex].toFixed(2)}%, 평균 대비 {((ctrValues[worstCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%)
+            <span>최저 성과 요일: <strong>{weekDays[worstCtrIndex].name}</strong></span>
+            <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+              CTR {ctrValues[worstCtrIndex].toFixed(2)}%, 평균 대비 {((ctrValues[worstCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%
+            </span>
           </li>
           <li>
-            평일 평균 CTR: <strong>{weekdayAvg.ctr.toFixed(2)}%</strong> / 주말 평균 CTR: <strong>{weekendAvg.ctr.toFixed(2)}%</strong>
+            <span>평일 평균 CTR: <strong>{weekdayAvg.ctr.toFixed(2)}%</strong> / 주말: <strong>{weekendAvg.ctr.toFixed(2)}%</strong></span>
             {weekendAvg.ctr > weekdayAvg.ctr ? (
-              <span className="text-orange-600"> (주말이 {((weekendAvg.ctr - weekdayAvg.ctr) / weekdayAvg.ctr * 100).toFixed(0)}% 높음)</span>
+              <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {((weekendAvg.ctr - weekdayAvg.ctr) / weekdayAvg.ctr * 100).toFixed(0)}% 높음</span>
             ) : (
-              <span className="text-blue-600"> (평일이 {((weekdayAvg.ctr - weekendAvg.ctr) / weekendAvg.ctr * 100).toFixed(0)}% 높음)</span>
+              <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {((weekdayAvg.ctr - weekendAvg.ctr) / weekendAvg.ctr * 100).toFixed(0)}% 높음</span>
             )}
           </li>
           {ctrMax / ctrMin > 1.5 && (
             <li>
-              <strong>권장:</strong> 저성과 요일({weekDays[worstCtrIndex].name}) 예산을 고성과 요일({weekDays[bestCtrIndex].name})로 재배분
+              <span><strong>권장:</strong> 저성과 → 고성과 요일 예산 재배분</span>
+              <span className="block text-[11px] text-gray-500 mt-0.5">
+                {weekDays[worstCtrIndex].name}요일 예산을 {weekDays[bestCtrIndex].name}요일로 이동
+              </span>
             </li>
           )}
         </ul>
