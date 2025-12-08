@@ -128,7 +128,7 @@ export function KPISection({ data }: KPISectionProps) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
-          title="평균 CPC"
+          title="클릭당 가격"
           value={data.cpc}
           format="currency"
           invert
@@ -139,7 +139,7 @@ export function KPISection({ data }: KPISectionProps) {
           previousValue={data.prevPeriod?.leads}
         />
         <KPICard
-          title="평균 CPL"
+          title="평균 시청시간"
           value={data.cpl}
           format="currency"
           invert

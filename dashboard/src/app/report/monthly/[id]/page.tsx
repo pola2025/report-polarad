@@ -9,6 +9,7 @@ import {
   MetaCampaignsSection,
   AIInsightsSection,
   AdminCommentSection,
+  DailyPerformanceSection,
 } from '@/components/report'
 import { Card } from '@/components/ui/card'
 import type { MonthlyReportData, ReportComment } from '@/types/report'
@@ -105,10 +106,14 @@ export default function MonthlyReportPage() {
 
   const { report, meta, naver } = data
 
-  // KPI 데이터 계산
+  // USD → KRW 환율 ($1 = ₩1,500)
+  const USD_TO_KRW = 1500
+
+  // KPI 데이터 계산 (Meta spend는 USD이므로 KRW로 변환)
   const totalImpressions = meta.daily.reduce((sum, d) => sum + d.impressions, 0)
   const totalClicks = meta.daily.reduce((sum, d) => sum + d.clicks, 0)
-  const totalSpend = meta.daily.reduce((sum, d) => sum + d.spend, 0)
+  const totalSpendUSD = meta.daily.reduce((sum, d) => sum + d.spend, 0)
+  const totalSpend = totalSpendUSD * USD_TO_KRW  // KRW로 변환
   const totalLeads = meta.daily.reduce((sum, d) => sum + d.leads, 0)
   const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0
@@ -139,9 +144,11 @@ export default function MonthlyReportPage() {
         {/* 헤더 */}
         <ReportHeader
           clientName={report.client?.client_name || '클라이언트'}
+          clientSlug={report.client?.slug || undefined}
           reportType={report.report_type}
           year={report.year}
           month={report.month || undefined}
+          week={report.week || undefined}
           periodStart={report.period_start}
           periodEnd={report.period_end}
           createdAt={report.created_at}
@@ -155,7 +162,7 @@ export default function MonthlyReportPage() {
           </div>
           <div className="rounded-lg p-5 mb-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
             <p className="text-gray-700 leading-relaxed">
-              이번 달 <strong>총 광고비 {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(totalSpend)}</strong>으로
+              {report.report_type === 'weekly' ? '이번 주' : '이번 달'} <strong>총 광고비 {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(totalSpend)}</strong>으로
               <strong> CTR {avgCtr.toFixed(2)}%</strong>를 기록했습니다.
               {totalLeads > 0 && (
                 <> 총 <strong>{totalLeads}건</strong>의 리드를 획득했습니다.</>
@@ -166,6 +173,11 @@ export default function MonthlyReportPage() {
 
         {/* KPI 섹션 */}
         <KPISection data={kpiData} />
+
+        {/* 일별 성과 추이 섹션 - 주간 리포트에서만 표시 */}
+        {report.report_type === 'weekly' && meta.daily.length > 0 && (
+          <DailyPerformanceSection daily={meta.daily} usdToKrw={USD_TO_KRW} />
+        )}
 
         {/* Meta 캠페인 섹션 */}
         {meta.campaigns.length > 0 && (

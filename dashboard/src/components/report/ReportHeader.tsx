@@ -1,7 +1,11 @@
 'use client'
 
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+
 interface ReportHeaderProps {
   clientName: string
+  clientSlug?: string
   reportType: 'monthly' | 'weekly'
   year: number
   month?: number
@@ -13,24 +17,37 @@ interface ReportHeaderProps {
 
 export function ReportHeader({
   clientName,
+  clientSlug,
   reportType,
   year,
   month,
+  week,
   periodStart,
   periodEnd,
   createdAt,
 }: ReportHeaderProps) {
   const periodLabel = reportType === 'monthly'
     ? `${year}년 ${month}월`
-    : `${year}년 ${month}월`
+    : `${year}년 ${month}월 ${week}주차`
 
   const typeLabel = reportType === 'monthly' ? '월간 리포트' : '주간 리포트'
   const typeColor = reportType === 'monthly'
     ? 'bg-orange-100 text-orange-700'
     : 'bg-blue-100 text-blue-700'
 
+  const backUrl = clientSlug ? `/?client=${clientSlug}` : '/'
+
   return (
     <header className="mb-8">
+      {/* 뒤로가기 버튼 */}
+      <Link
+        href={backUrl}
+        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>리포트 목록으로</span>
+      </Link>
+
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
