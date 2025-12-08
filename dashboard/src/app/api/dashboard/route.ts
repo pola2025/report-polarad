@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     // ===== META 데이터 집계 =====
     let metaQuery = supabase
       .from(TABLES.META_DATA)
-      .select('impressions, clicks, leads, spend, date')
+      .select('impressions, clicks, leads, spend, date, video_views')
       .gte('date', startDateStr)
       .lte('date', endDateStr)
 
@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       clicks: 0,
       leads: 0,
       spend: 0,
+      video_views: 0,
     }
 
     metaData?.forEach(row => {
@@ -102,12 +103,13 @@ export async function GET(request: NextRequest) {
       metaCurrentPeriod.clicks += row.clicks || 0
       metaCurrentPeriod.leads += row.leads || 0
       metaCurrentPeriod.spend += parseFloat(row.spend) || 0
+      metaCurrentPeriod.video_views += row.video_views || 0
     })
 
     // 이전 기간 Meta 데이터
     let metaPreviousQuery = supabase
       .from(TABLES.META_DATA)
-      .select('impressions, clicks, leads, spend')
+      .select('impressions, clicks, leads, spend, video_views')
       .gte('date', previousStartDateStr)
       .lte('date', previousEndDateStr)
 
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
       clicks: 0,
       leads: 0,
       spend: 0,
+      video_views: 0,
     }
 
     metaPreviousData?.forEach(row => {
@@ -129,6 +132,7 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.clicks += row.clicks || 0
       metaPreviousPeriod.leads += row.leads || 0
       metaPreviousPeriod.spend += parseFloat(row.spend) || 0
+      metaPreviousPeriod.video_views += row.video_views || 0
     })
 
     // ===== 네이버 데이터 집계 =====

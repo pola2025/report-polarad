@@ -36,10 +36,10 @@ function TrendBadge({ current, previous, invert = false }: { current: number, pr
 
   return (
     <span className={cn(
-      'flex items-center gap-1 text-sm font-medium',
+      'flex items-center gap-0.5 text-[10px] md:text-sm font-medium',
       isPositive ? 'text-green-600' : 'text-red-600'
     )}>
-      <Icon className="h-3 w-3" />
+      <Icon className="h-2.5 w-2.5 md:h-3 md:w-3" />
       {Math.abs(change).toFixed(1)}%
     </span>
   )
@@ -81,14 +81,14 @@ function KPICard({
     : formatNumber(value)
 
   return (
-    <div className="rounded-lg border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="text-sm text-gray-500 mb-1">{title}</div>
-      <div className="text-2xl font-bold text-gray-900">{formattedValue}</div>
-      <div className="flex items-center gap-1 mt-2">
+    <div className="rounded-lg border bg-white p-3 md:p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="text-xs md:text-sm text-gray-500 mb-1">{title}</div>
+      <div className="text-base md:text-2xl font-bold text-gray-900 truncate">{formattedValue}</div>
+      <div className="flex items-center gap-1 mt-1 md:mt-2">
         <TrendBadge current={value} previous={previousValue} invert={invert} />
       </div>
       {showProgress && (
-        <div className="mt-3 bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div className="mt-2 md:mt-3 bg-gray-200 rounded-full h-1.5 md:h-2 overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-green-500 to-blue-500 rounded-full"
             style={{ width: `${Math.min(progressValue, 100)}%` }}

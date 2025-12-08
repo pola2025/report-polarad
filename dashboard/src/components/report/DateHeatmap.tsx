@@ -94,15 +94,22 @@ export function DateHeatmap({ daily }: DateHeatmapProps) {
   ]
 
   return (
-    <Card className="p-6 mb-6">
-      <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-4">
-        <span>📅</span>
-        <span>날짜별 성과 패턴</span>
-        <span className="text-xs font-normal text-gray-400 ml-2">(월간)</span>
+    <Card className="p-4 md:p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-800">
+          <span>📅</span>
+          <span>날짜별 성과 패턴</span>
+          <span className="text-xs font-normal text-gray-400 ml-1 md:ml-2">(월간)</span>
+        </div>
+        <span className="text-xs text-gray-400 md:hidden">← 스와이프 →</span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* 터치 스와이프 가능한 가로 스크롤 */}
+      <div
+        className="overflow-x-auto -mx-4 px-4"
+        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <table className="w-full min-w-[800px]">
           <thead>
             {/* 그룹 헤더 */}
             <tr>

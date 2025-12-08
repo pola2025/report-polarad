@@ -86,13 +86,101 @@ export function ChannelComparisonSection({
   }
 
   return (
-    <Card className="p-6 mb-6">
-      <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-6">
+    <Card className="p-4 md:p-6 mb-6">
+      <div className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-800 mb-4 md:mb-6">
         <span>📊</span>
         <span>채널별 성과 분석</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 모바일: 수평 바 차트 + 카드 */}
+      <div className="md:hidden space-y-4">
+        {/* 수평 바 차트 (지출 비율) */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-700">총 지출</span>
+            <span className="text-sm font-bold text-gray-900">
+              {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(totalSpend)}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {/* Meta 바 */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium" style={{ color: COLORS.meta }}>🔵 Meta</span>
+                <span className="text-xs text-gray-600">{formatNumber(metaTotal.spend)}원 ({metaRatio.toFixed(0)}%)</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="h-2.5 rounded-full" style={{ width: `${metaRatio}%`, backgroundColor: COLORS.meta }}></div>
+              </div>
+            </div>
+            {/* 네이버 바 */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium" style={{ color: COLORS.naver }}>🟢 네이버</span>
+                <span className="text-xs text-gray-600">{formatNumber(naverTotal.spend)}원 ({naverRatio.toFixed(0)}%)</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="h-2.5 rounded-full" style={{ width: `${naverRatio}%`, backgroundColor: COLORS.naver }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 채널별 카드 */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Meta 카드 */}
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold" style={{ color: COLORS.meta }}>🔵 Meta</span>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">노출</span>
+                <span className="font-medium">{formatNumber(metaTotal.impressions)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">클릭</span>
+                <span className="font-medium">{formatNumber(metaTotal.clicks)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">CTR</span>
+                <span className="font-medium">{metaTotal.ctr.toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">CPC</span>
+                <span className="font-medium">{formatNumber(metaTotal.cpc)}원</span>
+              </div>
+            </div>
+          </div>
+          {/* 네이버 카드 */}
+          <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold" style={{ color: COLORS.naver }}>🟢 네이버</span>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">노출</span>
+                <span className="font-medium">{formatNumber(naverTotal.impressions)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">클릭</span>
+                <span className="font-medium">{formatNumber(naverTotal.clicks)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">CTR</span>
+                <span className="font-medium">{naverTotal.ctr.toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">CPC</span>
+                <span className="font-medium">{formatNumber(naverTotal.cpc)}원</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 데스크톱: 도넛 차트 + 테이블 */}
+      <div className="hidden md:grid md:grid-cols-2 gap-6">
         {/* 도넛 차트 */}
         <div className="flex flex-col items-center">
           <div className="relative w-48 h-48">

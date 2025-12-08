@@ -188,7 +188,7 @@ export function NaverKeywordChart({ data, title = 'TOP 키워드' }: NaverAdChar
   )
 }
 
-// 키워드별 지출 도넛 차트
+// 키워드별 지출 도넛 차트 (데스크톱) / 수평 바 차트 (모바일)
 const DONUT_COLORS = [
   '#3B82F6', // 파랑
   '#10B981', // 초록
@@ -209,6 +209,38 @@ interface KeywordSpendData {
 
 interface NaverKeywordDonutChartProps {
   keywords: KeywordSpendData[]
+}
+
+// 모바일용 수평 바 차트 컴포넌트
+function MobileHorizontalBarChart({ data, totalSpend }: { data: Array<{ name: string; fullName: string; value: number }>; totalSpend: number }) {
+  return (
+    <div className="space-y-3">
+      {data.map((item, index) => {
+        const percent = totalSpend > 0 ? (item.value / totalSpend) * 100 : 0
+        return (
+          <div key={index}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-gray-700 truncate max-w-[60%]" title={item.fullName}>
+                {item.name}
+              </span>
+              <span className="text-sm text-gray-500">
+                {formatNumber(item.value)}원 ({percent.toFixed(1)}%)
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-3">
+              <div
+                className="h-3 rounded-full transition-all duration-300"
+                style={{
+                  width: `${percent}%`,
+                  backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length],
+                }}
+              />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function NaverKeywordDonutChart({ keywords }: NaverKeywordDonutChartProps) {
@@ -251,41 +283,51 @@ export function NaverKeywordDonutChart({ keywords }: NaverKeywordDonutChartProps
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={chartData}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-          dataKey="value"
-          nameKey="name"
-          label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(1)}%)`}
-          labelLine={false}
-        >
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip
-          formatter={(value: number, name: string, props) => {
-            const percent = ((value / totalSpend) * 100).toFixed(1)
-            return [`${formatNumber(value)}원 (${percent}%)`, props.payload.fullName]
-          }}
-        />
-        <Legend
-          layout="vertical"
-          align="right"
-          verticalAlign="middle"
-          formatter={(value, entry) => {
-            const data = entry.payload as { value: number }
-            return `${value}: ${formatNumber(data.value)}원`
-          }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <>
+      {/* 모바일: 수평 바 차트 */}
+      <div className="md:hidden">
+        <MobileHorizontalBarChart data={chartData} totalSpend={totalSpend} />
+      </div>
+
+      {/* 데스크톱: 도넛 차트 */}
+      <div className="hidden md:block">
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="name"
+              label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(1)}%)`}
+              labelLine={false}
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: number, name: string, props) => {
+                const percent = ((value / totalSpend) * 100).toFixed(1)
+                return [`${formatNumber(value)}원 (${percent}%)`, props.payload.fullName]
+              }}
+            />
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              formatter={(value, entry) => {
+                const data = entry.payload as { value: number }
+                return `${value}: ${formatNumber(data.value)}원`
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </>
   )
 }
 
