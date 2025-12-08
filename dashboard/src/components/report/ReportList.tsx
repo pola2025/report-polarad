@@ -41,10 +41,8 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
           params.append('type', filter)
         }
 
-        // 관리자는 admin API 사용
-        const url = isAdmin
-          ? `/api/admin/reports?client_id=${clientSlug}`
-          : `/api/reports?${params}`
+        // 관리자와 클라이언트 모두 같은 API 사용 (clientSlug 기반)
+        const url = `/api/reports?${params}`
 
         const headers: Record<string, string> = {}
         if (isAdmin) {
