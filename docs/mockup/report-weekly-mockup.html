@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주간 리포트 - H.E.A 판교 | 2025년 11월 1주차</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet">
+  <style>
+    :root {
+      /* Primary Colors - Polarad Brand */
+      --primary: #0066CC;
+      --primary-hover: #0052A3;
+      --polarad-orange: #F5A623;
+
+      /* Channel Colors */
+      --meta-blue: #1877F2;
+      --naver-green: #03C75A;
+
+      /* Status Colors */
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --info: #3B82F6;
+
+      /* Neutral Colors */
+      --neutral-50: #F9FAFB;
+      --neutral-100: #F3F4F6;
+      --neutral-200: #E5E7EB;
+      --neutral-300: #D1D5DB;
+      --neutral-400: #9CA3AF;
+      --neutral-500: #6B7280;
+      --neutral-600: #4B5563;
+      --neutral-700: #374151;
+      --neutral-800: #1F2937;
+      --neutral-900: #111827;
+    }
+
+    body {
+      font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background-color: var(--neutral-50);
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--neutral-200);
+    }
+
+    .kpi-card {
+      transition: all 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--error); }
+    .channel-meta { color: var(--meta-blue); }
+    .channel-naver { color: var(--naver-green); }
+
+    .badge-meta {
+      background-color: rgba(24, 119, 242, 0.1);
+      color: var(--meta-blue);
+    }
+
+    .badge-naver {
+      background-color: rgba(3, 199, 90, 0.1);
+      color: var(--naver-green);
+    }
+
+    .badge-weekly {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #2563EB;
+    }
+
+    .insight-box {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+      border-left: 4px solid var(--info);
+    }
+
+    .ai-box {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .comment-box {
+      background: linear-gradient(135deg, rgba(245, 166, 35, 0.05) 0%, rgba(251, 191, 36, 0.05) 100%);
+      border: 1px solid rgba(245, 166, 35, 0.2);
+    }
+
+    .progress-bar {
+      background: var(--neutral-200);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      background: linear-gradient(90deg, var(--success) 0%, var(--info) 100%);
+      height: 100%;
+      border-radius: 9999px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--neutral-800);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .day-card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--neutral-200);
+    }
+
+    .day-card.highlight {
+      border-color: var(--success);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+    }
+
+    .day-card.low {
+      border-color: var(--error);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium badge-weekly">
+              주간 리포트
+            </span>
+            <span class="text-sm text-gray-500">생성일: 2025-11-10</span>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900">H.E.A 판교</h1>
+          <p class="text-gray-600 mt-1">2025년 11월 1주차 광고 성과 분석</p>
+        </div>
+        <div class="text-right">
+          <div class="text-sm text-gray-500">분석 기간</div>
+          <div class="text-lg font-semibold text-gray-800">2025-11-03 (월) ~ 11-09 (일)</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Section 1: Executive Summary (간소화) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>📊</span>
+        <span>핵심 성과 요약</span>
+      </div>
+
+      <div class="insight-box rounded-lg p-5 mb-4">
+        <p class="text-gray-700 leading-relaxed">
+          이번 주 <strong>총 광고비 425,000원</strong>으로 전주 대비 <span class="trend-up font-semibold">+8% 증가</span>했으며,
+          <strong>CTR 2.21%</strong>로 전주(2.05%) 대비 <strong>7.8% 개선</strong>되었습니다.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-100">
+          <span class="text-2xl">✨</span>
+          <div>
+            <div class="text-sm font-medium text-gray-600">핵심 성과</div>
+            <div class="text-gray-900 font-semibold">목요일 CTR 2.8% 달성</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-100">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <div class="text-sm font-medium text-gray-600">주의 필요</div>
+            <div class="text-gray-900 font-semibold">일요일 성과 급락</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+          <span class="text-2xl">💡</span>
+          <div>
+            <div class="text-sm font-medium text-gray-600">권장 액션</div>
+            <div class="text-gray-900 font-semibold">주말 예산 조정</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: KPI Dashboard (주간용 - 4개) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-6">
+        <span>📈</span>
+        <span>핵심 KPI</span>
+        <span class="text-sm font-normal text-gray-500">(전주 대비)</span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- KPI Card 1: 총 노출 -->
+        <div class="kpi-card card p-5">
+          <div class="text-sm text-gray-500 mb-1">총 노출</div>
+          <div class="text-2xl font-bold text-gray-900">58,234</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="trend-up text-sm font-medium">▲ 12.3%</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">전주: 51,856</div>
+        </div>
+
+        <!-- KPI Card 2: 총 클릭 -->
+        <div class="kpi-card card p-5">
+          <div class="text-sm text-gray-500 mb-1">총 클릭</div>
+          <div class="text-2xl font-bold text-gray-900">1,287</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="trend-up text-sm font-medium">▲ 15.8%</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">전주: 1,112</div>
+        </div>
+
+        <!-- KPI Card 3: 총 지출 -->
+        <div class="kpi-card card p-5">
+          <div class="text-sm text-gray-500 mb-1">총 지출</div>
+          <div class="text-2xl font-bold text-gray-900">₩425,000</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="trend-up text-sm font-medium">▲ 8.2%</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">전주: ₩392,750</div>
+        </div>
+
+        <!-- KPI Card 4: 평균 CTR -->
+        <div class="kpi-card card p-5">
+          <div class="text-sm text-gray-500 mb-1">평균 CTR</div>
+          <div class="text-2xl font-bold text-gray-900">2.21%</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="trend-up text-sm font-medium">▲ 0.16%</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">전주: 2.05%</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Daily Performance (주간 리포트 핵심) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>📅</span>
+        <span>일별 성과 추이</span>
+      </div>
+
+      <!-- Daily Cards -->
+      <div class="grid grid-cols-7 gap-2 mb-6">
+        <div class="day-card">
+          <div class="text-xs text-gray-500 mb-1">11/03</div>
+          <div class="font-bold text-gray-700">월</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">178</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-green-600 mt-1">2.15%</div>
+        </div>
+        <div class="day-card">
+          <div class="text-xs text-gray-500 mb-1">11/04</div>
+          <div class="font-bold text-gray-700">화</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">195</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-green-600 mt-1">2.32%</div>
+        </div>
+        <div class="day-card">
+          <div class="text-xs text-gray-500 mb-1">11/05</div>
+          <div class="font-bold text-gray-700">수</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">182</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-green-600 mt-1">2.18%</div>
+        </div>
+        <div class="day-card highlight">
+          <div class="text-xs text-gray-500 mb-1">11/06</div>
+          <div class="font-bold text-green-600">목 ⭐</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">235</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-green-600 mt-1">2.80%</div>
+        </div>
+        <div class="day-card">
+          <div class="text-xs text-gray-500 mb-1">11/07</div>
+          <div class="font-bold text-gray-700">금</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">218</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-green-600 mt-1">2.45%</div>
+        </div>
+        <div class="day-card">
+          <div class="text-xs text-gray-500 mb-1">11/08</div>
+          <div class="font-bold text-gray-700">토</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">156</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-amber-600 mt-1">1.68%</div>
+        </div>
+        <div class="day-card low">
+          <div class="text-xs text-gray-500 mb-1">11/09</div>
+          <div class="font-bold text-red-600">일 ⚠️</div>
+          <div class="text-lg font-bold text-gray-900 mt-2">123</div>
+          <div class="text-xs text-gray-500">클릭</div>
+          <div class="text-sm font-medium text-red-600 mt-1">1.32%</div>
+        </div>
+      </div>
+
+      <!-- Daily Trend Chart -->
+      <div class="h-56">
+        <canvas id="dailyTrendChart"></canvas>
+      </div>
+
+      <div class="flex gap-6 justify-center mt-4">
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-0.5" style="background-color: #1877F2"></span>
+          <span class="text-sm text-gray-600">Meta</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-0.5" style="background-color: #03C75A"></span>
+          <span class="text-sm text-gray-600">네이버</span>
+        </div>
+      </div>
+
+      <div class="insight-box rounded-lg p-4 mt-4">
+        <p class="text-gray-700 text-sm">
+          💡 <strong>인사이트:</strong> 목요일(11/06) CTR 2.8%로 주간 최고 성과. 일요일은 평균 대비 40% 낮은 성과로 예산 조정 필요.
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 4: Channel Comparison (간소화) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>📊</span>
+        <span>채널별 성과</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Meta Card -->
+        <div class="p-4 rounded-lg border-2 border-blue-100 bg-blue-50/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge-meta px-2 py-1 rounded-full text-sm font-medium">🔵 Meta</span>
+            <span class="text-sm text-gray-500">지출: ₩276,250 (65%)</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-center">
+            <div>
+              <div class="text-xs text-gray-500">노출</div>
+              <div class="font-bold text-gray-900">37,852</div>
+              <div class="text-xs trend-up">▲18.2%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">클릭</div>
+              <div class="font-bold text-gray-900">758</div>
+              <div class="text-xs trend-up">▲12.5%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">CTR</div>
+              <div class="font-bold text-gray-900">2.00%</div>
+              <div class="text-xs trend-down">▼0.08%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">CPC</div>
+              <div class="font-bold text-gray-900">₩364</div>
+              <div class="text-xs trend-up">▲3.1%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Naver Card -->
+        <div class="p-4 rounded-lg border-2 border-green-100 bg-green-50/30">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge-naver px-2 py-1 rounded-full text-sm font-medium">🟢 네이버</span>
+            <span class="text-sm text-gray-500">지출: ₩148,750 (35%)</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-center">
+            <div>
+              <div class="text-xs text-gray-500">노출</div>
+              <div class="font-bold text-gray-900">20,382</div>
+              <div class="text-xs trend-up">▲8.4%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">클릭</div>
+              <div class="font-bold text-gray-900">529</div>
+              <div class="text-xs trend-up">▲15.2%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">CTR</div>
+              <div class="font-bold text-gray-900">2.60%</div>
+              <div class="text-xs trend-up">▲0.18%</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">CPC</div>
+              <div class="font-bold text-gray-900">₩281</div>
+              <div class="text-xs trend-down">▼2.1%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Top Performers (간소화) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>🏆</span>
+        <span>이번 주 TOP 성과</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Top Keywords -->
+        <div>
+          <div class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <span class="badge-naver px-2 py-0.5 rounded text-xs">네이버</span>
+            키워드 TOP 5
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">1. 판교맛집</span>
+              <span class="text-sm text-gray-600">CTR 3.2%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">2. 분당파스타</span>
+              <span class="text-sm text-gray-600">CTR 2.9%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">3. 판교스테이크</span>
+              <span class="text-sm text-gray-600">CTR 2.7%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">4. 분당맛집</span>
+              <span class="text-sm text-gray-600">CTR 2.4%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">5. 음식점</span>
+              <span class="text-sm text-gray-600">CTR 1.8%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Ads -->
+        <div>
+          <div class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <span class="badge-meta px-2 py-0.5 rounded text-xs">Meta</span>
+            광고 TOP 5
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">1. 연말_프로모션_A</span>
+              <span class="text-sm text-gray-600">CTR 2.5%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">2. 리타겟팅_C</span>
+              <span class="text-sm text-gray-600">CTR 2.3%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">3. 브랜드_인지도_B</span>
+              <span class="text-sm text-gray-600">CTR 2.1%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">4. 신규_고객_D</span>
+              <span class="text-sm text-gray-600">CTR 1.9%</span>
+            </div>
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span class="text-sm font-medium">5. 이벤트_E</span>
+              <span class="text-sm text-gray-600">CTR 1.4%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: AI Insights (주간용 - 단기 전술적 제안) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>🤖</span>
+        <span>AI 분석 인사이트</span>
+        <span class="text-xs font-normal text-gray-400 ml-2">Powered by Gemini 3 Pro Preview</span>
+      </div>
+
+      <div class="ai-box rounded-xl p-5 space-y-4">
+        <!-- Quick Analysis -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">🔍</span>
+            <span class="font-semibold text-gray-800">이번 주 성과 요약</span>
+          </div>
+          <ul class="space-y-2 pl-7 text-sm text-gray-700">
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>전반적으로 전주 대비 <strong>개선된 성과</strong> (CTR +7.8%)</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>목요일 점심~저녁 시간대 <strong>최고 효율</strong> 기록</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-amber-500 mt-0.5">!</span>
+              <span>주말 성과 하락 패턴 <strong>지속</strong> - 예산 재배분 필요</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Action Items -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">💡</span>
+            <span class="font-semibold text-gray-800">다음 주 추천 액션</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-7">
+            <div class="p-3 bg-white/60 rounded-lg border border-purple-100">
+              <div class="text-sm font-medium text-gray-800">① 일요일 예산 30% 감소</div>
+              <div class="text-xs text-gray-500 mt-1">예상 절감: ₩15,000/주</div>
+            </div>
+            <div class="p-3 bg-white/60 rounded-lg border border-purple-100">
+              <div class="text-sm font-medium text-gray-800">② 목요일 예산 20% 증액</div>
+              <div class="text-xs text-gray-500 mt-1">예상 추가 클릭: +45건</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7: Weekly Comparison (이전 주 대비) -->
+    <section class="card p-6 mb-6">
+      <div class="section-title mb-4">
+        <span>📈</span>
+        <span>주간 비교</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200">
+              <th class="py-3 px-3 text-left font-semibold text-gray-600">지표</th>
+              <th class="py-3 px-3 text-right font-semibold text-gray-600">이번 주<br><span class="font-normal text-xs">(11/03~09)</span></th>
+              <th class="py-3 px-3 text-right font-semibold text-gray-600">전주<br><span class="font-normal text-xs">(10/27~11/02)</span></th>
+              <th class="py-3 px-3 text-right font-semibold text-gray-600">변화</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 px-3 font-medium">노출수</td>
+              <td class="py-3 px-3 text-right">58,234</td>
+              <td class="py-3 px-3 text-right text-gray-500">51,856</td>
+              <td class="py-3 px-3 text-right trend-up font-medium">▲ 12.3%</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 px-3 font-medium">클릭수</td>
+              <td class="py-3 px-3 text-right">1,287</td>
+              <td class="py-3 px-3 text-right text-gray-500">1,112</td>
+              <td class="py-3 px-3 text-right trend-up font-medium">▲ 15.8%</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 px-3 font-medium">지출</td>
+              <td class="py-3 px-3 text-right">₩425,000</td>
+              <td class="py-3 px-3 text-right text-gray-500">₩392,750</td>
+              <td class="py-3 px-3 text-right trend-up font-medium">▲ 8.2%</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 px-3 font-medium">CTR</td>
+              <td class="py-3 px-3 text-right">2.21%</td>
+              <td class="py-3 px-3 text-right text-gray-500">2.05%</td>
+              <td class="py-3 px-3 text-right trend-up font-medium">▲ 7.8%</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-3 font-medium">CPC</td>
+              <td class="py-3 px-3 text-right">₩330</td>
+              <td class="py-3 px-3 text-right text-gray-500">₩353</td>
+              <td class="py-3 px-3 text-right trend-down font-medium">▼ 6.5%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-sm text-gray-500">
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <span class="text-orange-500 font-semibold">POLARAD</span>
+        <span>광고 성과 리포트</span>
+      </div>
+      <p>© 2025 Polarad. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // Daily Trend Chart
+    const trendCtx = document.getElementById('dailyTrendChart').getContext('2d');
+
+    const days = ['월 (11/03)', '화 (11/04)', '수 (11/05)', '목 (11/06)', '금 (11/07)', '토 (11/08)', '일 (11/09)'];
+    const metaClicks = [105, 118, 108, 142, 132, 92, 61];
+    const naverClicks = [73, 77, 74, 93, 86, 64, 62];
+
+    new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [
+          {
+            label: 'Meta',
+            data: metaClicks,
+            borderColor: '#1877F2',
+            backgroundColor: 'rgba(24, 119, 242, 0.1)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          },
+          {
+            label: '네이버',
+            data: naverClicks,
+            borderColor: '#03C75A',
+            backgroundColor: 'rgba(3, 199, 90, 0.1)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'white',
+            titleColor: '#111827',
+            bodyColor: '#6B7280',
+            borderColor: '#E5E7EB',
+            borderWidth: 1,
+            padding: 12
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false }
+          },
+          y: {
+            grid: { color: '#F3F4F6' },
+            title: {
+              display: true,
+              text: '클릭수',
+              color: '#9CA3AF'
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

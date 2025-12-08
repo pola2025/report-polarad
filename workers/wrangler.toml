@@ -1,0 +1,18 @@
+# Polarad Meta - Cloudflare Worker 설정
+name = "polarad-meta-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# 새벽 3시 KST 실행 (UTC 18:00)
+[triggers]
+crons = ["0 18 * * *"]
+
+# 환경 변수 (Cloudflare Dashboard에서 설정)
+[vars]
+ENVIRONMENT = "production"
+
+# 개발 환경
+[env.dev]
+name = "polarad-meta-worker-dev"
+[env.dev.vars]
+ENVIRONMENT = "development"

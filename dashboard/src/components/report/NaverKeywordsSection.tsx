@@ -1,0 +1,111 @@
+'use client'
+
+import { Card } from '@/components/ui/card'
+import { formatNumber, formatCurrency, formatPercent } from '@/lib/utils'
+
+interface KeywordData {
+  keyword: string
+  impressions: number
+  clicks: number
+  totalCost: number
+  ctr: number
+  avgCpc: number
+  avgRank: number
+}
+
+interface NaverKeywordsSectionProps {
+  keywords: KeywordData[]
+}
+
+export function NaverKeywordsSection({ keywords }: NaverKeywordsSectionProps) {
+  // 비용 기준 정렬
+  const sortedKeywords = [...keywords].sort((a, b) => b.totalCost - a.totalCost)
+  const top5 = sortedKeywords.slice(0, 5)
+  const totalCost = keywords.reduce((sum, k) => sum + k.totalCost, 0)
+
+  return (
+    <Card className="p-6 mb-6">
+      <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-4">
+        <span>🔍</span>
+        <span>네이버 키워드 분석</span>
+      </div>
+
+      {/* 키워드별 비용 바 차트 */}
+      <div className="space-y-3 mb-6">
+        {top5.map((keyword) => {
+          const percentage = totalCost > 0 ? (keyword.totalCost / totalCost) * 100 : 0
+          return (
+            <div key={keyword.keyword} className="flex items-center gap-4">
+              <div className="w-24 text-sm font-medium text-gray-700 truncate" title={keyword.keyword}>
+                {keyword.keyword}
+              </div>
+              <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                <div
+                  className="h-full rounded-full flex items-center justify-end px-3 text-xs font-medium text-white"
+                  style={{
+                    width: `${Math.max(percentage, 10)}%`,
+                    background: 'linear-gradient(90deg, #03C75A 0%, #00a549 100%)'
+                  }}
+                >
+                  {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 키워드 상세 테이블 */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="py-3 px-3 text-left font-semibold text-gray-600">키워드</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">노출수</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">클릭수</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">CTR</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">평균CPC</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">총비용</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600">평균순위</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedKeywords.slice(0, 10).map((keyword) => (
+              <tr key={keyword.keyword} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-2 px-3 font-medium">{keyword.keyword}</td>
+                <td className="py-2 px-3 text-right">{formatNumber(keyword.impressions)}</td>
+                <td className="py-2 px-3 text-right">{formatNumber(keyword.clicks)}</td>
+                <td className={`py-2 px-3 text-right ${keyword.ctr > 3 ? 'text-green-600 font-semibold' : ''}`}>
+                  {formatPercent(keyword.ctr)}
+                </td>
+                <td className="py-2 px-3 text-right">{formatCurrency(keyword.avgCpc, 'KRW')}</td>
+                <td className="py-2 px-3 text-right text-blue-600 font-medium">
+                  {formatCurrency(keyword.totalCost, 'KRW')}
+                </td>
+                <td className={`py-2 px-3 text-right ${keyword.avgRank <= 2 ? 'text-green-600' : ''}`}>
+                  {keyword.avgRank.toFixed(1)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 인사이트 박스 */}
+      <div className="mt-4 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
+        <p className="text-gray-700 text-sm font-medium mb-2">키워드 성과 분석:</p>
+        <ul className="text-sm text-gray-600 space-y-1 pl-4 list-disc">
+          {sortedKeywords.length > 0 && sortedKeywords[0].ctr > 5 && (
+            <li><strong>{sortedKeywords.find(k => k.ctr === Math.max(...sortedKeywords.map(k => k.ctr)))?.keyword}:</strong> CTR {formatPercent(Math.max(...sortedKeywords.map(k => k.ctr)))}로 높은 클릭 효율</li>
+          )}
+          {sortedKeywords.length > 0 && (
+            <li><strong>{sortedKeywords[0].keyword}:</strong> 최다 비용 키워드, 광고비의 {((sortedKeywords[0].totalCost / totalCost) * 100).toFixed(1)}% 차지</li>
+          )}
+        </ul>
+        <p className="text-xs text-gray-500 mt-3 italic">
+          * 네이버 플레이스광고는 위치 기반 자동 키워드 배정으로, 제외 키워드 설정만 가능합니다.
+        </p>
+      </div>
+    </Card>
+  )
+}

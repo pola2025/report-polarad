@@ -1,0 +1,13 @@
+{
+  "name": "polarad-meta-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backfill": "node backfill.js",
+    "backfill:help": "node backfill.js --help"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.3.1"
+  }
+}
