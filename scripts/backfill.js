@@ -165,7 +165,8 @@ async function backfillClient(client, startDate, endDate) {
       return { success: true, count: 0 };
     }
 
-    const transformedData = transformMetaData(rawData, client.client_id);
+    // client.id (UUID)를 사용해야 함 - client.client_id는 문자열
+    const transformedData = transformMetaData(rawData, client.id);
     const count = await upsertData(transformedData);
 
     console.log(`   ✅ ${count}개 레코드 저장 완료`);

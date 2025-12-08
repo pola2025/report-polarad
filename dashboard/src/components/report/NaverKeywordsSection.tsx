@@ -39,16 +39,19 @@ export function NaverKeywordsSection({ keywords }: NaverKeywordsSectionProps) {
               <div className="w-24 text-sm font-medium text-gray-700 truncate" title={keyword.keyword}>
                 {keyword.keyword}
               </div>
-              <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                <div
-                  className="h-full rounded-full flex items-center justify-end px-3 text-xs font-medium text-white"
-                  style={{
-                    width: `${Math.max(percentage, 10)}%`,
-                    background: 'linear-gradient(90deg, #03C75A 0%, #00a549 100%)'
-                  }}
-                >
-                  {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
+              <div className="flex-1 flex items-center gap-3">
+                <div className="flex-1 bg-gray-100 rounded-full h-8 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(percentage, 5)}%`,
+                      background: 'linear-gradient(90deg, #03C75A 0%, #00a549 100%)'
+                    }}
+                  />
                 </div>
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap min-w-[120px] text-right">
+                  {formatCurrency(keyword.totalCost, 'KRW')} ({percentage.toFixed(1)}%)
+                </span>
               </div>
             </div>
           )

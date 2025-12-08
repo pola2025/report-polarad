@@ -180,13 +180,15 @@ export default function MonthlyReportPage() {
         {/* AI 인사이트 섹션 */}
         <AIInsightsSection insights={report.ai_insights} />
 
-        {/* 관리자 코멘트 섹션 */}
-        <AdminCommentSection
-          comment={report.comment || null}
-          reportId={report.id}
-          isAdmin={isAdmin}
-          onCommentUpdate={handleCommentUpdate}
-        />
+        {/* 관리자 코멘트 섹션 - 월간 리포트에서만 표시 */}
+        {report.report_type !== 'weekly' && (
+          <AdminCommentSection
+            comment={report.comment || null}
+            reportId={report.id}
+            isAdmin={isAdmin}
+            onCommentUpdate={handleCommentUpdate}
+          />
+        )}
 
         {/* 푸터 */}
         <footer className="text-center py-6 text-sm text-gray-500">
