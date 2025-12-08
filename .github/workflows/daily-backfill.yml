@@ -1,0 +1,40 @@
+# 일일 데이터 백필
+# 매일 새벽 3시 (KST) = 18:00 UTC (전날)
+name: Daily Data Backfill
+
+on:
+  schedule:
+    # KST 새벽 03:00 = UTC 18:00 (전날)
+    - cron: '0 18 * * *'
+  workflow_dispatch:  # 수동 실행 허용
+    inputs:
+      days:
+        description: '백필할 일수 (기본: 7일)'
+        required: false
+        default: '7'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js dotenv
+
+      - name: Create .env file
+        run: |
+          cat > dashboard/.env.local << EOF
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          EOF
+
+      - name: Run backfill
+        run: node scripts/backfill.js --all --days ${{ github.event.inputs.days || '7' }}
