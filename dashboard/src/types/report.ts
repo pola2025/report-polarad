@@ -47,11 +47,42 @@ export interface ReportSummaryData {
 export interface ReportAIInsights {
   summary?: string
   highlights?: string[]
+  metaAnalysis?: {
+    overallGrade: 'A' | 'B' | 'C' | 'D'
+    ctrAnalysis: string
+    cpcAnalysis: string
+    bestPerformance: string
+    worstPerformance: string
+  }
+  naverAnalysis?: {
+    overallGrade: 'A' | 'B' | 'C' | 'D'
+    keywordInsight: string
+    rankingAnalysis: string
+    costEfficiency: string
+  }
+  weekdayInsight?: string
+  nextMonthStrategy?: string
+  // 주간 리포트용 추가 필드
+  dailyInsights?: {
+    day: string  // "월요일(11/10)" 형식
+    note: string // 특이사항
+  }[]
+  weeklyComparison?: {
+    summary: string  // 전주 대비 요약
+    changes: {
+      metric: string  // "노출", "클릭", "CTR" 등
+      change: number  // 변화율 (%)
+      direction: 'up' | 'down' | 'stable'
+      note?: string   // 추가 설명
+    }[]
+  }
   recommendations?: {
     platform: 'meta' | 'naver'
-    type: 'budget' | 'keyword' | 'creative' | 'targeting'
+    priority?: 'high' | 'medium' | 'low'
+    type?: 'budget' | 'keyword' | 'creative' | 'targeting'
     title: string
     description: string
+    expectedImpact?: string
   }[]
   generatedAt?: string
 }
@@ -161,6 +192,8 @@ export interface MonthlyReportData {
       clicks: number
       leads: number
       spend: number
+      videoViews?: number
+      avgWatchTime?: number
     }>
     campaigns: Array<{
       campaign_name: string
@@ -171,6 +204,8 @@ export interface MonthlyReportData {
       ctr: number
       cpl: number
     }>
+    videoViews?: number
+    avgWatchTime?: number
   }
   naver: {
     keywords: Array<{

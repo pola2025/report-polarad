@@ -10,6 +10,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { TABLES } from '@/lib/supabase'
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
 
+// USD → KRW 환율 (고정)
+const USD_TO_KRW = 1500
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,10 +72,10 @@ export async function GET(
     // 클라이언트 UUID 가져오기 (Meta 데이터 조회용)
     const clientUuid = report.polarad_clients?.id
 
-    // Meta 일별 데이터 조회
+    // Meta 일별 데이터 조회 (avg_watch_time, video_views 포함)
     const { data: metaDaily } = await supabase
       .from(TABLES.META_DATA)
-      .select('date, impressions, clicks, leads, spend')
+      .select('date, impressions, clicks, leads, spend, video_views, avg_watch_time')
       .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
@@ -113,9 +116,18 @@ export async function GET(
 
     const campaignsWithMetrics = Array.from(campaignMap.values()).map((c) => ({
       ...c,
+      spend: c.spend * USD_TO_KRW, // USD → KRW 변환
       ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-      cpl: c.leads > 0 ? c.spend / c.leads : 0,
+      cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0, // KRW 기준 CPL
     }))
+
+    // 네이버 일별 데이터 조회 (합산용)
+    const { data: naverDaily } = await supabase
+      .from(TABLES.NAVER_DATA)
+      .select('date, impressions, clicks, total_cost')
+      .eq('client_id', clientUuid)
+      .gte('date', report.period_start)
+      .lte('date', report.period_end)
 
     // 네이버 키워드 데이터 조회
     const { data: naverKeywords } = await supabase
@@ -163,15 +175,23 @@ export async function GET(
       avgRank: k.count > 0 ? k.avgRank / k.count : 0,
     }))
 
-    // 일별 데이터 집계
+    // 일별 데이터 집계 (Meta + 네이버 합산)
     const dailyMap = new Map<string, {
       date: string
       impressions: number
       clicks: number
       leads: number
       spend: number
+      videoViews: number
+      avgWatchTime: number
+      avgWatchTimeCount: number
+      // 네이버 데이터
+      naverImpressions: number
+      naverClicks: number
+      naverSpend: number
     }>()
 
+    // Meta 데이터 집계
     metaDaily?.forEach((row) => {
       const date = row.date
       const existing = dailyMap.get(date) || {
@@ -180,21 +200,81 @@ export async function GET(
         clicks: 0,
         leads: 0,
         spend: 0,
+        videoViews: 0,
+        avgWatchTime: 0,
+        avgWatchTimeCount: 0,
+        naverImpressions: 0,
+        naverClicks: 0,
+        naverSpend: 0,
       }
       existing.impressions += row.impressions || 0
       existing.clicks += row.clicks || 0
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
+      existing.videoViews += row.video_views || 0
+      if (row.avg_watch_time && row.avg_watch_time > 0) {
+        existing.avgWatchTime += row.avg_watch_time
+        existing.avgWatchTimeCount += 1
+      }
       dailyMap.set(date, existing)
     })
 
-    const dailyData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+    // 네이버 데이터 집계 (일별로 합산)
+    naverDaily?.forEach((row) => {
+      const date = row.date
+      const existing = dailyMap.get(date) || {
+        date,
+        impressions: 0,
+        clicks: 0,
+        leads: 0,
+        spend: 0,
+        videoViews: 0,
+        avgWatchTime: 0,
+        avgWatchTimeCount: 0,
+        naverImpressions: 0,
+        naverClicks: 0,
+        naverSpend: 0,
+      }
+      existing.naverImpressions += row.impressions || 0
+      existing.naverClicks += row.clicks || 0
+      existing.naverSpend += row.total_cost || 0
+      dailyMap.set(date, existing)
+    })
+
+    const dailyData = Array.from(dailyMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(d => ({
+        date: d.date,
+        // 합산 값 (Meta + 네이버)
+        impressions: d.impressions + d.naverImpressions,
+        clicks: d.clicks + d.naverClicks,
+        leads: d.leads, // 리드는 Meta만
+        spend: (d.spend * USD_TO_KRW) + d.naverSpend, // Meta USD→KRW 변환 후 네이버와 합산
+        videoViews: d.videoViews,
+        avgWatchTime: d.avgWatchTimeCount > 0 ? d.avgWatchTime / d.avgWatchTimeCount : 0,
+        // 채널별 분리 (선택적 사용)
+        metaImpressions: d.impressions,
+        metaClicks: d.clicks,
+        metaSpend: d.spend * USD_TO_KRW, // USD → KRW 변환
+        naverImpressions: d.naverImpressions,
+        naverClicks: d.naverClicks,
+        naverSpend: d.naverSpend, // 이미 KRW
+      }))
+
+    // 전체 평균 시청 시간 계산
+    const totalVideoViews = dailyData.reduce((sum, d) => sum + d.videoViews, 0)
+    const validAvgWatchTimeEntries = dailyData.filter(d => d.avgWatchTime > 0)
+    const overallAvgWatchTime = validAvgWatchTimeEntries.length > 0
+      ? validAvgWatchTimeEntries.reduce((sum, d) => sum + d.avgWatchTime, 0) / validAvgWatchTimeEntries.length
+      : 0
 
     const responseData: MonthlyReportData = {
       report: reportWithComment,
       meta: {
         daily: dailyData,
         campaigns: campaignsWithMetrics,
+        videoViews: totalVideoViews,
+        avgWatchTime: overallAvgWatchTime,
       },
       naver: {
         keywords: keywordsWithMetrics,
