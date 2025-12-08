@@ -1,0 +1,30 @@
+# 월간 리포트 텔레그램 알림
+# 매월 1일 오전 9시 (KST) = 00:00 UTC
+name: Monthly Report Notification
+
+on:
+  schedule:
+    # KST 매월 1일 09:00 = UTC 00:00
+    - cron: '0 0 1 * *'
+  workflow_dispatch:  # 수동 실행 허용
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Send Telegram Notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          REPORT_TYPE: monthly
+        run: node scripts/telegram-notify.js
