@@ -81,8 +81,8 @@ function GradeBadge({ grade }: { grade: 'A' | 'B' | 'C' | 'D' }) {
     D: '개선필요',
   }
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${colors[grade]}`}>
-      {grade} <span className="font-normal">({labels[grade]})</span>
+    <span className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${colors[grade]}`}>
+      {grade} <span className="font-normal hidden sm:inline">({labels[grade]})</span>
     </span>
   )
 }
@@ -100,7 +100,7 @@ function PriorityBadge({ priority }: { priority: 'high' | 'medium' | 'low' }) {
     low: '참고',
   }
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${colors[priority]}`}>
+    <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium border ${colors[priority]}`}>
       {labels[priority]}
     </span>
   )
@@ -218,36 +218,36 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
   }
 
   return (
-    <Card className="p-6 mb-6">
+    <Card className="p-4 sm:p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
-          <Sparkles className="w-5 h-5 text-purple-500" />
+        <div className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg font-bold text-gray-800">
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
           <span>AI 분석 인사이트</span>
-          <span className="text-xs font-normal text-gray-400 ml-2">Powered by Gemini</span>
+          <span className="text-[10px] sm:text-xs font-normal text-gray-400 ml-1 sm:ml-2 hidden sm:inline">Powered by Gemini</span>
         </div>
         {isAdmin && analysisData && (
           <Button
             onClick={generateInsights}
             variant="ghost"
             size="sm"
-            className="gap-1 text-gray-500 hover:text-purple-600"
+            className="gap-1 text-gray-500 hover:text-purple-600 text-xs sm:text-sm px-2 sm:px-3"
             disabled={isLoading}
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            재분석
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">재분석</span>
           </Button>
         )}
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* 요약 */}
         {insights.summary && (
-          <div className="rounded-xl p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">🔍</span>
-              <span className="font-semibold text-gray-800">성과 분석 요약</span>
+          <div className="rounded-xl p-3 sm:p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+              <span className="text-base sm:text-lg">🔍</span>
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">성과 분석 요약</span>
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed pl-7">
+            <p className="text-gray-700 text-xs sm:text-sm leading-relaxed pl-5 sm:pl-7">
               {insights.summary}
             </p>
           </div>
@@ -255,40 +255,40 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* Meta & 네이버 분석 카드 */}
         {(insights.metaAnalysis || insights.naverAnalysis) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {/* Meta 분석 */}
             {insights.metaAnalysis && (
-              <div className="rounded-xl p-4 bg-blue-50 border border-blue-100">
+              <div className="rounded-xl p-3 sm:p-4 bg-blue-50 border border-blue-100">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🔵</span>
-                    <span className="font-semibold text-gray-800">Meta 광고</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-base sm:text-lg">🔵</span>
+                    <span className="font-semibold text-gray-800 text-sm sm:text-base">Meta 광고</span>
                   </div>
                   <GradeBadge grade={insights.metaAnalysis.overallGrade} />
                 </div>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                   <div>
                     <div className="flex items-center gap-1 text-blue-700 font-medium mb-1">
-                      <TrendingUp className="w-3.5 h-3.5" />
+                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       CTR 분석
                     </div>
-                    <p className="text-gray-600 pl-5">{insights.metaAnalysis.ctrAnalysis}</p>
+                    <p className="text-gray-600 pl-4 sm:pl-5">{insights.metaAnalysis.ctrAnalysis}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 text-blue-700 font-medium mb-1">
-                      <Target className="w-3.5 h-3.5" />
+                      <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       CPC 분석
                     </div>
-                    <p className="text-gray-600 pl-5">{insights.metaAnalysis.cpcAnalysis}</p>
+                    <p className="text-gray-600 pl-4 sm:pl-5">{insights.metaAnalysis.cpcAnalysis}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-blue-100">
-                    <div className="p-2 bg-green-50 rounded">
-                      <div className="text-xs text-green-600 font-medium mb-1">Best</div>
-                      <p className="text-xs text-gray-600">{insights.metaAnalysis.bestPerformance}</p>
+                    <div className="p-1.5 sm:p-2 bg-green-50 rounded">
+                      <div className="text-[10px] sm:text-xs text-green-600 font-medium mb-1">Best</div>
+                      <p className="text-[10px] sm:text-xs text-gray-600">{insights.metaAnalysis.bestPerformance}</p>
                     </div>
-                    <div className="p-2 bg-red-50 rounded">
-                      <div className="text-xs text-red-600 font-medium mb-1">개선필요</div>
-                      <p className="text-xs text-gray-600">{insights.metaAnalysis.worstPerformance}</p>
+                    <div className="p-1.5 sm:p-2 bg-red-50 rounded">
+                      <div className="text-[10px] sm:text-xs text-red-600 font-medium mb-1">개선필요</div>
+                      <p className="text-[10px] sm:text-xs text-gray-600">{insights.metaAnalysis.worstPerformance}</p>
                     </div>
                   </div>
                 </div>
@@ -297,33 +297,33 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
             {/* 네이버 분석 */}
             {insights.naverAnalysis && (
-              <div className="rounded-xl p-4 bg-green-50 border border-green-100">
+              <div className="rounded-xl p-3 sm:p-4 bg-green-50 border border-green-100">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🟢</span>
-                    <span className="font-semibold text-gray-800">네이버 플레이스</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-base sm:text-lg">🟢</span>
+                    <span className="font-semibold text-gray-800 text-sm sm:text-base">네이버 플레이스</span>
                   </div>
                   <GradeBadge grade={insights.naverAnalysis.overallGrade} />
                 </div>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                   <div>
                     <div className="flex items-center gap-1 text-green-700 font-medium mb-1">
-                      <TrendingUp className="w-3.5 h-3.5" />
+                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       키워드 인사이트
                     </div>
-                    <p className="text-gray-600 pl-5">{insights.naverAnalysis.keywordInsight}</p>
+                    <p className="text-gray-600 pl-4 sm:pl-5">{insights.naverAnalysis.keywordInsight}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 text-green-700 font-medium mb-1">
-                      <Target className="w-3.5 h-3.5" />
+                      <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       순위 분석
                     </div>
-                    <p className="text-gray-600 pl-5">{insights.naverAnalysis.rankingAnalysis}</p>
+                    <p className="text-gray-600 pl-4 sm:pl-5">{insights.naverAnalysis.rankingAnalysis}</p>
                   </div>
                   <div className="pt-2 border-t border-green-100">
-                    <div className="p-2 bg-white/60 rounded">
-                      <div className="text-xs text-green-600 font-medium mb-1">비용 효율</div>
-                      <p className="text-xs text-gray-600">{insights.naverAnalysis.costEfficiency}</p>
+                    <div className="p-1.5 sm:p-2 bg-white/60 rounded">
+                      <div className="text-[10px] sm:text-xs text-green-600 font-medium mb-1">비용 효율</div>
+                      <p className="text-[10px] sm:text-xs text-gray-600">{insights.naverAnalysis.costEfficiency}</p>
                     </div>
                   </div>
                 </div>
@@ -334,29 +334,29 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 전주 대비 비교 (주간 리포트용) */}
         {insights.weeklyComparison && (
-          <div className="rounded-xl p-4 bg-cyan-50 border border-cyan-100">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-5 h-5 text-cyan-600" />
-              <span className="font-semibold text-gray-800">전주 대비 성과</span>
+          <div className="rounded-xl p-3 sm:p-4 bg-cyan-50 border border-cyan-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600" />
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">전주 대비 성과</span>
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed pl-7 mb-3">
+            <p className="text-gray-700 text-xs sm:text-sm leading-relaxed pl-5 sm:pl-7 mb-3">
               {insights.weeklyComparison.summary}
             </p>
             {insights.weeklyComparison.changes && insights.weeklyComparison.changes.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pl-7">
+              <div className="grid grid-cols-2 gap-2 pl-5 sm:pl-7">
                 {insights.weeklyComparison.changes.map((change, index) => (
-                  <div key={index} className="p-2 bg-white/70 rounded-lg text-center">
-                    <div className="text-xs text-gray-500 mb-1">{change.metric}</div>
-                    <div className={`flex items-center justify-center gap-1 font-semibold ${
+                  <div key={index} className="p-1.5 sm:p-2 bg-white/70 rounded-lg text-center">
+                    <div className="text-[10px] sm:text-xs text-gray-500 mb-1">{change.metric}</div>
+                    <div className={`flex items-center justify-center gap-0.5 sm:gap-1 text-sm sm:text-base font-semibold ${
                       change.direction === 'up' ? 'text-green-600' :
                       change.direction === 'down' ? 'text-red-600' : 'text-gray-600'
                     }`}>
-                      {change.direction === 'up' ? <TrendingUp className="w-3.5 h-3.5" /> :
-                       change.direction === 'down' ? <TrendingDown className="w-3.5 h-3.5" /> : null}
+                      {change.direction === 'up' ? <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> :
+                       change.direction === 'down' ? <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : null}
                       {change.change > 0 ? '+' : ''}{change.change.toFixed(1)}%
                     </div>
                     {change.note && (
-                      <div className="text-xs text-gray-400 mt-1">{change.note}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-400 mt-1 line-clamp-1">{change.note}</div>
                     )}
                   </div>
                 ))}
@@ -367,15 +367,15 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 요일별 특이사항 (주간 리포트용) */}
         {insights.dailyInsights && insights.dailyInsights.length > 0 && (
-          <div className="rounded-xl p-4 bg-amber-50 border border-amber-100">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-5 h-5 text-amber-600" />
-              <span className="font-semibold text-gray-800">요일별 특이사항</span>
+          <div className="rounded-xl p-3 sm:p-4 bg-amber-50 border border-amber-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">요일별 특이사항</span>
             </div>
-            <div className="space-y-2 pl-7">
+            <div className="space-y-2 pl-5 sm:pl-7">
               {insights.dailyInsights.map((insight, index) => (
-                <div key={index} className="flex items-start gap-2 text-sm">
-                  <span className="font-medium text-amber-700 min-w-[100px]">{insight.day}</span>
+                <div key={index} className="flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-2 text-xs sm:text-sm">
+                  <span className="font-medium text-amber-700 sm:min-w-[100px]">{insight.day}</span>
                   <span className="text-gray-700">{insight.note}</span>
                 </div>
               ))}
@@ -385,12 +385,12 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 요일별 인사이트 (기존 월간용) */}
         {insights.weekdayInsight && (
-          <div className="rounded-xl p-4 bg-amber-50 border border-amber-100">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-5 h-5 text-amber-600" />
-              <span className="font-semibold text-gray-800">요일별 성과 패턴</span>
+          <div className="rounded-xl p-3 sm:p-4 bg-amber-50 border border-amber-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">요일별 성과 패턴</span>
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed pl-7">
+            <p className="text-gray-700 text-xs sm:text-sm leading-relaxed pl-5 sm:pl-7">
               {insights.weekdayInsight}
             </p>
           </div>
@@ -398,16 +398,16 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 하이라이트 */}
         {insights.highlights && insights.highlights.length > 0 && (
-          <div className="rounded-xl p-5 bg-gray-50 border border-gray-200">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">✨</span>
-              <span className="font-semibold text-gray-800">주요 포인트</span>
+          <div className="rounded-xl p-3 sm:p-5 bg-gray-50 border border-gray-200">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+              <span className="text-base sm:text-lg">✨</span>
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">주요 포인트</span>
             </div>
-            <div className="space-y-2 pl-7">
+            <div className="space-y-2 pl-5 sm:pl-7">
               {insights.highlights.map((highlight, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <span className="text-purple-500 mt-0.5 font-bold text-sm">{index + 1}.</span>
-                  <p className="text-gray-700 text-sm leading-relaxed">{highlight}</p>
+                <div key={index} className="flex items-start gap-1.5 sm:gap-2">
+                  <span className="text-purple-500 mt-0.5 font-bold text-xs sm:text-sm">{index + 1}.</span>
+                  <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">{highlight}</p>
                 </div>
               ))}
             </div>
@@ -416,27 +416,27 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 개선 제안 */}
         {insights.recommendations && insights.recommendations.length > 0 && (
-          <div className="rounded-xl p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">💡</span>
-              <span className="font-semibold text-gray-800">개선 제안</span>
+          <div className="rounded-xl p-3 sm:p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+              <span className="text-base sm:text-lg">💡</span>
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">개선 제안</span>
             </div>
-            <div className="space-y-3 pl-7">
+            <div className="space-y-2 sm:space-y-3 pl-0 sm:pl-7">
               {insights.recommendations.map((rec, index) => (
-                <div key={index} className="p-3 bg-white/80 rounded-lg border border-purple-100">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={`text-sm font-medium ${
+                <div key={index} className="p-2 sm:p-3 bg-white/80 rounded-lg border border-purple-100">
+                  <div className="flex items-center gap-1 sm:gap-2 mb-2 flex-wrap">
+                    <span className={`text-xs sm:text-sm font-medium ${
                       rec.platform === 'meta' ? 'text-blue-600' : 'text-green-600'
                     }`}>
                       {rec.platform === 'meta' ? '🔵 Meta' : '🟢 네이버'}
                     </span>
                     {rec.priority && <PriorityBadge priority={rec.priority} />}
-                    <span className="font-medium text-gray-800">{rec.title}</span>
+                    <span className="font-medium text-gray-800 text-xs sm:text-sm">{rec.title}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-2">{rec.description}</p>
                   {rec.expectedImpact && (
-                    <div className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 w-fit">
-                      <TrendingUp className="w-3 h-3" />
+                    <div className="flex items-center gap-1 text-[10px] sm:text-xs text-purple-600 bg-purple-50 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 w-fit">
+                      <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       예상 효과: {rec.expectedImpact}
                     </div>
                   )}
@@ -448,12 +448,12 @@ export function AIInsightsSection({ insights: initialInsights, analysisData, isA
 
         {/* 다음 달 전략 */}
         {insights.nextMonthStrategy && (
-          <div className="rounded-xl p-4 bg-indigo-50 border border-indigo-100">
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="w-5 h-5 text-indigo-600" />
-              <span className="font-semibold text-gray-800">다음 달 전략 제안</span>
+          <div className="rounded-xl p-3 sm:p-4 bg-indigo-50 border border-indigo-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">다음 달 전략 제안</span>
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed pl-7">
+            <p className="text-gray-700 text-xs sm:text-sm leading-relaxed pl-5 sm:pl-7">
               {insights.nextMonthStrategy}
             </p>
           </div>
