@@ -93,7 +93,7 @@ export function NaverPeriodTable({
   monthly,
   loading,
 }: NaverPeriodTableProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('monthly')
+  const [viewMode, setViewMode] = useState<ViewMode>('daily')
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
   const [mobileCardIndex, setMobileCardIndex] = useState(0)
@@ -235,12 +235,12 @@ export function NaverPeriodTable({
           </CardTitle>
           <div className="flex gap-1">
             <Button
-              variant={viewMode === 'monthly' ? 'primary' : 'secondary'}
+              variant={viewMode === 'daily' ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => { setViewMode('monthly'); setMobileCardIndex(0) }}
+              onClick={() => { setViewMode('daily'); setMobileCardIndex(0) }}
               className="text-xs md:text-sm px-2 md:px-3"
             >
-              월별
+              일별
             </Button>
             <Button
               variant={viewMode === 'weekly' ? 'primary' : 'secondary'}
@@ -251,12 +251,12 @@ export function NaverPeriodTable({
               주별
             </Button>
             <Button
-              variant={viewMode === 'daily' ? 'primary' : 'secondary'}
+              variant={viewMode === 'monthly' ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => { setViewMode('daily'); setMobileCardIndex(0) }}
+              onClick={() => { setViewMode('monthly'); setMobileCardIndex(0) }}
               className="text-xs md:text-sm px-2 md:px-3"
             >
-              일별
+              월별
             </Button>
           </div>
         </div>
@@ -475,19 +475,79 @@ export function NaverPeriodTable({
                 </tr>
               ))}
 
-              {/* 일별 뷰 */}
-              {viewMode === 'daily' && daily.map((d) => (
-                <tr key={d.date} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium">{d.date}</td>
-                  <td className="px-3 py-2 text-right">{formatNumber(d.impressions)}</td>
-                  <td className="px-3 py-2 text-right">{formatNumber(d.clicks)}</td>
-                  <td className="px-3 py-2 text-right">{d.ctr.toFixed(2)}%</td>
-                  <td className="px-3 py-2 text-right">{formatNumber(d.avg_cpc)}원</td>
-                  <td className="px-3 py-2 text-right font-medium">{formatNumber(d.total_cost)}원</td>
-                  <td className="px-3 py-2 text-right">{d.avg_rank.toFixed(1)}</td>
-                  <td className="px-3 py-2"></td>
-                </tr>
-              ))}
+              {/* 일별 뷰 - 월별로 그룹화하여 접기/펼치기 */}
+              {viewMode === 'daily' && (() => {
+                // 일별 데이터를 월별로 그룹화
+                const dailyByMonth = daily.reduce((acc, d) => {
+                  const month = d.date.substring(0, 7)
+                  if (!acc[month]) acc[month] = []
+                  acc[month].push(d)
+                  return acc
+                }, {} as Record<string, typeof daily>)
+
+                // 월별 합계 계산
+                const monthSummaries = Object.entries(dailyByMonth).map(([month, days]) => {
+                  const [year, m] = month.split('-')
+                  const totalCost = days.reduce((sum, d) => sum + d.total_cost, 0)
+                  const totalClicks = days.reduce((sum, d) => sum + d.clicks, 0)
+                  const totalImpressions = days.reduce((sum, d) => sum + d.impressions, 0)
+                  return {
+                    month,
+                    month_label: `${year}년 ${parseInt(m)}월`,
+                    days,
+                    impressions: totalImpressions,
+                    clicks: totalClicks,
+                    total_cost: totalCost,
+                    avg_cpc: totalClicks > 0 ? Math.round(totalCost / totalClicks) : 0,
+                    avg_rank: days.length > 0 ? days.reduce((sum, d) => sum + d.avg_rank, 0) / days.length : 0,
+                  }
+                }).sort((a, b) => b.month.localeCompare(a.month)) // 최신 월이 위로
+
+                return monthSummaries.map((ms) => (
+                  <Fragment key={ms.month}>
+                    {/* 월별 헤더 행 (클릭하면 펼침/접힘) */}
+                    <tr
+                      className="bg-green-50 hover:bg-green-100 cursor-pointer"
+                      onClick={() => toggleMonth(ms.month)}
+                    >
+                      <td className="px-3 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          {expandedMonths.has(ms.month) ? (
+                            <ChevronDown className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-gray-500" />
+                          )}
+                          <Calendar className="h-4 w-4 text-green-600" />
+                          {ms.month_label}
+                          <span className="text-xs text-gray-400 ml-1">({ms.days.length}일)</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium">{formatNumber(ms.impressions)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{formatNumber(ms.clicks)}</td>
+                      <td className="px-3 py-2 text-right">
+                        {ms.impressions > 0 ? ((ms.clicks / ms.impressions) * 100).toFixed(2) : '0.00'}%
+                      </td>
+                      <td className="px-3 py-2 text-right">{formatNumber(ms.avg_cpc)}원</td>
+                      <td className="px-3 py-2 text-right font-medium text-green-600">{formatNumber(ms.total_cost)}원</td>
+                      <td className="px-3 py-2 text-right">{ms.avg_rank.toFixed(1)}</td>
+                      <td className="px-3 py-2"></td>
+                    </tr>
+                    {/* 해당 월의 일별 데이터 (펼쳤을 때만 표시) - 최신 날짜가 위로 */}
+                    {expandedMonths.has(ms.month) && [...ms.days].sort((a, b) => b.date.localeCompare(a.date)).map((d) => (
+                      <tr key={d.date} className="hover:bg-gray-50">
+                        <td className="px-3 py-1 pl-10 text-gray-500 text-sm">{d.date}</td>
+                        <td className="px-3 py-1 text-right text-sm">{formatNumber(d.impressions)}</td>
+                        <td className="px-3 py-1 text-right text-sm">{formatNumber(d.clicks)}</td>
+                        <td className="px-3 py-1 text-right text-sm">{d.ctr.toFixed(2)}%</td>
+                        <td className="px-3 py-1 text-right text-sm">{formatNumber(d.avg_cpc)}원</td>
+                        <td className="px-3 py-1 text-right text-sm">{formatNumber(d.total_cost)}원</td>
+                        <td className="px-3 py-1 text-right text-sm">{d.avg_rank.toFixed(1)}</td>
+                        <td className="px-3 py-1"></td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))
+              })()}
 
               {/* 데이터 없음 */}
               {((viewMode === 'monthly' && monthly.length === 0) ||
