@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -72,8 +72,9 @@ interface Client {
 
 function DashboardContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const clientSlugFromUrl = searchParams.get('client')
-  const tabFromUrl = searchParams.get('tab')
+  const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'reports' | null
 
   // 관리자 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -91,9 +92,29 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
-  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>(
-    tabFromUrl === 'reports' ? 'reports' : 'summary'
-  )
+  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>(() => {
+    const validTabs = ['summary', 'meta', 'naver', 'reports'] as const
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      return tabFromUrl
+    }
+    return 'summary'
+  })
+
+  // 탭 변경 시 URL 업데이트
+  const handleTabChange = useCallback((tab: 'summary' | 'meta' | 'naver' | 'reports') => {
+    setActiveTab(tab)
+
+    // URL 파라미터 업데이트
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === 'summary') {
+      params.delete('tab') // summary는 기본값이므로 파라미터 제거
+    } else {
+      params.set('tab', tab)
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/'
+    router.replace(newUrl, { scroll: false })
+  }, [searchParams, router])
   const [naverData, setNaverData] = useState<NaverPeriodDataResponse | null>(null)
   const [naverLoading, setNaverLoading] = useState(false)
   const [metaData, setMetaData] = useState<MetaPeriodDataResponse | null>(null)
@@ -453,7 +474,7 @@ function DashboardContent() {
             {showTabs && (
               <div className="grid grid-cols-4 gap-1 border-b border-gray-200 mb-6">
                 <button
-                  onClick={() => setActiveTab('summary')}
+                  onClick={() => handleTabChange('summary')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'summary'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
@@ -463,7 +484,7 @@ function DashboardContent() {
                   통합 요약
                 </button>
                 <button
-                  onClick={() => setActiveTab('meta')}
+                  onClick={() => handleTabChange('meta')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'meta'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
@@ -473,7 +494,7 @@ function DashboardContent() {
                   Meta 상세
                 </button>
                 <button
-                  onClick={() => setActiveTab('naver')}
+                  onClick={() => handleTabChange('naver')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'naver'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
@@ -483,7 +504,7 @@ function DashboardContent() {
                   네이버 상세
                 </button>
                 <button
-                  onClick={() => setActiveTab('reports')}
+                  onClick={() => handleTabChange('reports')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                     activeTab === 'reports'
                       ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
