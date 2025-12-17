@@ -234,14 +234,18 @@ function DashboardContent() {
     fetchNaverData()
   }, [activeTab, clientSlug, data])
 
-  // Meta 상세 데이터 조회 (탭 전환 시)
+  // Meta 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {
     async function fetchMetaData() {
       if (activeTab !== 'meta' || !clientSlug || !data) return
 
       setMetaLoading(true)
       try {
-        const params = new URLSearchParams({ clientSlug })
+        const params = new URLSearchParams({
+          clientSlug,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        })
         const res = await fetch(`/api/meta/analytics?${params}`)
         const json = await res.json()
         if (!json.error) {
@@ -255,7 +259,7 @@ function DashboardContent() {
     }
 
     fetchMetaData()
-  }, [activeTab, clientSlug, data])
+  }, [activeTab, clientSlug, data, dateRange])
 
   // 관리자 로그인 화면 (URL에 클라이언트 슬러그 없고, 인증 안 됨)
   if (!clientSlugFromUrl && !isAuthenticated) {
