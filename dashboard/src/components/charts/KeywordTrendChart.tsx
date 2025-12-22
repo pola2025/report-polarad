@@ -71,6 +71,9 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-3 py-2 rounded">
+          ※ 상호명 검색량 데이터는 월별로 업데이트됩니다. (네이버 데이터랩 기준)
+        </p>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
