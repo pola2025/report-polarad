@@ -18,7 +18,7 @@ export interface Database {
           meta_ad_account_id: string | null
           meta_access_token_id: string | null
           token_expires_at: string | null
-          auth_status: string
+          status: string
           is_active: boolean
           telegram_chat_id: string | null
           telegram_enabled: boolean
@@ -36,7 +36,7 @@ export interface Database {
           meta_ad_account_id?: string | null
           meta_access_token_id?: string | null
           token_expires_at?: string | null
-          auth_status?: string
+          status?: string
           is_active?: boolean
           telegram_chat_id?: string | null
           telegram_enabled?: boolean
@@ -54,7 +54,7 @@ export interface Database {
           meta_ad_account_id?: string | null
           meta_access_token_id?: string | null
           token_expires_at?: string | null
-          auth_status?: string
+          status?: string
           is_active?: boolean
           telegram_chat_id?: string | null
           telegram_enabled?: boolean

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // 클라이언트 현황
     const { data: clients, error: clientsError } = await getSupabaseAdmin()
       .from(TABLES.CLIENTS)
-      .select('id, client_name, is_active, auth_status, service_end_date, token_expires_at, telegram_enabled')
+      .select('id, client_name, is_active, status, service_end_date, token_expires_at, telegram_enabled')
 
     if (clientsError) {
       throw new Error(`클라이언트 조회 실패: ${clientsError.message}`)
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }) || []
 
     // 인증 필요 클라이언트
-    const authRequiredClients = clients?.filter((c) => c.auth_status === 'auth_required') || []
+    const authRequiredClients = clients?.filter((c) => c.status === 'auth_required') || []
 
     // 최근 7일 데이터 통계
     const sevenDaysAgo = new Date()

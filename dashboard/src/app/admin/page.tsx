@@ -15,7 +15,7 @@ interface Client {
   slug: string | null
   meta_ad_account_id: string | null
   is_active: boolean
-  auth_status: string
+  status: string
   latestDataDate: string | null
   dataCount: number
   service_start_date: string | null
