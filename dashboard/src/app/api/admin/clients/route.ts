@@ -1,15 +1,19 @@
 /**
  * Admin API - 클라이언트 관리
  * 테이블: polarad_clients (BAS-Meta와 분리)
+ *
+ * OAuth 인증 시스템 통합 (2024-12)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { TABLES } from '@/lib/supabase'
+import { getDaysUntilExpiry, isTokenExpiringSoon } from '@/lib/meta-oauth'
+import { ClientStatus } from '@/lib/client-status'
 
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key')
+  const adminKey = request.headers.get('x-admin-key') || request.nextUrl.searchParams.get('adminKey')
   const serverAdminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
   return adminKey === serverAdminKey
 }
@@ -29,8 +33,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // 상태 필터 파라미터
+  const statusFilter = request.nextUrl.searchParams.get('status') as ClientStatus | null
+
   try {
-    const { data: clients, error } = await getSupabaseAdmin()
+    let query = getSupabaseAdmin()
       .from(TABLES.CLIENTS)
       .select(`
         id,
@@ -38,10 +45,17 @@ export async function GET(request: NextRequest) {
         client_name,
         slug,
         meta_ad_account_id,
+        meta_user_id,
+        meta_token_expires_at,
         telegram_chat_id,
         is_active,
-        auth_status,
-        token_expires_at,
+        status,
+        approved_at,
+        approved_by,
+        contract_start_date,
+        contract_end_date,
+        suspended_at,
+        suspension_reason,
         service_start_date,
         service_end_date,
         telegram_enabled,
@@ -50,12 +64,19 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
+    // 상태 필터 적용
+    if (statusFilter) {
+      query = query.eq('status', statusFilter)
+    }
+
+    const { data: clients, error } = await query
+
     if (error) {
       console.error('Error fetching clients:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 각 클라이언트의 데이터 현황 조회
+    // 각 클라이언트의 데이터 현황 및 토큰 정보 조회
     const clientsWithStats = await Promise.all(
       (clients || []).map(async (client) => {
         // 최신 데이터 날짜
@@ -76,13 +97,25 @@ export async function GET(request: NextRequest) {
           ...client,
           latestDataDate: latestData?.[0]?.date || null,
           dataCount: count || 0,
+          // 토큰 관련 정보 추가
+          daysUntilExpiry: getDaysUntilExpiry(client.meta_token_expires_at),
+          isExpiringSoon: isTokenExpiringSoon(client.meta_token_expires_at),
         }
       })
     )
 
+    // 상태별 통계
+    const stats = {
+      pending: clientsWithStats.filter((c) => c.status === 'pending').length,
+      active: clientsWithStats.filter((c) => c.status === 'active').length,
+      suspended: clientsWithStats.filter((c) => c.status === 'suspended').length,
+      expired: clientsWithStats.filter((c) => c.status === 'expired').length,
+    }
+
     return NextResponse.json({
       success: true,
       clients: clientsWithStats,
+      stats,
       total: clientsWithStats.length,
       activeCount: clientsWithStats.filter((c) => c.is_active).length,
     })
@@ -159,9 +192,11 @@ export async function POST(request: NextRequest) {
         meta_access_token: token || null,
         telegram_chat_id: telegram || null,
         is_active: true,
-        auth_status: token ? 'active' : 'pending',
+        status: token ? 'active' : 'pending',
         service_start_date: startDate,
         service_end_date: endDate,
+        contract_start_date: startDate,
+        contract_end_date: endDate,
         telegram_enabled,
       })
       .select()
