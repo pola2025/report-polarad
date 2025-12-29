@@ -1,15 +1,21 @@
-# 주간 리포트 텔레그램 알림
+# 주간 리포트 자동 생성 및 텔레그램 발송
 # 매주 월요일 오전 9시 (KST) = 00:00 UTC
-name: Weekly Report Notification
+name: Weekly Report - Create & Send
 
 on:
   schedule:
     # KST 월요일 09:00 = UTC 월요일 00:00
     - cron: '0 0 * * 1'
   workflow_dispatch:  # 수동 실행 허용
+    inputs:
+      force:
+        description: '기존 리포트 덮어쓰기'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
-  notify:
+  create-and-send:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,11 +26,30 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install @supabase/supabase-js dotenv
+
+      - name: Create .env file
+        run: |
+          cat > dashboard/.env.local << EOF
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          EOF
+
+      - name: Create Weekly Report
+        working-directory: scripts
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            node create-weekly-report.js --force
+          else
+            node create-weekly-report.js
+          fi
+
       - name: Send Telegram Notification
+        working-directory: scripts
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          REPORT_TYPE: weekly
-        run: node scripts/telegram-notify.js
+        run: node send-weekly-telegram.js --auto
