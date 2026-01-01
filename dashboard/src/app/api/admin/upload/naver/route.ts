@@ -161,6 +161,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효한 데이터가 없습니다.' }, { status: 400 })
     }
 
+    // 날짜 범위 계산 (먼저 수행)
+    const dates = records.map(r => r.date).sort()
+    const dateRange = {
+      start: dates[0],
+      end: dates[dates.length - 1],
+    }
+
+    // CSV 업로드 시 해당 날짜 범위의 _total_ 데이터 삭제 (API 합계와 중복 방지)
+    const { error: deleteError } = await getSupabaseAdmin()
+      .from(TABLES.NAVER_DATA)
+      .delete()
+      .eq('client_id', clientId)
+      .eq('keyword', '_total_')
+      .gte('date', dateRange.start)
+      .lte('date', dateRange.end)
+
+    if (deleteError) {
+      console.warn('_total_ 데이터 삭제 중 경고:', deleteError.message)
+      // 삭제 실패해도 계속 진행
+    }
+
     // DB에 upsert
     const { error: insertError } = await getSupabaseAdmin()
       .from(TABLES.NAVER_DATA)
@@ -172,13 +193,6 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('Error inserting naver data:', insertError)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
-    }
-
-    // 날짜 범위 계산
-    const dates = records.map(r => r.date).sort()
-    const dateRange = {
-      start: dates[0],
-      end: dates[dates.length - 1],
     }
 
     // 키워드별 통계

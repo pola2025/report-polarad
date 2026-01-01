@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
         let query = supabase
           .from(TABLES.NAVER_DATA)
           .select('*')
+          .neq('keyword', '_total_')  // API 합계 데이터 제외
           .order('date', { ascending: true })
           .range(offset, offset + pageSize - 1)
 

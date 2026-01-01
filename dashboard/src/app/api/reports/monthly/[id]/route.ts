@@ -121,21 +121,23 @@ export async function GET(
       cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0, // KRW 기준 CPL
     }))
 
-    // 네이버 일별 데이터 조회 (합산용)
+    // 네이버 일별 데이터 조회 (합산용, _total_ 키워드 제외)
     const { data: naverDaily } = await supabase
       .from(TABLES.NAVER_DATA)
       .select('date, impressions, clicks, total_cost')
       .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
+      .neq('keyword', '_total_')  // API 합계 데이터 제외
 
-    // 네이버 키워드 데이터 조회
+    // 네이버 키워드 데이터 조회 (_total_ 키워드 제외)
     const { data: naverKeywords } = await supabase
       .from(TABLES.NAVER_DATA)
       .select('keyword, impressions, clicks, total_cost, ctr, avg_cpc, avg_rank')
       .eq('client_id', clientUuid)
       .gte('date', report.period_start)
       .lte('date', report.period_end)
+      .neq('keyword', '_total_')  // API 합계 데이터 제외
 
     // 키워드별 집계
     const keywordMap = new Map<string, {

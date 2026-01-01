@@ -135,12 +135,13 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.video_views += row.video_views || 0
     })
 
-    // ===== 네이버 데이터 집계 =====
+    // ===== 네이버 데이터 집계 (_total_ 키워드 제외) =====
     let naverQuery = supabase
       .from(TABLES.NAVER_DATA)
       .select('impressions, clicks, total_cost, date')
       .gte('date', startDateStr)
       .lte('date', endDateStr)
+      .neq('keyword', '_total_')  // API 합계 데이터 제외
 
     if (clientId) {
       naverQuery = naverQuery.eq('client_id', clientId)
@@ -160,12 +161,13 @@ export async function GET(request: NextRequest) {
       naverCurrentPeriod.spend += row.total_cost || 0
     })
 
-    // 이전 기간 네이버 데이터
+    // 이전 기간 네이버 데이터 (_total_ 키워드 제외)
     let naverPreviousQuery = supabase
       .from(TABLES.NAVER_DATA)
       .select('impressions, clicks, total_cost')
       .gte('date', previousStartDateStr)
       .lte('date', previousEndDateStr)
+      .neq('keyword', '_total_')  // API 합계 데이터 제외
 
     if (clientId) {
       naverPreviousQuery = naverPreviousQuery.eq('client_id', clientId)
