@@ -82,7 +82,7 @@ async function fetchAndAggregateMetaData(clientId) {
 
   const { data, error } = await supabase
     .from('polarad_meta_data')
-    .select('date, device, impressions, clicks, spend')
+    .select('date, device, impressions, clicks, spend, leads')
     .eq('client_id', clientId)
     .order('date', { ascending: true });
 
@@ -111,6 +111,7 @@ async function fetchAndAggregateMetaData(clientId) {
         impressions: 0,
         clicks: 0,
         spend: 0,
+        leads: 0,
         source: 'meta',
         campaign_name: '',
         keywords: '',
@@ -121,6 +122,7 @@ async function fetchAndAggregateMetaData(clientId) {
     aggregated[key].impressions += row.impressions || 0;
     aggregated[key].clicks += row.clicks || 0;
     aggregated[key].spend += Math.round(row.spend || 0);
+    aggregated[key].leads += row.leads || 0;
   });
 
   const records = Object.values(aggregated);

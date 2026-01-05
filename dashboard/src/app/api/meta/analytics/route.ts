@@ -52,22 +52,32 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
     const view = searchParams.get('view') || 'all'
 
-    // slug로 clientId 조회
+    // slug 결정 로직
     const supabase = createServerClient()
     let resolvedSlug = clientSlug
 
-    if (!clientId && clientSlug) {
+    // clientId가 이미 slug 형태인지 확인 (Airtable config에 있으면 slug)
+    if (clientId) {
+      const { AIRTABLE_CONFIG } = await import('@/lib/airtable')
+      if (AIRTABLE_CONFIG[clientId]) {
+        // clientId가 이미 slug 형태
+        resolvedSlug = clientId
+      } else {
+        // clientId가 UUID라면 slug로 변환
+        resolvedSlug = getClientSlugById(clientId)
+      }
+    }
+
+    // clientSlug만 제공된 경우 Supabase에서 조회
+    if (!resolvedSlug && clientSlug) {
       const { data: client } = await supabase
         .from(TABLES.CLIENTS)
         .select('id')
         .eq('slug', clientSlug)
         .single()
-      clientId = client?.id || null
-    }
-
-    // clientId로 slug 조회
-    if (clientId && !resolvedSlug) {
-      resolvedSlug = getClientSlugById(clientId)
+      if (client?.id) {
+        resolvedSlug = getClientSlugById(client.id)
+      }
     }
 
     if (!resolvedSlug) {

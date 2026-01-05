@@ -12,7 +12,7 @@ export const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }
     baseId: process.env.AIRTABLE_HEA_BASE_ID!,
     tableId: process.env.AIRTABLE_HEA_TABLE_ID!,
   },
-  '나라똔': {
+  'naratton': {
     baseId: process.env.AIRTABLE_NARATTON_BASE_ID!,
     tableId: process.env.AIRTABLE_NARATTON_TABLE_ID!,
   },
@@ -96,7 +96,7 @@ export async function fetchAirtableData(
 export function getClientSlugById(clientId: string): string | null {
   const CLIENT_MAPPING: Record<string, string> = {
     '3ff2896e-6786-4936-9c57-311f69f43c63': 'hea-pangyo',
-    'c2f60730-f8c1-4361-b9fc-3b44725c3955': '나라똔',
+    'c2f60730-f8c1-4361-b9fc-3b44725c3955': 'naratton',
   };
   return CLIENT_MAPPING[clientId] || null;
 }
