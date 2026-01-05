@@ -41,6 +41,7 @@ async function fetchClientsFromAirtable() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return data.records.map((record: any) => ({
     id: record.fields.id || record.id,
+    airtable_record_id: record.id, // Airtable 레코드 ID (수정 시 필요)
     client_id: record.fields.client_id || record.fields.slug,
     client_name: record.fields.Name,
     slug: record.fields.slug,
@@ -115,17 +116,128 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 새 클라이언트 생성 (Airtable 관리 페이지에서 직접 추가)
+// POST: 새 클라이언트 생성 → Airtable에 저장
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  return NextResponse.json(
-    {
-      success: false,
-      error: '클라이언트 추가는 Airtable에서 직접 추가하세요: https://airtable.com/appC3XKBcYgZBTETn'
-    },
-    { status: 501 }
-  )
+  try {
+    const body = await request.json()
+    const { client_name, slug, client_type, naver_type, naver_enabled, naver_fixed_budget, telegram_enabled, service_start_date } = body
+
+    if (!client_name || !slug) {
+      return NextResponse.json({ success: false, error: 'client_name과 slug는 필수입니다' }, { status: 400 })
+    }
+
+    // UUID 생성
+    const id = crypto.randomUUID()
+
+    const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        records: [{
+          fields: {
+            Name: client_name,
+            id,
+            client_id: slug,
+            slug,
+            client_type: client_type || 'other',
+            is_active: true,
+            status: 'active',
+            naver_type: naver_type || 'none',
+            naver_enabled: naver_enabled || false,
+            naver_fixed_budget: naver_fixed_budget || null,
+            telegram_enabled: telegram_enabled || false,
+            service_start_date: service_start_date || new Date().toISOString().split('T')[0],
+          }
+        }]
+      })
+    })
+
+    const data = await response.json()
+
+    if (data.error) {
+      console.error('Airtable create error:', data.error)
+      return NextResponse.json({ success: false, error: data.error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      client: {
+        id,
+        client_name,
+        slug,
+        airtable_record_id: data.records[0].id
+      }
+    })
+  } catch (error) {
+    console.error('Failed to create client:', error)
+    return NextResponse.json({ success: false, error: 'Failed to create client' }, { status: 500 })
+  }
+}
+
+// PUT: 클라이언트 수정 → Airtable 업데이트
+export async function PUT(request: NextRequest) {
+  if (!isAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json()
+    const { airtable_record_id, ...updateFields } = body
+
+    if (!airtable_record_id) {
+      return NextResponse.json({ success: false, error: 'airtable_record_id는 필수입니다' }, { status: 400 })
+    }
+
+    // 필드 매핑 (프론트엔드 → Airtable)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fields: Record<string, any> = {}
+    if (updateFields.client_name) fields.Name = updateFields.client_name
+    if (updateFields.slug) {
+      fields.slug = updateFields.slug
+      fields.client_id = updateFields.slug
+    }
+    if (updateFields.client_type) fields.client_type = updateFields.client_type
+    if (updateFields.is_active !== undefined) fields.is_active = updateFields.is_active
+    if (updateFields.status) fields.status = updateFields.status
+    if (updateFields.naver_type) fields.naver_type = updateFields.naver_type
+    if (updateFields.naver_enabled !== undefined) fields.naver_enabled = updateFields.naver_enabled
+    if (updateFields.naver_fixed_budget !== undefined) fields.naver_fixed_budget = updateFields.naver_fixed_budget
+    if (updateFields.telegram_enabled !== undefined) fields.telegram_enabled = updateFields.telegram_enabled
+    if (updateFields.telegram_chat_id) fields.telegram_chat_id = updateFields.telegram_chat_id
+    if (updateFields.service_start_date) fields.service_start_date = updateFields.service_start_date
+    if (updateFields.service_end_date) fields.service_end_date = updateFields.service_end_date
+
+    const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        records: [{
+          id: airtable_record_id,
+          fields
+        }]
+      })
+    })
+
+    const data = await response.json()
+
+    if (data.error) {
+      console.error('Airtable update error:', data.error)
+      return NextResponse.json({ success: false, error: data.error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, updated: data.records[0] })
+  } catch (error) {
+    console.error('Failed to update client:', error)
+    return NextResponse.json({ success: false, error: 'Failed to update client' }, { status: 500 })
+  }
 }
