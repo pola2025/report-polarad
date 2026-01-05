@@ -1,6 +1,6 @@
 const https = require('https');
 
-const TELEGRAM_BOT_TOKEN = '***REMOVED***';
+const TELEGRAM_BOT_TOKEN = 'process.env.TELEGRAM_BOT_TOKEN';
 const CHAT_ID = '-1003400452372';
 const REPORT_BASE_URL = 'https://report.polarad.co.kr';
 
