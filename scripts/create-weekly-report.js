@@ -214,7 +214,6 @@ async function createReport(startDate, endDate, forceOverwrite = false) {
     year,
     month,
     week,
-    title: `${month}월 ${week}주차 주간 리포트`,
     status: 'published',
     published_at: new Date().toISOString(),
     ai_insights: {
