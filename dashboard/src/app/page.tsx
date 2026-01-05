@@ -697,7 +697,7 @@ function DashboardContent() {
                         <div className="mt-3 pt-3 border-t border-green-200">
                           <span className="text-gray-500 text-sm">광고비</span>
                           <p className="font-bold text-green-600 text-lg">
-                            {data.naver.current.spend.toLocaleString()}원
+                            {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
                           </p>
                         </div>
                       </div>
@@ -729,7 +729,7 @@ function DashboardContent() {
                             <span className="text-gray-500">CPC</span>
                             <p className="font-medium">
                               {(data.meta.current.clicks + data.naver.current.clicks) > 0
-                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + data.naver.current.spend) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
+                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
                                 : 0}원
                             </p>
                           </div>
@@ -737,7 +737,7 @@ function DashboardContent() {
                         <div className="mt-3 pt-3 border-t border-[#F5A623]/30">
                           <span className="text-gray-500 text-sm">총 광고비</span>
                           <p className="font-bold text-[#D48C00] text-xl">
-                            {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + data.naver.current.spend).toLocaleString()}원
+                            {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)).toLocaleString()}원
                           </p>
                         </div>
                       </div>
@@ -795,11 +795,11 @@ function DashboardContent() {
                                 : 0}%
                             </td>
                             <td className="px-4 py-3 text-right font-medium text-green-600">
-                              {data.naver.current.spend.toLocaleString()}원
+                              {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
                             </td>
                             <td className="px-4 py-3 text-right">
                               {data.naver.current.clicks > 0
-                                ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                                ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
                                 : 0}원
                             </td>
                           </tr>
@@ -818,11 +818,11 @@ function DashboardContent() {
                                 : 0}%
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-[#F5A623]">
-                              {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + data.naver.current.spend).toLocaleString()}원
+                              {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)).toLocaleString()}원
                             </td>
                             <td className="px-4 py-3 text-right">
                               {(data.meta.current.clicks + data.naver.current.clicks) > 0
-                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + data.naver.current.spend) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
+                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
                                 : 0}원
                             </td>
                           </tr>
@@ -900,7 +900,7 @@ function DashboardContent() {
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500">지출액</p>
-                        <p className="text-lg font-semibold">{data.naver.current.spend.toLocaleString()}원</p>
+                        <p className="text-lg font-semibold">{clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원</p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500">CTR</p>
@@ -914,7 +914,7 @@ function DashboardContent() {
                         <p className="text-xs text-gray-500">CPC</p>
                         <p className="text-lg font-semibold">
                           {data.naver.current.clicks > 0
-                            ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                            ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
                             : 0}원
                         </p>
                       </div>
@@ -1276,7 +1276,7 @@ function DashboardContent() {
                         <Card className="border-purple-200">
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-purple-600">
-                              {data.naver.current.spend.toLocaleString()}원
+                              {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
                             </div>
                             <div className="text-xs md:text-sm text-gray-500">비용</div>
                           </CardContent>
@@ -1295,7 +1295,7 @@ function DashboardContent() {
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-indigo-600">
                               {data.naver.current.clicks > 0
-                                ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                                ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
                                 : 0}원
                             </div>
                             <div className="text-xs md:text-sm text-gray-500">CPC</div>
