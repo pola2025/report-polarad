@@ -405,8 +405,8 @@ async function main() {
     console.error('   NAVER_CUSTOMER_ID, NAVER_API_KEY, NAVER_SECRET_KEY');
     console.log('\n.env.local 파일에 다음을 추가하세요:');
     console.log('NAVER_CUSTOMER_ID=3161455');
-    console.log('NAVER_API_KEY=***REMOVED***');
-    console.log('NAVER_SECRET_KEY=***REMOVED***');
+    console.log('NAVER_API_KEY=YOUR_NAVER_API_KEY');
+    console.log('NAVER_SECRET_KEY=YOUR_NAVER_SECRET_KEY');
     return;
   }
 
