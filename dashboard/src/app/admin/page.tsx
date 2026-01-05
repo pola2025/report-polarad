@@ -335,7 +335,7 @@ export default function AdminPage() {
             {/* 데이터 업로드 바로가기 */}
             <section className="mb-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">데이터 업로드</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Link href="/admin/upload/naver">
                   <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
                     <CardContent className="pt-6">
@@ -345,6 +345,21 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">네이버 플레이스 광고</div>
+                          <div className="text-sm text-gray-500">CSV 파일 업로드</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/admin/upload/brand-search">
+                  <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-orange-100 rounded-lg">
+                          <Search className="h-6 w-6 text-orange-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">네이버 브랜드검색</div>
                           <div className="text-sm text-gray-500">CSV 파일 업로드</div>
                         </div>
                       </div>

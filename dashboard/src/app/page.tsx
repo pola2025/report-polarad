@@ -11,10 +11,12 @@ import { Loader2, BarChart3, DollarSign, Settings } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
+import { BrandSearchTable } from '@/components/naver/BrandSearchTable'
 import { MetaPeriodTable, MetaAdTable } from '@/components/meta'
 import { ReportList } from '@/components/report/ReportList'
 import type { NaverPeriodDataResponse } from '@/types/naver-analytics'
 import type { MetaPeriodDataResponse } from '@/types/meta-analytics'
+import type { BrandSearchAPIResponse } from '@/types/brand-search'
 
 interface DashboardData {
   kpi: {
@@ -134,6 +136,8 @@ function DashboardContent() {
   }, [searchParams, router])
   const [naverData, setNaverData] = useState<NaverPeriodDataResponse | null>(null)
   const [naverLoading, setNaverLoading] = useState(false)
+  const [brandSearchData, setBrandSearchData] = useState<BrandSearchAPIResponse | null>(null)
+  const [brandSearchLoading, setBrandSearchLoading] = useState(false)
   const [metaData, setMetaData] = useState<MetaPeriodDataResponse | null>(null)
   const [metaLoading, setMetaLoading] = useState(false)
 
@@ -298,6 +302,39 @@ function DashboardContent() {
 
     fetchNaverData()
   }, [activeTab, clientSlug, data, dateRange])
+
+  // 브랜드검색 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
+  useEffect(() => {
+    async function fetchBrandSearchData() {
+      // 브랜드검색 타입이 아니거나 탭이 아니면 스킵
+      if (activeTab !== 'naver' || !clientSlug || !clientInfo || clientInfo.naverType !== 'brand_search') return
+
+      setBrandSearchLoading(true)
+      try {
+        // clientInfo에서 id를 가져와야 함
+        const clientRes = await fetch(`/api/client?slug=${clientSlug}`)
+        const clientJson = await clientRes.json()
+        if (!clientJson.success || !clientJson.client) return
+
+        const params = new URLSearchParams({
+          clientId: clientJson.client.id,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        })
+        const res = await fetch(`/api/naver/brand-search?${params}`)
+        const json = await res.json()
+        if (json.success) {
+          setBrandSearchData(json)
+        }
+      } catch (err) {
+        console.error('브랜드검색 데이터 조회 실패:', err)
+      } finally {
+        setBrandSearchLoading(false)
+      }
+    }
+
+    fetchBrandSearchData()
+  }, [activeTab, clientSlug, clientInfo, dateRange])
 
   // Meta 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {
@@ -1246,7 +1283,29 @@ function DashboardContent() {
             {/* 네이버 상세 탭 - show_detail_tab이 true일 때만 표시 */}
             {activeTab === 'naver' && showTabs && clientInfo?.naver?.show_detail_tab !== false && (
               <div className="space-y-6">
-                {naverLoading ? (
+                {/* 브랜드검색 타입일 때 */}
+                {clientInfo?.naverType === 'brand_search' ? (
+                  brandSearchLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+                      <span className="ml-2 text-gray-600">브랜드검색 데이터를 불러오는 중...</span>
+                    </div>
+                  ) : brandSearchData?.data ? (
+                    <BrandSearchTable
+                      daily={brandSearchData.data.daily}
+                      monthly={brandSearchData.data.monthly}
+                      monthlyBudget={brandSearchData.data.fixed_budget}
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-20">
+                        <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">브랜드검색 데이터가 없습니다.</p>
+                        <p className="text-sm text-gray-400 mt-2">Admin에서 CSV를 업로드해주세요.</p>
+                      </CardContent>
+                    </Card>
+                  )
+                ) : naverLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
                     <span className="ml-2 text-gray-600">네이버 데이터를 불러오는 중...</span>
@@ -1321,7 +1380,7 @@ function DashboardContent() {
                         <Card className="border-purple-200">
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-purple-600">
-                              {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
+                              {data.naver.current.spend.toLocaleString()}원
                             </div>
                             <div className="text-xs md:text-sm text-gray-500">비용</div>
                           </CardContent>
@@ -1340,32 +1399,28 @@ function DashboardContent() {
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-indigo-600">
                               {data.naver.current.clicks > 0
-                                ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
+                                ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
                                 : 0}원
                             </div>
                             <div className="text-xs md:text-sm text-gray-500">CPC</div>
                           </CardContent>
                         </Card>
-                        {clientInfo?.naverType !== 'brand_search' && (
-                          <Card>
-                            <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
-                              <div className="text-xl md:text-2xl font-bold text-teal-600">
-                                {naverData.summary.avg_rank.toFixed(1)}
-                              </div>
-                              <div className="text-xs md:text-sm text-gray-500">평균 순위</div>
-                            </CardContent>
-                          </Card>
-                        )}
-                        {clientInfo?.naverType !== 'brand_search' && (
-                          <Card>
-                            <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
-                              <div className="text-xl md:text-2xl font-bold text-pink-600">
-                                {naverData.summary.unique_keywords}개
-                              </div>
-                              <div className="text-xs md:text-sm text-gray-500">고유 키워드</div>
-                            </CardContent>
-                          </Card>
-                        )}
+                        <Card>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-teal-600">
+                              {naverData.summary.avg_rank.toFixed(1)}
+                            </div>
+                            <div className="text-xs md:text-sm text-gray-500">평균 순위</div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                            <div className="text-xl md:text-2xl font-bold text-pink-600">
+                              {naverData.summary.unique_keywords}개
+                            </div>
+                            <div className="text-xs md:text-sm text-gray-500">고유 키워드</div>
+                          </CardContent>
+                        </Card>
                         <Card>
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-gray-600">
@@ -1378,22 +1433,20 @@ function DashboardContent() {
                     </div>
 
                     {/* 키워드별 지출 도넛 차트 (플레이스만) */}
-                    {clientInfo?.naverType !== 'brand_search' && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>키워드별 광고비 분포</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {naverData.keywords && naverData.keywords.length > 0 ? (
-                            <NaverKeywordDonutChart keywords={naverData.keywords} />
-                          ) : (
-                            <div className="h-[300px] flex items-center justify-center text-gray-400">
-                              데이터 없음
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>키워드별 광고비 분포</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {naverData.keywords && naverData.keywords.length > 0 ? (
+                          <NaverKeywordDonutChart keywords={naverData.keywords} />
+                        ) : (
+                          <div className="h-[300px] flex items-center justify-center text-gray-400">
+                            데이터 없음
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
 
                     {/* 기간별 테이블 */}
                     <NaverPeriodTable
@@ -1405,18 +1458,16 @@ function DashboardContent() {
                     />
 
                     {/* 키워드 테이블 (플레이스만) */}
-                    {clientInfo?.naverType !== 'brand_search' && (
-                      <NaverKeywordTable
-                        keywords={naverData.keywords}
-                        loading={false}
-                        dateRange={naverData.summary?.date_range}
-                        clientSlug={clientSlug}
-                        availableMonths={naverData.monthly?.map(m => ({
-                          value: m.month,
-                          label: m.month_label
-                        })) || []}
-                      />
-                    )}
+                    <NaverKeywordTable
+                      keywords={naverData.keywords}
+                      loading={false}
+                      dateRange={naverData.summary?.date_range}
+                      clientSlug={clientSlug}
+                      availableMonths={naverData.monthly?.map(m => ({
+                        value: m.month,
+                        label: m.month_label
+                      })) || []}
+                    />
                   </>
                 ) : (
                   <Card>
