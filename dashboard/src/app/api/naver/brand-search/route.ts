@@ -1,13 +1,18 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, TABLES } from '@/lib/supabase';
-import { fetchAirtableData, getClientSlugById } from '@/lib/airtable';
+import { fetchAirtableData, getClientSlugById, AIRTABLE_CONFIG } from '@/lib/airtable';
 import {
   aggregateToDailyData,
   aggregateToMonthlyData,
 } from '@/lib/brand-search-parser';
 import type { BrandSearchAPIResponse } from '@/types/brand-search';
+
+// 클라이언트별 고정 예산 설정 (Supabase 의존성 제거)
+const CLIENT_BUDGETS: Record<string, number> = {
+  'hea-pangyo': 0,  // 플레이스는 고정 예산 없음
+  'naratton': 1320000,  // 브랜드검색 월 132만원
+};
 
 /**
  * 브랜드검색 데이터 조회 API (Airtable 캐시 사용)
@@ -16,7 +21,6 @@ import type { BrandSearchAPIResponse } from '@/types/brand-search';
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
 
     const clientId = searchParams.get('clientId');
@@ -38,25 +42,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 클라이언트 정보 조회 (고정 예산 포함)
-    const { data: client, error: clientError } = await supabase
-      .from(TABLES.CLIENTS)
-      .select('id, slug, naver_fixed_budget')
-      .eq('id', clientId)
-      .single();
-
-    if (clientError || !client) {
+    // UUID → slug 변환 (Supabase 의존성 제거)
+    const clientSlug = getClientSlugById(clientId);
+    if (!clientSlug || !AIRTABLE_CONFIG[clientSlug]) {
       return NextResponse.json(
         { success: false, error: 'Client not found' } as BrandSearchAPIResponse,
-        { status: 404 }
-      );
-    }
-
-    // Airtable에서 네이버 데이터 조회 (naver_place + naver_brand_search)
-    const clientSlug = client.slug || getClientSlugById(clientId);
-    if (!clientSlug) {
-      return NextResponse.json(
-        { success: false, error: 'Airtable config not found' } as BrandSearchAPIResponse,
         { status: 404 }
       );
     }
@@ -99,7 +89,7 @@ export async function GET(request: NextRequest) {
       : 0;
 
     // 고정 예산 (기본값: PC 66만, 모바일 66만)
-    const totalBudget = client.naver_fixed_budget || 1320000;
+    const totalBudget = CLIENT_BUDGETS[clientSlug] || 1320000;
     const fixed_budget = {
       pc: Math.floor(totalBudget / 2),
       mobile: Math.floor(totalBudget / 2),
