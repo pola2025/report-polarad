@@ -149,8 +149,8 @@ export function aggregateToDailyData(rows: { date: string; device: 'pc' | 'mobil
     daily.ctr = calculateCTR(daily.total_clicks, daily.total_impressions);
   }
 
-  // 날짜순 정렬 (최신순)
-  return dailyValues.sort((a, b) => b.date.localeCompare(a.date));
+  // 날짜순 정렬 (오름차순 - 차트용)
+  return dailyValues.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
