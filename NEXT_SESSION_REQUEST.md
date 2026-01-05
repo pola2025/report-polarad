@@ -2,76 +2,57 @@
 
 ## 복사해서 사용:
 ```
-나라똔 프론트엔드에서 데이터 안 보이는 문제 확인.
-API는 정상 (Meta 9,273/305, Naver 1,115/690).
-프론트엔드 코드 확인 필요.
+나라똔 프론트엔드에서 데이터 안 보이는 문제 해결.
+API 3개 모두 정상 응답 확인됨.
+프론트엔드 page.tsx 렌더링 로직 디버깅 필요.
++ 보안 작업으로 Git 히스토리 변경됨 → Vercel 재배포 필요.
 NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
 ```
 
 ---
 
-## 🚨 현재 문제: 프론트엔드에서 데이터 안 보임
+## 🚨 현재 문제: 나라똔 데이터 안 보임
 
-### 증상
-- 프로덕션 https://report.polarad.co.kr/?client=naratton 접속
-- **상호명 검색량 추이만 보임** (keywordStats)
-- Meta, Naver 광고 데이터가 화면에 표시 안 됨
+### API 응답 - 모두 정상 ✅
+```bash
+# 1. /api/client
+GET /api/client?slug=naratton
+→ success: true, naver_type: "brand_search"
 
-### API는 정상 ✅
+# 2. /api/dashboard
+GET /api/dashboard?client=naratton
+→ meta: 8,891/299, naver: 1,026/631
+
+# 3. /api/naver/brand-search
+GET /api/naver/brand-search?clientId=c2f60730-f8c1-4361-b9fc-3b44725c3955
+→ success: true, 데이터 있음
 ```
-GET /api/dashboard?client=naratton&period=30d
 
-Meta: { impressions: 9273, clicks: 305, leads: 41, spend: 872 }
-Naver: { impressions: 1115, clicks: 690, spend: 0 }
-KPI: { totalImpressions: 10388, totalClicks: 995, totalLeads: 41 }
-```
+### 브라우저에서 안 보임 ❌
+- Playwright로 접속 시 데이터 보임
+- 사용자 브라우저에서는 안 보임
+- 강력 새로고침, 시크릿 모드 모두 안됨
 
-### 확인 필요
-1. 프론트엔드 컴포넌트에서 API 응답 처리 확인
-2. 조건부 렌더링 로직 확인 (데이터가 있어도 안 보이는 조건?)
-3. 브라우저 콘솔 에러 확인
-
-### 관련 파일 (추정)
-- `dashboard/src/app/page.tsx` - 메인 대시보드 페이지
-- `dashboard/src/components/` - KPI, 차트 컴포넌트들
+### 디버깅 필요
+1. `dashboard/src/app/page.tsx` 렌더링 로직 확인
+2. 브라우저 콘솔/네트워크 탭 확인
+3. 조건부 렌더링 조건 확인
 
 ---
 
-## 이번 세션 완료 작업 ✅
+## 🔒 보안 작업 완료
 
-### 1. Dashboard API Supabase → Airtable 전환
-- 클라이언트 조회: `AIRTABLE_CONFIG` 직접 확인
-- 네이버 데이터: Airtable (`naver_place`, `naver_brand_search`)
+### 제거된 키 (Git 히스토리 포함)
+| 키 종류 | 상태 |
+|--------|------|
+| 텔레그램 봇 토큰 2개 | ✅ 제거됨 |
+| Supabase service_role 키 | ✅ 제거됨 |
+| 네이버 API/Secret 키 | ✅ 제거됨 |
 
-### 2. Vercel 환경변수 추가
-```
-AIRTABLE_API_KEY
-AIRTABLE_HEA_BASE_ID / AIRTABLE_HEA_TABLE_ID
-AIRTABLE_NARATTON_BASE_ID / AIRTABLE_NARATTON_TABLE_ID
-```
-
-### 3. H.E.A 판교 네이버 플레이스 데이터 Import
-- 28일치, 총 노출 14,180 / 클릭 500 / 비용 917,477원
-
-### 4. Airtable 버그 수정
-- 페이지네이션 지원 (100개 이상 레코드)
-- 날짜 필터 `<=` → `<` 연산자 우회 (12/31 누락 문제)
-
----
-
-## 프로덕션 API 현재 상태 ✅
-
-### H.E.A 판교
-| 소스 | 노출수 | 클릭수 | 비용 |
-|------|--------|--------|------|
-| Meta | 124,051 | 4,021 | 721,500원 |
-| Naver | 14,180 | 500 | 917,477원 |
-
-### 나라똔
-| 소스 | 노출수 | 클릭수 |
-|------|--------|--------|
-| Meta | 9,273 | 305 |
-| Naver | 1,115 | 690 |
+### 필요한 조치
+1. **텔레그램**: @BotFather → /revoke → 새 토큰 발급
+2. **Supabase**: 대시보드에서 service_role 키 재발급
+3. **네이버**: 새 API 키 발급
 
 ---
 
@@ -80,10 +61,10 @@ AIRTABLE_NARATTON_BASE_ID / AIRTABLE_NARATTON_TABLE_ID
 - **경로**: `F:\polarad-meta`
 - **GitHub**: `pola2025/report-polarad`
 - **프로덕션**: https://report.polarad.co.kr
-- **환경변수**: `dashboard/.env.local`
+- **나라똔 URL**: https://report.polarad.co.kr/?client=naratton
 
-### Airtable
-| 클라이언트 | Base ID | Table ID |
-|-----------|---------|----------|
-| H.E.A 판교 | appJlOqnadLsMJQYw | tbl8ftclEFG5ypohX |
-| 나라똔 | appN2KzUoORRrb8X9 | tblmC9Ft2ioXKXsrL |
+### 클라이언트
+| 이름 | UUID | slug |
+|------|------|------|
+| H.E.A 판교 | 3ff2896e-... | hea-pangyo |
+| 나라똔 | c2f60730-... | naratton |
