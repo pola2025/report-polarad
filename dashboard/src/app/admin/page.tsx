@@ -75,8 +75,10 @@ export default function AdminPage() {
     account: '',
     token: '',
     telegram: '',
-    client_type: 'general' as 'restaurant' | 'consulting' | 'ecommerce' | 'general',
+    client_type: 'general' as 'restaurant' | 'consulting' | 'general',
     naver_enabled: true,
+    naver_type: 'place' as 'place' | 'brand_search',
+    naver_fixed_budget: '',
     ga_enabled: false,
     ga_property_id: '',
     ga_credentials: null as object | null,
@@ -161,6 +163,8 @@ export default function AdminPage() {
           telegram: '',
           client_type: 'general',
           naver_enabled: true,
+          naver_type: 'place',
+          naver_fixed_budget: '',
           ga_enabled: false,
           ga_property_id: '',
           ga_credentials: null,
@@ -587,13 +591,12 @@ export default function AdminPage() {
                   >
                     <option value="restaurant">🍽️ 식당 (네이버 플레이스 광고 중심)</option>
                     <option value="consulting">💼 경영컨설팅 (홈페이지 트래픽 중심)</option>
-                    <option value="ecommerce">🛒 이커머스 (전환 추적 중심)</option>
                     <option value="general">📊 일반</option>
                   </select>
                 </div>
 
                 {/* 네이버 설정 */}
-                <div className="bg-gray-50 p-3 rounded-md">
+                <div className="bg-green-50 p-3 rounded-md space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -603,6 +606,43 @@ export default function AdminPage() {
                     />
                     <span className="text-sm font-medium text-gray-700">네이버 광고 데이터 사용</span>
                   </label>
+
+                  {newClient.naver_enabled && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          네이버 광고 유형
+                        </label>
+                        <select
+                          value={newClient.naver_type}
+                          onChange={(e) => setNewClient({
+                            ...newClient,
+                            naver_type: e.target.value as 'place' | 'brand_search'
+                          })}
+                          className="w-full px-3 py-1.5 border rounded-md text-sm"
+                        >
+                          <option value="place">플레이스 광고 (CSV 업로드)</option>
+                          <option value="brand_search">브랜드검색 광고 (월 고정비)</option>
+                        </select>
+                      </div>
+
+                      {newClient.naver_type === 'brand_search' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            월 고정 광고비 (원)
+                          </label>
+                          <input
+                            type="text"
+                            value={newClient.naver_fixed_budget}
+                            onChange={(e) => setNewClient({ ...newClient, naver_fixed_budget: e.target.value })}
+                            className="w-full px-3 py-1.5 border rounded-md text-sm"
+                            placeholder="예: 1320000"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">PC+모바일 합산 금액</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* GA 설정 */}

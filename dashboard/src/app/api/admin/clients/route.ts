@@ -142,6 +142,10 @@ export async function POST(request: NextRequest) {
       service_end_date,
       telegram_enabled = true,
       unlimited_service = false,
+      client_type = 'general',
+      naver_enabled = true,
+      naver_type = 'place',
+      naver_fixed_budget,
     } = body
 
     // 필수 필드 검증
@@ -198,6 +202,10 @@ export async function POST(request: NextRequest) {
         contract_start_date: startDate,
         contract_end_date: endDate,
         telegram_enabled,
+        client_type,
+        naver_enabled,
+        naver_type,
+        naver_fixed_budget: naver_fixed_budget ? parseInt(naver_fixed_budget) : null,
       })
       .select()
       .single()

@@ -745,38 +745,56 @@ function DashboardContent() {
                       <div className="bg-green-50 rounded-lg p-4 border border-green-100">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                          <span className="font-semibold text-green-700">네이버</span>
+                          <span className="font-semibold text-green-700">
+                            네이버{clientInfo?.naverType === 'brand_search' ? ' (브랜드검색)' : ''}
+                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
                             <span className="text-gray-500">노출수</span>
-                            <p className="font-medium">{data.naver.current.impressions.toLocaleString()}</p>
+                            <p className="font-medium">
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_impressions || 0).toLocaleString()
+                                : data.naver.current.impressions.toLocaleString()}
+                            </p>
                           </div>
                           <div>
                             <span className="text-gray-500">클릭수</span>
-                            <p className="font-medium">{data.naver.current.clicks.toLocaleString()}</p>
+                            <p className="font-medium">
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0).toLocaleString()
+                                : data.naver.current.clicks.toLocaleString()}
+                            </p>
                           </div>
                           <div>
                             <span className="text-gray-500">CTR</span>
                             <p className="font-medium">
-                              {data.naver.current.impressions > 0
-                                ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
-                                : 0}%
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_ctr || 0).toFixed(2)
+                                : data.naver.current.impressions > 0
+                                  ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                                  : 0}%
                             </p>
                           </div>
                           <div>
                             <span className="text-gray-500">CPC</span>
                             <p className="font-medium">
-                              {data.naver.current.clicks > 0
-                                ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
-                                : 0}원
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0) > 0
+                                  ? Math.round((brandSearchData?.data?.fixed_budget?.total || 1320000) / (brandSearchData?.data?.summary?.total_clicks || 1)).toLocaleString()
+                                  : 0
+                                : data.naver.current.clicks > 0
+                                  ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                                  : 0}원
                             </p>
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-green-200">
                           <span className="text-gray-500 text-sm">광고비</span>
                           <p className="font-bold text-green-600 text-lg">
-                            {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
+                            {clientInfo?.naverType === 'brand_search'
+                              ? (brandSearchData?.data?.fixed_budget?.total || 1320000).toLocaleString()
+                              : data.naver.current.spend.toLocaleString()}원
                           </p>
                         </div>
                       </div>
@@ -790,33 +808,63 @@ function DashboardContent() {
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
                             <span className="text-gray-500">노출수</span>
-                            <p className="font-medium">{(data.meta.current.impressions + data.naver.current.impressions).toLocaleString()}</p>
+                            <p className="font-medium">
+                              {(data.meta.current.impressions + (clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_impressions || 0)
+                                : data.naver.current.impressions)).toLocaleString()}
+                            </p>
                           </div>
                           <div>
                             <span className="text-gray-500">클릭수</span>
-                            <p className="font-medium">{(data.meta.current.clicks + data.naver.current.clicks).toLocaleString()}</p>
+                            <p className="font-medium">
+                              {(data.meta.current.clicks + (clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                : data.naver.current.clicks)).toLocaleString()}
+                            </p>
                           </div>
                           <div>
                             <span className="text-gray-500">CTR</span>
                             <p className="font-medium">
-                              {(data.meta.current.impressions + data.naver.current.impressions) > 0
-                                ? (((data.meta.current.clicks + data.naver.current.clicks) / (data.meta.current.impressions + data.naver.current.impressions)) * 100).toFixed(2)
-                                : 0}%
+                              {(() => {
+                                const naverImpressions = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_impressions || 0)
+                                  : data.naver.current.impressions;
+                                const naverClicks = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                  : data.naver.current.clicks;
+                                const totalImpressions = data.meta.current.impressions + naverImpressions;
+                                const totalClicks = data.meta.current.clicks + naverClicks;
+                                return totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : 0;
+                              })()}%
                             </p>
                           </div>
                           <div>
                             <span className="text-gray-500">CPC</span>
                             <p className="font-medium">
-                              {(data.meta.current.clicks + data.naver.current.clicks) > 0
-                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
-                                : 0}원
+                              {(() => {
+                                const metaSpend = data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350));
+                                const naverSpend = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
+                                  : data.naver.current.spend;
+                                const naverClicks = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                  : data.naver.current.clicks;
+                                const totalClicks = data.meta.current.clicks + naverClicks;
+                                return totalClicks > 0 ? Math.round((metaSpend + naverSpend) / totalClicks).toLocaleString() : 0;
+                              })()}원
                             </p>
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-[#F5A623]/30">
                           <span className="text-gray-500 text-sm">총 광고비</span>
                           <p className="font-bold text-[#D48C00] text-xl">
-                            {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)).toLocaleString()}원
+                            {(() => {
+                              const metaSpend = data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350));
+                              const naverSpend = clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
+                                : data.naver.current.spend;
+                              return (metaSpend + naverSpend).toLocaleString();
+                            })()}원
                           </p>
                         </div>
                       </div>
@@ -863,23 +911,39 @@ function DashboardContent() {
                             <td className="px-4 py-3 font-medium">
                               <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                네이버
+                                네이버{clientInfo?.naverType === 'brand_search' ? ' (브랜드검색)' : ''}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-right">{data.naver.current.impressions.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right">{data.naver.current.clicks.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right">
-                              {data.naver.current.impressions > 0
-                                ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
-                                : 0}%
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_impressions || 0).toLocaleString()
+                                : data.naver.current.impressions.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0).toLocaleString()
+                                : data.naver.current.clicks.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_ctr || 0).toFixed(2)
+                                : data.naver.current.impressions > 0
+                                  ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                                  : 0}%
                             </td>
                             <td className="px-4 py-3 text-right font-medium text-green-600">
-                              {clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.fixed_budget?.total || 1320000).toLocaleString()
+                                : data.naver.current.spend.toLocaleString()}원
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {data.naver.current.clicks > 0
-                                ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
-                                : 0}원
+                              {clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0) > 0
+                                  ? Math.round((brandSearchData?.data?.fixed_budget?.total || 1320000) / (brandSearchData?.data?.summary?.total_clicks || 1)).toLocaleString()
+                                  : 0
+                                : data.naver.current.clicks > 0
+                                  ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
+                                  : 0}원
                             </td>
                           </tr>
                           <tr className="bg-gray-100 font-semibold">
@@ -889,20 +953,50 @@ function DashboardContent() {
                                 합계
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-right">{(data.meta.current.impressions + data.naver.current.impressions).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right">{(data.meta.current.clicks + data.naver.current.clicks).toLocaleString()}</td>
                             <td className="px-4 py-3 text-right">
-                              {(data.meta.current.impressions + data.naver.current.impressions) > 0
-                                ? (((data.meta.current.clicks + data.naver.current.clicks) / (data.meta.current.impressions + data.naver.current.impressions)) * 100).toFixed(2)
-                                : 0}%
+                              {(data.meta.current.impressions + (clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_impressions || 0)
+                                : data.naver.current.impressions)).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {(data.meta.current.clicks + (clientInfo?.naverType === 'brand_search'
+                                ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                : data.naver.current.clicks)).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {(() => {
+                                const naverImpressions = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_impressions || 0)
+                                  : data.naver.current.impressions;
+                                const naverClicks = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                  : data.naver.current.clicks;
+                                const totalImpressions = data.meta.current.impressions + naverImpressions;
+                                const totalClicks = data.meta.current.clicks + naverClicks;
+                                return totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : 0;
+                              })()}%
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-[#F5A623]">
-                              {((data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)).toLocaleString()}원
+                              {(() => {
+                                const metaSpend = data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350));
+                                const naverSpend = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
+                                  : data.naver.current.spend;
+                                return (metaSpend + naverSpend).toLocaleString();
+                              })()}원
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {(data.meta.current.clicks + data.naver.current.clicks) > 0
-                                ? Math.round(((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) + (clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend)) / (data.meta.current.clicks + data.naver.current.clicks)).toLocaleString()
-                                : 0}원
+                              {(() => {
+                                const metaSpend = data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350));
+                                const naverSpend = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
+                                  : data.naver.current.spend;
+                                const naverClicks = clientInfo?.naverType === 'brand_search'
+                                  ? (brandSearchData?.data?.summary?.total_clicks || 0)
+                                  : data.naver.current.clicks;
+                                const totalClicks = data.meta.current.clicks + naverClicks;
+                                return totalClicks > 0 ? Math.round((metaSpend + naverSpend) / totalClicks).toLocaleString() : 0;
+                              })()}원
                             </td>
                           </tr>
                         </tbody>
@@ -931,12 +1025,35 @@ function DashboardContent() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {data.dailyTrend.length > 0 ? (
-                    <ChannelComparisonChart data={data.dailyTrend} metric={metricView} />
+                  {/* 브랜드검색 타입일 때 */}
+                  {clientInfo?.naverType === 'brand_search' ? (
+                    brandSearchData?.data?.daily && brandSearchData.data.daily.length > 0 ? (
+                      <ChannelComparisonChart
+                        data={(() => {
+                          // 브랜드검색 데이터와 Meta dailyTrend를 병합
+                          const brandSearchMap = new Map(brandSearchData.data.daily.map(d => [d.date, d]));
+                          return data.dailyTrend.map(d => ({
+                            ...d,
+                            naver_impressions: brandSearchMap.get(d.date)?.total_impressions || 0,
+                            naver_clicks: brandSearchMap.get(d.date)?.total_clicks || 0,
+                            naver_spend: 0, // 브랜드검색은 월 고정 비용
+                          }));
+                        })()}
+                        metric={metricView}
+                      />
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        브랜드검색 데이터가 없습니다.
+                      </div>
+                    )
                   ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      해당 기간에 데이터가 없습니다.
-                    </div>
+                    data.dailyTrend.length > 0 ? (
+                      <ChannelComparisonChart data={data.dailyTrend} metric={metricView} />
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        해당 기간에 데이터가 없습니다.
+                      </div>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -969,41 +1086,82 @@ function DashboardContent() {
                     <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500">노출수</p>
-                          <p className="text-lg font-semibold">{data.naver.current.impressions.toLocaleString()}</p>
+                    {/* 브랜드검색 타입일 때 */}
+                    {clientInfo?.naverType === 'brand_search' ? (
+                      brandSearchData?.data ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">노출수</p>
+                            <p className="text-lg font-semibold">{brandSearchData.data.summary.total_impressions.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">클릭수</p>
+                            <p className="text-lg font-semibold">{brandSearchData.data.summary.total_clicks.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">지출액</p>
+                            <p className="text-lg font-semibold">{brandSearchData.data.fixed_budget.total.toLocaleString()}원</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">CTR</p>
+                            <p className="text-lg font-semibold">{brandSearchData.data.summary.total_ctr.toFixed(2)}%</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">CPC</p>
+                            <p className="text-lg font-semibold">
+                              {brandSearchData.data.summary.total_clicks > 0
+                                ? Math.round(brandSearchData.data.fixed_budget.total / brandSearchData.data.summary.total_clicks).toLocaleString()
+                                : 0}원
+                            </p>
+                          </div>
                         </div>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500">클릭수</p>
-                          <p className="text-lg font-semibold">{data.naver.current.clicks.toLocaleString()}</p>
+                      ) : brandSearchLoading ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>브랜드검색 데이터를 불러오는 중...</p>
                         </div>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500">지출액</p>
-                          <p className="text-lg font-semibold">{clientInfo?.naver?.fixed_budget ? clientInfo.naver.fixed_budget.toLocaleString() : data.naver.current.spend.toLocaleString()}원</p>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>브랜드검색 데이터가 없습니다.</p>
                         </div>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500">CTR</p>
-                          <p className="text-lg font-semibold">
-                            {data.naver.current.impressions > 0
-                              ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
-                              : 0}%
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500">CPC</p>
-                          <p className="text-lg font-semibold">
-                            {data.naver.current.clicks > 0
-                              ? Math.round((clientInfo?.naver?.fixed_budget || data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
-                              : 0}원
-                          </p>
-                        </div>
-                      </div>
+                      )
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>네이버 데이터가 없습니다.</p>
-                      </div>
+                      /* 플레이스 타입일 때 */
+                      data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">노출수</p>
+                            <p className="text-lg font-semibold">{data.naver.current.impressions.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">클릭수</p>
+                            <p className="text-lg font-semibold">{data.naver.current.clicks.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">지출액</p>
+                            <p className="text-lg font-semibold">{clientInfo?.naver?.fixed_budget ? clientInfo.naver.fixed_budget.toLocaleString() : data.naver.current.spend.toLocaleString()}원</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">CTR</p>
+                            <p className="text-lg font-semibold">
+                              {data.naver.current.impressions > 0
+                                ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                                : 0}%
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">CPC</p>
+                            <p className="text-lg font-semibold">
+                              {data.naver.current.clicks > 0
+                                ? Math.round((clientInfo?.naver?.fixed_budget || data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
+                                : 0}원
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>네이버 데이터가 없습니다.</p>
+                        </div>
+                      )
                     )}
                   </CardContent>
                 </Card>
@@ -1032,20 +1190,48 @@ function DashboardContent() {
                   <CardTitle className="text-base">네이버 일별 추이</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
-                    <MetaDailyTrendChart
-                      data={data.dailyTrend.map(d => ({
-                        ...d,
-                        meta_impressions: d.naver_impressions,
-                        meta_clicks: d.naver_clicks,
-                        meta_spend: d.naver_spend,
-                      }))}
-                      metric="spend"
-                    />
+                  {/* 브랜드검색 타입일 때 */}
+                  {clientInfo?.naverType === 'brand_search' ? (
+                    brandSearchData?.data?.daily && brandSearchData.data.daily.length > 0 ? (
+                      <MetaDailyTrendChart
+                        data={brandSearchData.data.daily.map(d => ({
+                          date: d.date,
+                          meta_impressions: d.total_impressions,
+                          meta_clicks: d.total_clicks,
+                          meta_spend: 0, // 브랜드검색은 일별 비용 없음 (월 고정)
+                          meta_leads: 0,
+                          naver_impressions: d.total_impressions,
+                          naver_clicks: d.total_clicks,
+                          naver_spend: 0,
+                        }))}
+                        metric="impressions"
+                      />
+                    ) : brandSearchLoading ? (
+                      <div className="h-[300px] flex items-center justify-center text-gray-400">
+                        데이터 로딩 중...
+                      </div>
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center text-gray-400">
+                        브랜드검색 데이터 없음
+                      </div>
+                    )
                   ) : (
-                    <div className="h-[300px] flex items-center justify-center text-gray-400">
-                      데이터 없음
-                    </div>
+                    /* 플레이스 타입일 때 */
+                    data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
+                      <MetaDailyTrendChart
+                        data={data.dailyTrend.map(d => ({
+                          ...d,
+                          meta_impressions: d.naver_impressions,
+                          meta_clicks: d.naver_clicks,
+                          meta_spend: d.naver_spend,
+                        }))}
+                        metric="spend"
+                      />
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center text-gray-400">
+                        데이터 없음
+                      </div>
+                    )
                   )}
                 </CardContent>
               </Card>
