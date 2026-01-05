@@ -75,6 +75,11 @@ export default function AdminPage() {
     account: '',
     token: '',
     telegram: '',
+    client_type: 'general' as 'restaurant' | 'consulting' | 'ecommerce' | 'general',
+    naver_enabled: true,
+    ga_enabled: false,
+    ga_property_id: '',
+    ga_credentials: null as object | null,
   })
 
   const fetchData = useCallback(async () => {
@@ -149,7 +154,17 @@ export default function AdminPage() {
       if (data.success) {
         alert('클라이언트가 추가되었습니다.')
         setShowAddModal(false)
-        setNewClient({ name: '', account: '', token: '', telegram: '' })
+        setNewClient({
+          name: '',
+          account: '',
+          token: '',
+          telegram: '',
+          client_type: 'general',
+          naver_enabled: true,
+          ga_enabled: false,
+          ga_property_id: '',
+          ga_credentials: null,
+        })
         fetchData()
       } else {
         alert(data.error || '추가 실패')
@@ -480,12 +495,12 @@ export default function AdminPage() {
 
       {/* 클라이언트 추가 모달 */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <CardHeader className="flex-shrink-0">
               <CardTitle>새 클라이언트 추가</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-y-auto">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -535,6 +550,104 @@ export default function AdminPage() {
                     placeholder="예: -1001234567890"
                   />
                 </div>
+
+                {/* 업종 선택 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    업종 *
+                  </label>
+                  <select
+                    value={newClient.client_type}
+                    onChange={(e) => {
+                      const type = e.target.value as typeof newClient.client_type
+                      setNewClient({
+                        ...newClient,
+                        client_type: type,
+                        // 업종별 기본값 설정
+                        naver_enabled: type === 'restaurant',
+                        ga_enabled: type !== 'restaurant',
+                      })
+                    }}
+                    className="w-full px-4 py-2 border rounded-md"
+                  >
+                    <option value="restaurant">🍽️ 식당 (네이버 플레이스 광고 중심)</option>
+                    <option value="consulting">💼 경영컨설팅 (홈페이지 트래픽 중심)</option>
+                    <option value="ecommerce">🛒 이커머스 (전환 추적 중심)</option>
+                    <option value="general">📊 일반</option>
+                  </select>
+                </div>
+
+                {/* 네이버 설정 */}
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newClient.naver_enabled}
+                      onChange={(e) => setNewClient({ ...newClient, naver_enabled: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">네이버 광고 데이터 사용</span>
+                  </label>
+                </div>
+
+                {/* GA 설정 */}
+                <div className="bg-blue-50 p-3 rounded-md space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newClient.ga_enabled}
+                      onChange={(e) => setNewClient({ ...newClient, ga_enabled: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Google Analytics 연동</span>
+                  </label>
+
+                  {newClient.ga_enabled && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          GA Property ID
+                        </label>
+                        <input
+                          type="text"
+                          value={newClient.ga_property_id}
+                          onChange={(e) => setNewClient({ ...newClient, ga_property_id: e.target.value })}
+                          className="w-full px-3 py-1.5 border rounded-md text-sm"
+                          placeholder="예: 123456789"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          서비스 계정 JSON 키
+                        </label>
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onload = (event) => {
+                                try {
+                                  const json = JSON.parse(event.target?.result as string)
+                                  setNewClient({ ...newClient, ga_credentials: json })
+                                } catch {
+                                  alert('유효한 JSON 파일이 아닙니다.')
+                                }
+                              }
+                              reader.readAsText(file)
+                            }
+                          }}
+                          className="w-full text-sm"
+                        />
+                        {newClient.ga_credentials && (
+                          <p className="text-xs text-green-600 mt-1">✓ JSON 파일 로드됨</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="secondary" onClick={() => setShowAddModal(false)}>
                     취소
