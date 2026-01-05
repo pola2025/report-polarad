@@ -56,6 +56,16 @@ async function sendTelegram(message: string): Promise<void> {
   }
 }
 
+// actions 배열에서 특정 action_type 값 추출
+function getActionValue(
+  actions: Array<{ action_type: string; value: string }> | undefined,
+  actionType: string
+): number {
+  if (!actions || !Array.isArray(actions)) return 0
+  const action = actions.find((a) => a.action_type === actionType)
+  return action ? parseInt(action.value) || 0 : 0
+}
+
 // Meta API 호출
 async function fetchMetaData(
   accessToken: string,
@@ -68,8 +78,9 @@ async function fetchMetaData(
   impressions: string
   clicks: string
   spend: string
+  actions?: Array<{ action_type: string; value: string }>
 }>> {
-  const fields = 'date_start,impressions,clicks,spend'
+  const fields = 'date_start,impressions,clicks,spend,actions'
   const url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
     `fields=${fields}&` +
     `breakdowns=device_platform&` +
@@ -185,6 +196,7 @@ async function backfillClient(
       device,
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
+      leads: getActionValue(row.actions, 'lead'),
       spend: Math.round(parseFloat(row.spend) || 0),
       source,
       campaign_name: '',

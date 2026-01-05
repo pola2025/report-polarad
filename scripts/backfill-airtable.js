@@ -61,6 +61,13 @@ async function sendTelegram(message) {
   }
 }
 
+// actions 배열에서 특정 action_type 값 추출
+function getActionValue(actions, actionType) {
+  if (!actions || !Array.isArray(actions)) return 0;
+  const action = actions.find((a) => a.action_type === actionType);
+  return action ? parseInt(action.value) || 0 : 0;
+}
+
 // Meta API 호출
 async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
   const fields = [
@@ -68,6 +75,7 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
     'impressions',
     'clicks',
     'spend',
+    'actions',
   ].join(',');
 
   // 일별 + 디바이스별 집계
@@ -183,6 +191,7 @@ function transformMetaData(rawData) {
     device: row.device_platform?.toLowerCase() || 'unknown',
     impressions: parseInt(row.impressions) || 0,
     clicks: parseInt(row.clicks) || 0,
+    leads: getActionValue(row.actions, 'lead'),
     spend: Math.round(parseFloat(row.spend) || 0),
     source: 'meta',
     campaign_name: '',
