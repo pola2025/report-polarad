@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 확장 컬럼 조회
-    let metaMetricType: 'lead' | 'video' = slug === 'hea-pangyo' ? 'video' : 'lead'
+    const metaMetricType: 'lead' | 'video' = slug === 'hea-pangyo' ? 'video' : 'lead'
     let clientType = 'general'
     let naverConfig = {
       enabled: true,
@@ -60,14 +60,11 @@ export async function GET(request: NextRequest) {
     try {
       const { data: clientWithExtra } = await supabase
         .from(TABLES.CLIENTS)
-        .select('meta_metric_type, client_type, naver_type, naver_enabled, naver_show_keywords, naver_show_detail_tab, naver_fixed_budget, ga_enabled, ga_property_id')
+        .select('client_type, naver_type, naver_enabled, naver_show_keywords, naver_show_detail_tab, naver_fixed_budget, ga_enabled, ga_property_id')
         .eq('id', client.id)
         .single()
 
       if (clientWithExtra) {
-        if (clientWithExtra.meta_metric_type) {
-          metaMetricType = clientWithExtra.meta_metric_type
-        }
         if (clientWithExtra.client_type) {
           clientType = clientWithExtra.client_type
         }
