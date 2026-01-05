@@ -2,118 +2,88 @@
 
 ## 복사해서 사용:
 ```
-Polarad Meta - Airtable 마이그레이션 마무리 작업.
+나라똔 프론트엔드에서 데이터 안 보이는 문제 확인.
+API는 정상 (Meta 9,273/305, Naver 1,115/690).
+프론트엔드 코드 확인 필요.
 NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
 ```
 
 ---
 
-## 완료된 작업
+## 🚨 현재 문제: 프론트엔드에서 데이터 안 보임
 
-### Phase 1: H.E.A 판교 Meta 마이그레이션 ✅
-- Supabase → Airtable 마이그레이션 완료
-- 158개 레코드 (일별 + 디바이스별 집계)
+### 증상
+- 프로덕션 https://report.polarad.co.kr/?client=naratton 접속
+- **상호명 검색량 추이만 보임** (keywordStats)
+- Meta, Naver 광고 데이터가 화면에 표시 안 됨
 
-### Phase 2: 나라똔 Meta 마이그레이션 ✅
-- Supabase → Airtable 마이그레이션 완료
-- 53개 레코드
+### API는 정상 ✅
+```
+GET /api/dashboard?client=naratton&period=30d
 
-### Phase 3: 네이버 데이터 입력 ✅
-- 나라똔 12월 브랜드검색 데이터: 57개 레코드 (노출 1,395, 클릭 876)
-- H.E.A 판교 네이버 플레이스 데이터: 2개 레코드 (12/15 데이터)
-
-### Phase 4: 프론트엔드 API 수정 (진행 중)
-- ✅ Airtable 라이브러리 생성: `dashboard/src/lib/airtable.ts`
-- ✅ `/api/naver/brand-search` API를 Airtable로 전환
-- ✅ BrandSearchTable 컴포넌트에 안내문 props 추가 (`isManualDataOnly`)
-- ⏳ 메인 페이지에서 나라똔일 때 `isManualDataOnly={true}` 전달 필요
-
----
-
-## 남은 작업
-
-### 1. 메인 페이지 수정 (page.tsx:1499)
-```tsx
-<BrandSearchTable
-  daily={brandSearchData.data.daily}
-  monthly={brandSearchData.data.monthly}
-  monthlyBudget={brandSearchData.data.fixed_budget}
-  isManualDataOnly={clientSlug === '나라똔'}  // 추가 필요
-/>
+Meta: { impressions: 9273, clicks: 305, leads: 41, spend: 872 }
+Naver: { impressions: 1115, clicks: 690, spend: 0 }
+KPI: { totalImpressions: 10388, totalClicks: 995, totalLeads: 41 }
 ```
 
-### 2. Phase 5: Vercel Cron 설정
-- 매일 새벽 3시 KST Meta 데이터 자동 백필
-- 스크립트: `scripts/backfill-airtable.js`
-- Vercel Cron 또는 Cloudflare Workers 활용
+### 확인 필요
+1. 프론트엔드 컴포넌트에서 API 응답 처리 확인
+2. 조건부 렌더링 로직 확인 (데이터가 있어도 안 보이는 조건?)
+3. 브라우저 콘솔 에러 확인
 
-### 3. 빌드 및 배포 테스트
+### 관련 파일 (추정)
+- `dashboard/src/app/page.tsx` - 메인 대시보드 페이지
+- `dashboard/src/components/` - KPI, 차트 컴포넌트들
 
 ---
 
-## Airtable 설정
+## 이번 세션 완료 작업 ✅
 
+### 1. Dashboard API Supabase → Airtable 전환
+- 클라이언트 조회: `AIRTABLE_CONFIG` 직접 확인
+- 네이버 데이터: Airtable (`naver_place`, `naver_brand_search`)
+
+### 2. Vercel 환경변수 추가
+```
+AIRTABLE_API_KEY
+AIRTABLE_HEA_BASE_ID / AIRTABLE_HEA_TABLE_ID
+AIRTABLE_NARATTON_BASE_ID / AIRTABLE_NARATTON_TABLE_ID
+```
+
+### 3. H.E.A 판교 네이버 플레이스 데이터 Import
+- 28일치, 총 노출 14,180 / 클릭 500 / 비용 917,477원
+
+### 4. Airtable 버그 수정
+- 페이지네이션 지원 (100개 이상 레코드)
+- 날짜 필터 `<=` → `<` 연산자 우회 (12/31 누락 문제)
+
+---
+
+## 프로덕션 API 현재 상태 ✅
+
+### H.E.A 판교
+| 소스 | 노출수 | 클릭수 | 비용 |
+|------|--------|--------|------|
+| Meta | 124,051 | 4,021 | 721,500원 |
+| Naver | 14,180 | 500 | 917,477원 |
+
+### 나라똔
+| 소스 | 노출수 | 클릭수 |
+|------|--------|--------|
+| Meta | 9,273 | 305 |
+| Naver | 1,115 | 690 |
+
+---
+
+## 프로젝트 정보
+
+- **경로**: `F:\polarad-meta`
+- **GitHub**: `pola2025/report-polarad`
+- **프로덕션**: https://report.polarad.co.kr
+- **환경변수**: `dashboard/.env.local`
+
+### Airtable
 | 클라이언트 | Base ID | Table ID |
 |-----------|---------|----------|
 | H.E.A 판교 | appJlOqnadLsMJQYw | tbl8ftclEFG5ypohX |
 | 나라똔 | appN2KzUoORRrb8X9 | tblmC9Ft2ioXKXsrL |
-
-**토큰**: `.env.local`의 `AIRTABLE_API_KEY` 참조
-
-### Airtable 필드
-- date, device, impressions, clicks, spend, source, campaign_name, keywords, is_finalized
-
-### 데이터 소스
-- `meta`: Meta 광고 데이터
-- `naver_place`: 네이버 플레이스 광고 (H.E.A 판교)
-- `naver_brand_search`: 네이버 브랜드검색 광고 (나라똔 수동 입력)
-
----
-
-## 환경변수 (dashboard/.env.local)
-
-```bash
-# Airtable
-AIRTABLE_API_KEY=patLrqsWWAheA6dVc.xxx
-AIRTABLE_HEA_BASE_ID=appJlOqnadLsMJQYw
-AIRTABLE_HEA_TABLE_ID=tbl8ftclEFG5ypohX
-AIRTABLE_NARATTON_BASE_ID=appN2KzUoORRrb8X9
-AIRTABLE_NARATTON_TABLE_ID=tblmC9Ft2ioXKXsrL
-
-# Cloudflare
-CLOUDFLARE_API_TOKEN=_-UNLRYLi34TiE6wAWEC-fwcEvL01G2yPt-1YPIW
-```
-
----
-
-## 스크립트 목록
-
-| 스크립트 | 용도 |
-|---------|------|
-| `scripts/backfill-airtable.js` | Meta 데이터 백필 → Airtable |
-| `scripts/migrate-to-airtable.js` | Supabase → Airtable 마이그레이션 |
-| `scripts/import-naver-csv.js` | 나라똔 네이버 CSV → Airtable |
-| `scripts/import-hea-naver-tsv.js` | H.E.A 네이버 TSV → Airtable |
-
----
-
-## 클라이언트별 데이터 흐름
-
-### H.E.A 판교
-- Meta: 자동 백필 ✅
-- Naver 플레이스: 자동 백필 ✅ (키워드 제외) → 월마감 시 키워드 포함 수동 입력
-
-### 나라똔
-- Meta: 자동 백필 ✅
-- Naver 브랜드검색: 수동 입력만 (API 제한) → 대시보드 안내문 표시
-
----
-
-## PRD 문서
-- `docs/PRD-Airtable-Migration.md`
-
-## 프로젝트 정보
-- **경로**: `F:\polarad-meta`
-- **대시보드**: `F:\polarad-meta\dashboard`
-- **프로덕션**: https://report.polarad.co.kr
-- **Vercel 설정**: https://vercel.com/mkt9834-4301s-projects/report-polarad/settings
