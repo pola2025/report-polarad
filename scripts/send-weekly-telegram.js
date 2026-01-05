@@ -174,6 +174,15 @@ async function main() {
     const startDay = report.period_start.split('-')[2];
     const endDay = report.period_end.split('-')[2];
 
+    // 네이버 데이터 없을 때 안내 문구
+    const naverNote = naver.impressions === 0
+      ? '\n※ 네이버 광고 데이터는 월간 리포트 취합 후 반영됩니다.'
+      : '';
+
+    const adSpendText = naver.impressions === 0
+      ? `${formatCurrency(meta.spend)} (Meta)`
+      : `${formatCurrency(totalSpend)} (Meta ${formatCurrency(meta.spend)} + 네이버 ${formatCurrency(naver.spend)})`;
+
     const message = `📊 ${reportMonth}월 ${reportWeek}주차 광고 성과 안내
 
 안녕하세요, H.E.A 판교입니다.
@@ -183,7 +192,7 @@ async function main() {
 • 노출: ${formatNumber(totalImpressions)}회
 • 클릭: ${formatNumber(totalClicks)}회
 • CTR: ${totalCtr}%
-• 광고비: ${formatCurrency(totalSpend)} (Meta ${formatCurrency(meta.spend)} + 네이버 ${formatCurrency(naver.spend)})
+• 광고비: ${adSpendText}${naverNote}
 
 CTR ${totalCtr}%는 업계 평균 대비 우수한 성과입니다.
 
