@@ -2,13 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, TABLES } from '@/lib/supabase'
-import { fetchAirtableData, getClientSlugById } from '@/lib/airtable'
+import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE, convertUsdToKrw } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = createServerClient()  // 키워드 통계용으로만 사용
     const { searchParams } = new URL(request.url)
 
     // 클라이언트 필터 (선택적)
@@ -64,46 +64,62 @@ export async function GET(request: NextRequest) {
     const previousStartDateStr = format(previousStartDate, 'yyyy-MM-dd')
     const previousEndDateStr = format(previousEndDate, 'yyyy-MM-dd')
 
-    // 클라이언트 ID 가져오기
-    let clientId: string | null = null
-    let resolvedSlug = clientSlug
-    if (clientSlug) {
-      const { data: client } = await supabase
-        .from(TABLES.CLIENTS)
-        .select('id')
-        .eq('slug', clientSlug)
-        .single()
-      clientId = client?.id || null
-    }
+    // 클라이언트 slug 확인 (Airtable config 직접 사용 - Supabase 의존성 제거)
+    // AIRTABLE_CONFIG에 slug가 있는지 확인하여 유효한 클라이언트인지 판단
+    const resolvedSlug = clientSlug && AIRTABLE_CONFIG[clientSlug] ? clientSlug : null
 
-    // clientId로 slug 조회 (Airtable용)
-    if (clientId && !resolvedSlug) {
-      resolvedSlug = getClientSlugById(clientId)
-    }
-
-    // ===== META 데이터 집계 (Airtable) =====
+    // ===== 전체 광고 데이터 집계 (Airtable - Meta + Naver 통합) =====
     let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string}> = []
     let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number}> = []
+    let naverCurrentData: Array<{impressions: number; clicks: number; spend: number; date: string}> = []
+    let naverPreviousData: Array<{impressions: number; clicks: number; spend: number}> = []
 
     if (resolvedSlug) {
-      // 현재 기간 Meta 데이터 (Airtable)
-      const currentAirtableData = await fetchAirtableData(resolvedSlug, startDateStr, endDateStr, 'meta')
-      metaCurrentData = currentAirtableData.map(r => ({
-        impressions: r.impressions,
-        clicks: r.clicks,
-        leads: r.leads,
-        spend: r.spend,
-        date: r.date,
-      }))
+      // 현재 기간 전체 데이터 (Airtable - source 필터 없이)
+      const currentAirtableData = await fetchAirtableData(resolvedSlug, startDateStr, endDateStr)
 
-      // 이전 기간 Meta 데이터 (Airtable)
-      const previousAirtableData = await fetchAirtableData(resolvedSlug, previousStartDateStr, previousEndDateStr, 'meta')
-      metaPreviousData = previousAirtableData.map(r => ({
-        impressions: r.impressions,
-        clicks: r.clicks,
-        leads: r.leads,
-        spend: r.spend,
-      }))
+      // Meta 데이터 필터링 (source = 'meta')
+      metaCurrentData = currentAirtableData
+        .filter(r => r.source === 'meta')
+        .map(r => ({
+          impressions: r.impressions,
+          clicks: r.clicks,
+          leads: r.leads,
+          spend: r.spend,
+          date: r.date,
+        }))
+
+      // Naver 데이터 필터링 (source = 'naver_place' 또는 'naver_brand_search')
+      naverCurrentData = currentAirtableData
+        .filter(r => r.source === 'naver_place' || r.source === 'naver_brand_search')
+        .map(r => ({
+          impressions: r.impressions,
+          clicks: r.clicks,
+          spend: r.spend,
+          date: r.date,
+        }))
+
+      // 이전 기간 전체 데이터 (Airtable)
+      const previousAirtableData = await fetchAirtableData(resolvedSlug, previousStartDateStr, previousEndDateStr)
+
+      // 이전 기간 Meta 데이터
+      metaPreviousData = previousAirtableData
+        .filter(r => r.source === 'meta')
+        .map(r => ({
+          impressions: r.impressions,
+          clicks: r.clicks,
+          leads: r.leads,
+          spend: r.spend,
+        }))
+
+      // 이전 기간 Naver 데이터
+      naverPreviousData = previousAirtableData
+        .filter(r => r.source === 'naver_place' || r.source === 'naver_brand_search')
+        .map(r => ({
+          impressions: r.impressions,
+          clicks: r.clicks,
+          spend: r.spend,
+        }))
     }
 
     // 현재 기간 Meta 집계
@@ -138,45 +154,18 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.spend += row.spend || 0
     })
 
-    // ===== 네이버 데이터 집계 (_total_ 키워드 제외) =====
-    let naverQuery = supabase
-      .from(TABLES.NAVER_DATA)
-      .select('impressions, clicks, total_cost, date')
-      .gte('date', startDateStr)
-      .lte('date', endDateStr)
-      .neq('keyword', '_total_')  // API 합계 데이터 제외
-
-    if (clientId) {
-      naverQuery = naverQuery.eq('client_id', clientId)
-    }
-
-    const { data: naverData } = await naverQuery
-
+    // ===== 네이버 데이터 집계 (Airtable - 위에서 이미 naverCurrentData, naverPreviousData 설정됨) =====
     const naverCurrentPeriod = {
       impressions: 0,
       clicks: 0,
       spend: 0,
     }
 
-    naverData?.forEach(row => {
+    naverCurrentData.forEach(row => {
       naverCurrentPeriod.impressions += row.impressions || 0
       naverCurrentPeriod.clicks += row.clicks || 0
-      naverCurrentPeriod.spend += row.total_cost || 0
+      naverCurrentPeriod.spend += row.spend || 0
     })
-
-    // 이전 기간 네이버 데이터 (_total_ 키워드 제외)
-    let naverPreviousQuery = supabase
-      .from(TABLES.NAVER_DATA)
-      .select('impressions, clicks, total_cost')
-      .gte('date', previousStartDateStr)
-      .lte('date', previousEndDateStr)
-      .neq('keyword', '_total_')  // API 합계 데이터 제외
-
-    if (clientId) {
-      naverPreviousQuery = naverPreviousQuery.eq('client_id', clientId)
-    }
-
-    const { data: naverPreviousData } = await naverPreviousQuery
 
     const naverPreviousPeriod = {
       impressions: 0,
@@ -184,10 +173,10 @@ export async function GET(request: NextRequest) {
       spend: 0,
     }
 
-    naverPreviousData?.forEach(row => {
+    naverPreviousData.forEach(row => {
       naverPreviousPeriod.impressions += row.impressions || 0
       naverPreviousPeriod.clicks += row.clicks || 0
-      naverPreviousPeriod.spend += row.total_cost || 0
+      naverPreviousPeriod.spend += row.spend || 0
     })
 
     // ===== 일별 트렌드 데이터 =====
@@ -203,14 +192,14 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    // 네이버 일별
+    // 네이버 일별 (Airtable 데이터 사용)
     const naverDailyMap = new Map<string, { impressions: number; clicks: number; spend: number }>()
-    naverData?.forEach(row => {
+    naverCurrentData.forEach(row => {
       const existing = naverDailyMap.get(row.date) || { impressions: 0, clicks: 0, spend: 0 }
       naverDailyMap.set(row.date, {
         impressions: existing.impressions + (row.impressions || 0),
         clicks: existing.clicks + (row.clicks || 0),
-        spend: existing.spend + (row.total_cost || 0),
+        spend: existing.spend + (row.spend || 0),
       })
     })
 
@@ -272,8 +261,10 @@ export async function GET(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     let keywordApiUrl = `${supabaseUrl}/rest/v1/${TABLES.KEYWORD_STATS}?select=*&order=year_month.asc`
-    if (clientId) {
-      keywordApiUrl += `&client_id=eq.${clientId}`
+    // resolvedSlug에서 UUID 조회 (Supabase 키워드 통계 테이블은 client_id UUID 사용)
+    const clientUuid = resolvedSlug ? getClientIdBySlug(resolvedSlug) : null
+    if (clientUuid) {
+      keywordApiUrl += `&client_id=eq.${clientUuid}`
     }
 
     const keywordResponse = await fetch(keywordApiUrl, {

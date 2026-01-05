@@ -102,6 +102,17 @@ export function getClientSlugById(clientId: string): string | null {
 }
 
 /**
+ * 클라이언트 slug로 UUID 조회 (Supabase 키워드 통계 등에서 사용)
+ */
+export function getClientIdBySlug(slug: string): string | null {
+  const SLUG_TO_UUID: Record<string, string> = {
+    'hea-pangyo': '3ff2896e-6786-4936-9c57-311f69f43c63',
+    'naratton': 'c2f60730-f8c1-4361-b9fc-3b44725c3955',
+  };
+  return SLUG_TO_UUID[slug] || null;
+}
+
+/**
  * 소스별 데이터 집계
  */
 export function aggregateBySource(records: AirtableAdRecord[]) {
