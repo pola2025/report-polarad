@@ -185,19 +185,25 @@ async function upsertToAirtable(baseId, tableId, records) {
 }
 
 // Meta 데이터를 Airtable 형식으로 변환
-function transformMetaData(rawData) {
-  return rawData.map(row => ({
-    date: row.date_start,
-    device: row.device_platform?.toLowerCase() || 'unknown',
-    impressions: parseInt(row.impressions) || 0,
-    clicks: parseInt(row.clicks) || 0,
-    leads: getActionValue(row.actions, 'lead'),
-    spend: Math.round(parseFloat(row.spend) || 0),
-    source: 'meta',
-    campaign_name: '',
-    keywords: '',
-    is_finalized: false,
-  }));
+function transformMetaData(rawData, includeLeads = true) {
+  return rawData.map(row => {
+    const record = {
+      date: row.date_start,
+      device: row.device_platform?.toLowerCase() || 'unknown',
+      impressions: parseInt(row.impressions) || 0,
+      clicks: parseInt(row.clicks) || 0,
+      spend: Math.round(parseFloat(row.spend) || 0),
+      source: 'meta',
+      campaign_name: '',
+      keywords: '',
+      is_finalized: false,
+    };
+    // leads는 나라똔만 (H.E.A 판교는 식당이라 리드 없음)
+    if (includeLeads) {
+      record.leads = getActionValue(row.actions, 'lead');
+    }
+    return record;
+  });
 }
 
 // 클라이언트별 백필 실행
@@ -225,8 +231,9 @@ async function backfillClient(client, startDate, endDate) {
       return { success: true, count: 0 };
     }
 
-    // 데이터 변환
-    const records = transformMetaData(rawData);
+    // 데이터 변환 (H.E.A 판교는 식당이라 leads 제외)
+    const includeLeads = client.client_name !== 'H.E.A 판교';
+    const records = transformMetaData(rawData, includeLeads);
 
     // Airtable에 upsert
     const result = await upsertToAirtable(

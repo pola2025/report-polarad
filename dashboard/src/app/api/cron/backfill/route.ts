@@ -191,17 +191,20 @@ async function backfillClient(
     const device = row.device_platform?.toLowerCase() || 'unknown'
     const source = 'meta'
 
-    const fields = {
+    // H.E.A 판교는 식당이라 leads 제외
+    const fields: Record<string, unknown> = {
       date,
       device,
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
-      leads: getActionValue(row.actions, 'lead'),
       spend: Math.round(parseFloat(row.spend) || 0),
       source,
       campaign_name: '',
       keywords: '',
       is_finalized: false,
+    }
+    if (clientName !== 'H.E.A 판교') {
+      fields.leads = getActionValue(row.actions, 'lead')
     }
 
     // 기존 레코드 확인
