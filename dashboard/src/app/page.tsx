@@ -306,8 +306,8 @@ function DashboardContent() {
   // 브랜드검색 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {
     async function fetchBrandSearchData() {
-      // 브랜드검색 타입이 아니거나 탭이 아니면 스킵
-      if (activeTab !== 'naver' || !clientSlug || !clientInfo || clientInfo.naverType !== 'brand_search') return
+      // 브랜드검색 타입이 아니면 스킵 (통합 요약, 네이버 탭 모두에서 조회)
+      if (!clientSlug || !clientInfo || clientInfo.naverType !== 'brand_search') return
 
       setBrandSearchLoading(true)
       try {

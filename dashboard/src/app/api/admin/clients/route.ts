@@ -60,7 +60,11 @@ export async function GET(request: NextRequest) {
         service_end_date,
         telegram_enabled,
         created_at,
-        updated_at
+        updated_at,
+        naver_type,
+        naver_enabled,
+        naver_fixed_budget,
+        client_type
       `)
       .order('created_at', { ascending: false })
 
