@@ -48,10 +48,14 @@ export async function fetchAirtableData(
     return [];
   }
 
-  // 필터 조건
-  let formula = `AND({date}>='${startDate}', {date}<='${endDate}')`;
+  // 필터 조건 (endDate 다음날로 < 비교 - Airtable <= 연산자 버그 우회)
+  const endDateObj = new Date(endDate);
+  endDateObj.setDate(endDateObj.getDate() + 1);
+  const nextDay = endDateObj.toISOString().split('T')[0];
+
+  let formula = `AND({date}>='${startDate}', {date}<'${nextDay}')`;
   if (source) {
-    formula = `AND({date}>='${startDate}', {date}<='${endDate}', {source}='${source}')`;
+    formula = `AND({date}>='${startDate}', {date}<'${nextDay}', {source}='${source}')`;
   }
 
   const allRecords: AirtableAdRecord[] = [];
