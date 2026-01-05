@@ -181,3 +181,68 @@ export async function sendErrorNotification(
 
   return sendTelegramMessage(BACKFILL_CHAT_ID, message)
 }
+
+/**
+ * 신규 OAuth 인증 알림
+ */
+export async function sendNewOAuthNotification(
+  userName: string,
+  metaUserId: string,
+  adAccountId?: string
+): Promise<boolean> {
+  const message = `
+<b>🆕 신규 OAuth 인증</b>
+
+<b>사용자:</b> ${userName}
+<b>Meta ID:</b> ${metaUserId}
+${adAccountId ? `<b>광고 계정:</b> ${adAccountId}` : '<b>광고 계정:</b> 없음'}
+
+<b>상태:</b> 승인 대기 (pending)
+<a href="https://report.polarad.co.kr/admin/clients">관리자 페이지에서 승인</a>
+
+⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+`.trim()
+
+  return sendTelegramMessage(BACKFILL_CHAT_ID, message)
+}
+
+/**
+ * 클라이언트 승인 알림
+ */
+export async function sendClientApprovedNotification(
+  clientName: string,
+  approvedBy: string
+): Promise<boolean> {
+  const message = `
+<b>✅ 클라이언트 승인 완료</b>
+
+<b>클라이언트:</b> ${clientName}
+<b>승인자:</b> ${approvedBy}
+<b>상태:</b> active (서비스 활성화)
+
+⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+`.trim()
+
+  return sendTelegramMessage(BACKFILL_CHAT_ID, message)
+}
+
+/**
+ * 토큰 만료 임박 알림
+ */
+export async function sendTokenExpiryWarning(
+  clientName: string,
+  daysUntilExpiry: number
+): Promise<boolean> {
+  const message = `
+<b>⏰ 토큰 만료 임박</b>
+
+<b>클라이언트:</b> ${clientName}
+<b>남은 일수:</b> ${daysUntilExpiry}일
+
+토큰 갱신이 필요합니다.
+
+⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+`.trim()
+
+  return sendTelegramMessage(BACKFILL_CHAT_ID, message)
+}

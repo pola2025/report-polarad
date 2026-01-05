@@ -42,22 +42,46 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // meta_metric_type, naver_type 조회 (컬럼이 없을 수 있으므로 별도 쿼리)
-    // 임시: H.E.A 판교(hea-pangyo)는 video 타입으로 설정
+    // 확장 컬럼 조회
     let metaMetricType: 'lead' | 'video' = slug === 'hea-pangyo' ? 'video' : 'lead'
-    let naverType: 'place' | 'brand_search' = 'place'
+    let clientType = 'general'
+    let naverConfig = {
+      enabled: true,
+      type: 'place' as 'place' | 'brand_search',
+      show_keywords: true,
+      show_detail_tab: true,
+      fixed_budget: null as number | null,
+    }
+    let gaConfig = {
+      enabled: false,
+      property_id: null as string | null,
+    }
 
     try {
       const { data: clientWithExtra } = await supabase
         .from(TABLES.CLIENTS)
-        .select('meta_metric_type, naver_type')
+        .select('meta_metric_type, client_type, naver_type, naver_enabled, naver_show_keywords, naver_show_detail_tab, naver_fixed_budget, ga_enabled, ga_property_id')
         .eq('id', client.id)
         .single()
-      if (clientWithExtra?.meta_metric_type) {
-        metaMetricType = clientWithExtra.meta_metric_type
-      }
-      if (clientWithExtra?.naver_type) {
-        naverType = clientWithExtra.naver_type
+
+      if (clientWithExtra) {
+        if (clientWithExtra.meta_metric_type) {
+          metaMetricType = clientWithExtra.meta_metric_type
+        }
+        if (clientWithExtra.client_type) {
+          clientType = clientWithExtra.client_type
+        }
+        naverConfig = {
+          enabled: clientWithExtra.naver_enabled ?? true,
+          type: clientWithExtra.naver_type || 'place',
+          show_keywords: clientWithExtra.naver_show_keywords ?? true,
+          show_detail_tab: clientWithExtra.naver_show_detail_tab ?? true,
+          fixed_budget: clientWithExtra.naver_fixed_budget,
+        }
+        gaConfig = {
+          enabled: clientWithExtra.ga_enabled ?? false,
+          property_id: clientWithExtra.ga_property_id,
+        }
       }
     } catch {
       // 컬럼이 없으면 기본값 사용
@@ -69,8 +93,12 @@ export async function GET(request: NextRequest) {
         id: client.id,
         client_name: client.client_name,
         slug: client.slug,
+        client_type: clientType,
         meta_metric_type: metaMetricType,
-        naver_type: naverType,
+        naver: naverConfig,
+        ga: gaConfig,
+        // 하위호환성
+        naver_type: naverConfig.type,
       },
     })
   } catch (error) {

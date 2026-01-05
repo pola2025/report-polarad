@@ -88,19 +88,11 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
               <Legend />
               <Line
                 type="monotone"
-                dataKey="total"
-                name="전체"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-              <Line
-                type="monotone"
                 dataKey="mobile"
                 name="모바일"
                 stroke="#10B981"
                 strokeWidth={2}
-                dot={{ r: 3 }}
+                dot={{ r: 4 }}
               />
               <Line
                 type="monotone"
@@ -108,7 +100,7 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
                 name="PC"
                 stroke="#F59E0B"
                 strokeWidth={2}
-                dot={{ r: 3 }}
+                dot={{ r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>

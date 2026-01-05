@@ -1,0 +1,86 @@
+/**
+ * 클라이언트 승인 API
+ *
+ * POST /api/admin/clients/approve
+ * - pending 상태 클라이언트를 active로 변경
+ * - 관리자 인증 필요
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { approveClient, getClientById } from '@/lib/client-status'
+import { sendTelegramMessage } from '@/lib/telegram'
+
+const ADMIN_CHAT_ID = '-1003394139746'
+
+export async function POST(request: NextRequest) {
+  // 관리자 키 검증
+  const adminKey =
+    request.headers.get('x-admin-key') ||
+    (await request.clone().json().catch(() => ({}))).adminKey
+
+  const expectedAdminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
+
+  if (expectedAdminKey && adminKey !== expectedAdminKey) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { clientId, approvedBy, contractStartDate, contractEndDate } = await request.json()
+
+    if (!clientId) {
+      return NextResponse.json({ error: 'Client ID required' }, { status: 400 })
+    }
+
+    // 클라이언트 확인
+    const client = await getClientById(clientId)
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
+    if (client.status === 'active') {
+      return NextResponse.json({ error: 'Client is already active' }, { status: 400 })
+    }
+
+    // 계약 기간 설정
+    let contractDates: { start: Date; end: Date } | undefined
+
+    if (contractStartDate && contractEndDate) {
+      contractDates = {
+        start: new Date(contractStartDate),
+        end: new Date(contractEndDate),
+      }
+    }
+
+    // 승인 처리
+    await approveClient(clientId, approvedBy || 'admin', contractDates)
+
+    // 텔레그램 알림
+    const message = `
+<b>✅ 클라이언트 승인 완료</b>
+
+<b>클라이언트:</b> ${client.client_name}
+<b>승인자:</b> ${approvedBy || 'admin'}
+${contractDates ? `<b>계약 기간:</b> ${contractStartDate} ~ ${contractEndDate}` : ''}
+
+<b>상태:</b> active (서비스 활성화)
+
+⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+`.trim()
+
+    await sendTelegramMessage(ADMIN_CHAT_ID, message)
+
+    return NextResponse.json({
+      success: true,
+      clientId,
+      clientName: client.client_name,
+      status: 'active',
+    })
+  } catch (error) {
+    console.error('Approve client error:', error)
+    return NextResponse.json(
+      { error: 'Failed to approve client', details: String(error) },
+      { status: 500 }
+    )
+  }
+}

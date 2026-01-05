@@ -265,25 +265,33 @@ export async function GET(request: NextRequest) {
       ? Math.round(metaPreviousPeriod.spend / metaPreviousPeriod.leads)
       : 0
 
-    // ===== 키워드 통계 데이터 =====
-    let keywordQuery = supabase
-      .from(TABLES.KEYWORD_STATS)
-      .select('*')
-      .order('year_month', { ascending: true })
-
+    // ===== 키워드 통계 데이터 (직접 fetch로 캐시 우회) =====
+    // Supabase JS 클라이언트 대신 직접 REST API 호출 (Vercel Edge 캐싱 문제 해결)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    let keywordApiUrl = `${supabaseUrl}/rest/v1/${TABLES.KEYWORD_STATS}?select=*&order=year_month.asc`
     if (clientId) {
-      keywordQuery = keywordQuery.eq('client_id', clientId)
+      keywordApiUrl += `&client_id=eq.${clientId}`
     }
 
-    const { data: keywordData } = await keywordQuery
+    const keywordResponse = await fetch(keywordApiUrl, {
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      cache: 'no-store',
+    })
 
-    const keywordStats = keywordData?.map(row => ({
+    const keywordData = await keywordResponse.json()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const keywordStats = (keywordData || []).map((row: any) => ({
       year_month: row.year_month,
       keyword: row.keyword,
       pc_searches: row.pc_searches || 0,
       mobile_searches: row.mobile_searches || 0,
       total_searches: (row.pc_searches || 0) + (row.mobile_searches || 0),
-    })) || []
+    }))
 
     return NextResponse.json({
       success: true,

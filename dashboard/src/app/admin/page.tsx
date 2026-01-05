@@ -111,6 +111,7 @@ export default function AdminPage() {
     const savedKey = localStorage.getItem('polarad_admin_key')
     if (savedKey) {
       setAdminKey(savedKey)
+      setIsAuthenticated(true) // 저장된 키가 있으면 바로 인증 상태로
     }
   }, [])
 

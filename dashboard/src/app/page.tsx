@@ -88,7 +88,24 @@ function DashboardContent() {
   const isAdminView = !clientSlugFromUrl && isAuthenticated // 관리자가 선택한 경우
 
   const [data, setData] = useState<DashboardData | null>(null)
-  const [clientInfo, setClientInfo] = useState<{ name: string; slug: string; metaMetricType: 'lead' | 'video'; naverType: 'place' | 'brand_search' } | null>(null)
+  const [clientInfo, setClientInfo] = useState<{
+    name: string;
+    slug: string;
+    clientType: string;
+    metaMetricType: 'lead' | 'video';
+    naverType: 'place' | 'brand_search';
+    naver: {
+      enabled: boolean;
+      type: 'place' | 'brand_search';
+      show_keywords: boolean;
+      show_detail_tab: boolean;
+      fixed_budget: number | null;
+    };
+    ga: {
+      enabled: boolean;
+      property_id: string | null;
+    };
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
@@ -189,15 +206,37 @@ function DashboardContent() {
         const res = await fetch(`/api/client?slug=${clientSlug}`)
         const json = await res.json()
         if (json.success && json.client) {
+          const defaultNaver = {
+            enabled: true,
+            type: 'place' as const,
+            show_keywords: true,
+            show_detail_tab: true,
+            fixed_budget: null,
+          }
+          const defaultGa = {
+            enabled: false,
+            property_id: null,
+          }
           setClientInfo({
             name: json.client.client_name,
             slug: json.client.slug,
+            clientType: json.client.client_type || 'general',
             metaMetricType: json.client.meta_metric_type || 'lead',
-            naverType: json.client.naver_type || 'place'
+            naverType: json.client.naver?.type || json.client.naver_type || 'place',
+            naver: json.client.naver || defaultNaver,
+            ga: json.client.ga || defaultGa,
           })
         }
       } catch {
-        setClientInfo({ name: clientSlug, slug: clientSlug, metaMetricType: 'lead', naverType: 'place' })
+        setClientInfo({
+          name: clientSlug,
+          slug: clientSlug,
+          clientType: 'general',
+          metaMetricType: 'lead',
+          naverType: 'place',
+          naver: { enabled: true, type: 'place', show_keywords: true, show_detail_tab: true, fixed_budget: null },
+          ga: { enabled: false, property_id: null },
+        })
       }
     }
 
@@ -509,16 +548,19 @@ function DashboardContent() {
                 >
                   Meta 상세
                 </button>
-                <button
-                  onClick={() => handleTabChange('naver')}
-                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                    activeTab === 'naver'
-                      ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  네이버 상세
-                </button>
+                {/* 네이버 상세 탭 - show_detail_tab이 true일 때만 표시 */}
+                {clientInfo?.naver?.show_detail_tab !== false && (
+                  <button
+                    onClick={() => handleTabChange('naver')}
+                    className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                      activeTab === 'naver'
+                        ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    네이버 상세
+                  </button>
+                )}
                 <button
                   onClick={() => handleTabChange('reports')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
@@ -883,49 +925,52 @@ function DashboardContent() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500">노출수</p>
-                        <p className="text-lg font-semibold">{data.naver.current.impressions.toLocaleString()}</p>
+              {/* 네이버 광고 성과 - naver.enabled가 true일 때만 표시 */}
+              {clientInfo?.naver?.enabled !== false && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">노출수</p>
+                          <p className="text-lg font-semibold">{data.naver.current.impressions.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">클릭수</p>
+                          <p className="text-lg font-semibold">{data.naver.current.clicks.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">지출액</p>
+                          <p className="text-lg font-semibold">{clientInfo?.naver?.fixed_budget ? clientInfo.naver.fixed_budget.toLocaleString() : data.naver.current.spend.toLocaleString()}원</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">CTR</p>
+                          <p className="text-lg font-semibold">
+                            {data.naver.current.impressions > 0
+                              ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
+                              : 0}%
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">CPC</p>
+                          <p className="text-lg font-semibold">
+                            {data.naver.current.clicks > 0
+                              ? Math.round((clientInfo?.naver?.fixed_budget || data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
+                              : 0}원
+                          </p>
+                        </div>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500">클릭수</p>
-                        <p className="text-lg font-semibold">{data.naver.current.clicks.toLocaleString()}</p>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>네이버 데이터가 없습니다.</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500">지출액</p>
-                        <p className="text-lg font-semibold">{clientInfo?.naverType === 'brand_search' ? '1,320,000' : data.naver.current.spend.toLocaleString()}원</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500">CTR</p>
-                        <p className="text-lg font-semibold">
-                          {data.naver.current.impressions > 0
-                            ? ((data.naver.current.clicks / data.naver.current.impressions) * 100).toFixed(2)
-                            : 0}%
-                        </p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500">CPC</p>
-                        <p className="text-lg font-semibold">
-                          {data.naver.current.clicks > 0
-                            ? Math.round((clientInfo?.naverType === 'brand_search' ? 1320000 : data.naver.current.spend) / data.naver.current.clicks).toLocaleString()
-                            : 0}원
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>네이버 데이터가 없습니다.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </section>
 
             {/* Channel Performance - 일별 추이 그래프 */}
@@ -1198,8 +1243,8 @@ function DashboardContent() {
               </div>
             )}
 
-            {/* 네이버 상세 탭 */}
-            {activeTab === 'naver' && showTabs && (
+            {/* 네이버 상세 탭 - show_detail_tab이 true일 때만 표시 */}
+            {activeTab === 'naver' && showTabs && clientInfo?.naver?.show_detail_tab !== false && (
               <div className="space-y-6">
                 {naverLoading ? (
                   <div className="flex items-center justify-center py-20">
