@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, TABLES } from '@/lib/supabase';
+import { fetchAirtableData, getClientSlugById } from '@/lib/airtable';
 import {
   aggregateToDailyData,
   aggregateToMonthlyData,
@@ -9,7 +10,7 @@ import {
 import type { BrandSearchAPIResponse } from '@/types/brand-search';
 
 /**
- * 브랜드검색 데이터 조회 API
+ * 브랜드검색 데이터 조회 API (Airtable 캐시 사용)
  *
  * GET /api/naver/brand-search?clientId=xxx&startDate=2025-12-01&endDate=2025-12-31
  */
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     // 클라이언트 정보 조회 (고정 예산 포함)
     const { data: client, error: clientError } = await supabase
       .from(TABLES.CLIENTS)
-      .select('id, naver_fixed_budget')
+      .select('id, slug, naver_fixed_budget')
       .eq('id', clientId)
       .single();
 
@@ -51,25 +52,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 브랜드검색 데이터 조회 (오름차순 정렬 - 차트에서 날짜순 표시)
-    const { data: rawData, error: dataError } = await supabase
-      .from('polarad_brand_search_data')
-      .select('date, device, impressions, clicks')
-      .eq('client_id', clientId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true });
-
-    if (dataError) {
-      console.error('Brand search data error:', dataError);
+    // Airtable에서 네이버 데이터 조회 (naver_place + naver_brand_search)
+    const clientSlug = client.slug || getClientSlugById(clientId);
+    if (!clientSlug) {
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch brand search data' } as BrandSearchAPIResponse,
-        { status: 500 }
+        { success: false, error: 'Airtable config not found' } as BrandSearchAPIResponse,
+        { status: 404 }
       );
     }
 
+    // 네이버 플레이스 + 브랜드검색 데이터 조회
+    const [placeData, brandSearchData] = await Promise.all([
+      fetchAirtableData(clientSlug, startDate, endDate, 'naver_place'),
+      fetchAirtableData(clientSlug, startDate, endDate, 'naver_brand_search'),
+    ]);
+
+    // 두 소스 합치기
+    const rawData = [...placeData, ...brandSearchData];
+
     // 데이터 변환
-    const formattedData = (rawData || []).map(row => ({
+    const formattedData = rawData.map(row => ({
       date: row.date,
       device: row.device as 'pc' | 'mobile',
       impressions: row.impressions || 0,

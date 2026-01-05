@@ -46,6 +46,7 @@ interface BrandSearchTableProps {
     pc: number      // PC 월 예산 (기본 660000)
     mobile: number  // 모바일 월 예산 (기본 660000)
   }
+  isManualDataOnly?: boolean  // 수동 데이터만 사용하는 클라이언트 (나라똔)
 }
 
 type ViewMode = 'monthly' | 'daily'
@@ -55,6 +56,7 @@ export function BrandSearchTable({
   monthly,
   loading,
   monthlyBudget = { pc: 660000, mobile: 660000 },
+  isManualDataOnly = false,
 }: BrandSearchTableProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
@@ -126,6 +128,16 @@ export function BrandSearchTable({
           </span>
           <span className="font-medium">= 총 {formatNumber(totalBudget)}원</span>
         </div>
+
+        {/* 수동 데이터 안내 (나라똔) */}
+        {isManualDataOnly && (
+          <div className="text-xs text-amber-700 mb-3 bg-amber-50 border border-amber-200 px-3 py-2 rounded flex items-center gap-2">
+            <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>네이버 브랜드검색 데이터는 <strong>월간 마감 후 업데이트</strong>됩니다. 실시간 데이터는 네이버 광고 관리자에서 확인하세요.</span>
+          </div>
+        )}
 
         {/* 모바일: 간단한 카드 리스트 */}
         <div className="md:hidden space-y-3">

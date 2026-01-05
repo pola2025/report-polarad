@@ -1500,6 +1500,7 @@ function DashboardContent() {
                       daily={brandSearchData.data.daily}
                       monthly={brandSearchData.data.monthly}
                       monthlyBudget={brandSearchData.data.fixed_budget}
+                      isManualDataOnly={clientSlug === '나라똔'}
                     />
                   ) : (
                     <Card>

@@ -48,7 +48,6 @@ async function callNaverAPI(method, uri, body = null) {
   const options = { method, headers };
   if (body) options.body = JSON.stringify(body);
 
-  console.log(`  API 호출: ${method} ${uri}`);
   const response = await fetch(NAVER_API_BASE + uri, options);
   const text = await response.text();
 
@@ -65,27 +64,29 @@ async function getCampaigns() {
 }
 
 // StatReport 생성 (브랜드검색용)
-async function createStatReport(startDate, endDate) {
-  const report = await callNaverAPI('POST', '/stat-reports', {
-    reportTp: 'AD_DETAIL',  // 광고 상세 보고서
+async function createStatReport(startDate, endDate, reportType = 'ADGROUP') {
+  const requestBody = {
+    reportTp: reportType,  // ADGROUP: 광고그룹별 집계
     statDt: startDate.replace(/-/g, ''),
     endDt: endDate.replace(/-/g, ''),
-  });
+  };
+
+  console.log(`  보고서 타입: ${reportType}`);
+  const report = await callNaverAPI('POST', '/stat-reports', requestBody);
 
   if (!report.reportJobId) {
-    console.log('응답:', JSON.stringify(report, null, 2));
+    console.log('  응답:', JSON.stringify(report, null, 2));
     throw new Error(`StatReport 생성 실패`);
   }
 
   return report.reportJobId;
 }
 
-async function waitForReport(reportJobId, maxWait = 120000) {
+async function waitForReport(reportJobId, maxWait = 60000) {
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWait) {
     const status = await callNaverAPI('GET', `/stat-reports/${reportJobId}`);
-    console.log(`  상태: ${status.status}`);
 
     if (status.status === 'BUILT' && status.downloadUrl) {
       return status.downloadUrl;
@@ -95,7 +96,7 @@ async function waitForReport(reportJobId, maxWait = 120000) {
       throw new Error(`보고서 생성 실패: ${status.status}`);
     }
 
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 1500));
   }
 
   throw new Error('보고서 생성 타임아웃');
@@ -107,18 +108,20 @@ async function downloadReport(downloadUrl) {
   return response.text();
 }
 
-function parseReportData(tsvData) {
+function parseReportData(tsvData, debug = false) {
   const lines = tsvData.trim().split('\n');
   if (lines.length === 0) return [];
 
-  console.log(`  총 ${lines.length}개 라인`);
-
-  // 첫 5줄 출력 (디버깅용)
-  console.log('\n  === 데이터 샘플 (첫 5줄) ===');
-  lines.slice(0, 5).forEach((line, i) => {
-    console.log(`  ${i}: ${line.substring(0, 200)}`);
-  });
-  console.log('  ===========================\n');
+  // 디버그: 첫 3줄 컬럼 출력
+  if (debug) {
+    console.log('\n  === 데이터 샘플 ===');
+    lines.slice(0, 3).forEach((line, i) => {
+      const cols = line.split('\t');
+      console.log(`  [${i}] ${cols.length}개 컬럼:`);
+      cols.forEach((col, j) => console.log(`      [${j}]: ${col}`));
+    });
+    console.log('  ==================\n');
+  }
 
   // 일별/디바이스별로 집계
   const dailyData = new Map();
@@ -133,13 +136,16 @@ function parseReportData(tsvData) {
 
     const date = `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`;
 
-    // 디바이스 (PC=P, Mobile=M)
-    const deviceCode = cols[8] || '';
+    // 디바이스 (PC=P, Mobile=M) - 컬럼 10
+    const deviceCode = cols[10] || '';
     const device = deviceCode === 'P' ? 'pc' : deviceCode === 'M' ? 'mobile' : 'unknown';
 
-    // 노출, 클릭
-    const impressions = parseInt(cols[9]) || 0;
-    const clicks = parseInt(cols[10]) || 0;
+    // 노출, 클릭 - 컬럼 11, 12
+    const impressions = parseInt(cols[11]) || 0;
+    const clicks = parseInt(cols[12]) || 0;
+
+    // unknown 디바이스는 스킵
+    if (device === 'unknown') continue;
 
     const key = `${date}_${device}`;
     const existing = dailyData.get(key) || { date, device, impressions: 0, clicks: 0 };
@@ -155,23 +161,24 @@ function parseReportData(tsvData) {
 }
 
 // DB에 저장
-async function saveToDatabase(records) {
+async function saveToDatabase(records, startDate, endDate) {
   console.log(`\n📦 ${records.length}개 레코드 저장 중...`);
 
-  // 기존 1월 데이터 삭제
-  console.log('  기존 1월 데이터 삭제...');
+  // 해당 기간 기존 데이터 삭제
+  console.log(`  기간 ${startDate} ~ ${endDate} 기존 데이터 삭제...`);
   const { error: deleteError } = await supabase
     .from('polarad_brand_search_data')
     .delete()
     .eq('client_id', CLIENT_ID)
-    .gte('date', '2026-01-01')
-    .lte('date', '2026-01-31');
+    .gte('date', startDate)
+    .lte('date', endDate);
 
   if (deleteError) {
     console.error('  삭제 오류:', deleteError.message);
   }
 
-  // 새 데이터 삽입
+  // 새 데이터 삽입 (배치)
+  let successCount = 0;
   for (const record of records) {
     const { error } = await supabase
       .from('polarad_brand_search_data')
@@ -188,8 +195,36 @@ async function saveToDatabase(records) {
     if (error) {
       console.error(`  저장 오류 (${record.date} ${record.device}):`, error.message);
     } else {
-      console.log(`  ✅ ${record.date} ${record.device}: 노출 ${record.impressions}, 클릭 ${record.clicks}`);
+      successCount++;
     }
+  }
+
+  console.log(`  ✅ ${successCount}개 레코드 저장 완료`);
+}
+
+// 날짜 범위 생성
+function getDateRange(startDate, endDate) {
+  const dates = [];
+  let current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
+// 단일 날짜 데이터 가져오기
+async function fetchSingleDayData(date, debug = false) {
+  try {
+    const reportJobId = await createStatReport(date, date);
+    const downloadUrl = await waitForReport(reportJobId);
+    const tsvData = await downloadReport(downloadUrl);
+    return parseReportData(tsvData, debug);
+  } catch (error) {
+    console.log(`  ⚠️ ${date} 데이터 가져오기 실패: ${error.message}`);
+    return [];
   }
 }
 
@@ -222,40 +257,39 @@ async function main() {
     // 1. 캠페인 목록 확인
     console.log('1️⃣ 캠페인 목록 조회...');
     const campaigns = await getCampaigns();
-    console.log(`  ${campaigns.length}개 캠페인 발견`);
+    console.log(`  ${campaigns.length}개 캠페인 발견\n`);
 
-    // 브랜드검색 캠페인 찾기
-    const brandCampaigns = campaigns.filter(c =>
-      c.campaignTp === 'BRAND' ||
-      c.name?.includes('브랜드') ||
-      c.name?.includes('brand')
-    );
-    console.log(`  브랜드검색 캠페인: ${brandCampaigns.length}개`);
-    brandCampaigns.forEach(c => console.log(`    - ${c.name} (${c.nccCampaignId})`));
+    // 2. 날짜별로 데이터 수집
+    const dates = getDateRange(startDate, endDate);
+    console.log(`2️⃣ ${dates.length}일간 데이터 수집 시작...\n`);
 
-    // 2. StatReport 생성
-    console.log('\n2️⃣ StatReport 생성...');
-    const reportJobId = await createStatReport(startDate, endDate);
-    console.log(`  보고서 ID: ${reportJobId}`);
+    const allRecords = [];
 
-    // 3. 완료 대기
-    console.log('\n3️⃣ 보고서 완료 대기...');
-    const downloadUrl = await waitForReport(reportJobId);
-    console.log('  다운로드 URL 획득');
+    let isFirstDay = true;
+    for (const date of dates) {
+      console.log(`📆 ${date} 처리 중...`);
+      const records = await fetchSingleDayData(date, isFirstDay);
+      isFirstDay = false;
+      if (records.length > 0) {
+        allRecords.push(...records);
+        const total = records.reduce((acc, r) => ({
+          impressions: acc.impressions + r.impressions,
+          clicks: acc.clicks + r.clicks
+        }), { impressions: 0, clicks: 0 });
+        console.log(`  ✅ 노출 ${total.impressions.toLocaleString()}, 클릭 ${total.clicks}\n`);
+      } else {
+        console.log(`  ⏭️ 데이터 없음\n`);
+      }
 
-    // 4. 다운로드
-    console.log('\n4️⃣ 데이터 다운로드...');
-    const tsvData = await downloadReport(downloadUrl);
-    console.log(`  ${tsvData.length} bytes 수신`);
+      // API 속도 제한 방지
+      await new Promise(r => setTimeout(r, 500));
+    }
 
-    // 5. 파싱
-    console.log('\n5️⃣ 데이터 파싱...');
-    const records = parseReportData(tsvData);
-    console.log(`  ${records.length}개 레코드 파싱`);
+    console.log(`\n📊 총 ${allRecords.length}개 레코드 수집\n`);
 
     // 일별 합계 출력
     const dailyTotals = new Map();
-    records.forEach(r => {
+    allRecords.forEach(r => {
       const existing = dailyTotals.get(r.date) || { impressions: 0, clicks: 0 };
       dailyTotals.set(r.date, {
         impressions: existing.impressions + r.impressions,
@@ -263,16 +297,20 @@ async function main() {
       });
     });
 
-    console.log('\n  === 일별 합계 ===');
+    console.log('=== 일별 합계 ===');
+    let totalImp = 0, totalClicks = 0;
     Array.from(dailyTotals.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .forEach(([date, data]) => {
-        console.log(`  ${date}: 노출 ${data.impressions.toLocaleString()}, 클릭 ${data.clicks}`);
+        console.log(`${date}: 노출 ${data.impressions.toLocaleString()}, 클릭 ${data.clicks}`);
+        totalImp += data.impressions;
+        totalClicks += data.clicks;
       });
+    console.log(`\n합계: 노출 ${totalImp.toLocaleString()}, 클릭 ${totalClicks.toLocaleString()}`);
 
-    // 6. DB 저장
-    if (records.length > 0) {
-      await saveToDatabase(records);
+    // 3. DB 저장
+    if (allRecords.length > 0) {
+      await saveToDatabase(allRecords, startDate, endDate);
     }
 
     console.log('\n✅ 완료!');
