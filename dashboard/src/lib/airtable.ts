@@ -24,6 +24,7 @@ export interface AirtableAdRecord {
   device: 'pc' | 'mobile' | 'all' | 'other';
   impressions: number;
   clicks: number;
+  leads?: number;  // 나라똔만 (H.E.A 판교는 식당이라 없음)
   spend: number;
   source: 'meta' | 'naver_place' | 'naver_brand_search';
   campaign_name?: string;
@@ -76,6 +77,7 @@ export async function fetchAirtableData(
       device: record.fields.device || 'other',
       impressions: record.fields.impressions || 0,
       clicks: record.fields.clicks || 0,
+      leads: record.fields.leads || 0,
       spend: record.fields.spend || 0,
       source: record.fields.source || 'meta',
       campaign_name: record.fields.campaign_name || '',
@@ -110,6 +112,7 @@ export function aggregateBySource(records: AirtableAdRecord[]) {
   const aggregate = (items: AirtableAdRecord[]) => ({
     impressions: items.reduce((sum, r) => sum + r.impressions, 0),
     clicks: items.reduce((sum, r) => sum + r.clicks, 0),
+    leads: items.reduce((sum, r) => sum + (r.leads || 0), 0),
     spend: items.reduce((sum, r) => sum + r.spend, 0),
   });
 
@@ -133,6 +136,7 @@ export function createDailyTrend(
   const dailyMap = new Map<string, {
     meta_impressions: number;
     meta_clicks: number;
+    meta_leads: number;
     meta_spend: number;
     naver_impressions: number;
     naver_clicks: number;
@@ -143,6 +147,7 @@ export function createDailyTrend(
     const existing = dailyMap.get(record.date) || {
       meta_impressions: 0,
       meta_clicks: 0,
+      meta_leads: 0,
       meta_spend: 0,
       naver_impressions: 0,
       naver_clicks: 0,
@@ -152,6 +157,7 @@ export function createDailyTrend(
     if (record.source === 'meta') {
       existing.meta_impressions += record.impressions;
       existing.meta_clicks += record.clicks;
+      existing.meta_leads += record.leads || 0;
       existing.meta_spend += record.spend;
     } else {
       existing.naver_impressions += record.impressions;
@@ -167,6 +173,7 @@ export function createDailyTrend(
     date: string;
     meta_impressions: number;
     meta_clicks: number;
+    meta_leads: number;
     meta_spend: number;
     naver_impressions: number;
     naver_clicks: number;
@@ -184,6 +191,7 @@ export function createDailyTrend(
     const data = dailyMap.get(dateStr) || {
       meta_impressions: 0,
       meta_clicks: 0,
+      meta_leads: 0,
       meta_spend: 0,
       naver_impressions: 0,
       naver_clicks: 0,

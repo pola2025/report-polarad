@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, TABLES } from '@/lib/supabase'
+import { fetchAirtableData, getClientSlugById } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE, convertUsdToKrw } from '@/lib/constants'
 
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
 
     // 클라이언트 ID 가져오기
     let clientId: string | null = null
+    let resolvedSlug = clientSlug
     if (clientSlug) {
       const { data: client } = await supabase
         .from(TABLES.CLIENTS)
@@ -74,20 +76,35 @@ export async function GET(request: NextRequest) {
       clientId = client?.id || null
     }
 
-    // ===== META 데이터 집계 =====
-    let metaQuery = supabase
-      .from(TABLES.META_DATA)
-      .select('impressions, clicks, leads, spend, date, video_views')
-      .gte('date', startDateStr)
-      .lte('date', endDateStr)
-
-    if (clientId) {
-      metaQuery = metaQuery.eq('client_id', clientId)
+    // clientId로 slug 조회 (Airtable용)
+    if (clientId && !resolvedSlug) {
+      resolvedSlug = getClientSlugById(clientId)
     }
 
-    const { data: metaData, error: metaError } = await metaQuery
+    // ===== META 데이터 집계 (Airtable) =====
+    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string}> = []
+    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number}> = []
 
-    if (metaError) throw metaError
+    if (resolvedSlug) {
+      // 현재 기간 Meta 데이터 (Airtable)
+      const currentAirtableData = await fetchAirtableData(resolvedSlug, startDateStr, endDateStr, 'meta')
+      metaCurrentData = currentAirtableData.map(r => ({
+        impressions: r.impressions,
+        clicks: r.clicks,
+        leads: r.leads,
+        spend: r.spend,
+        date: r.date,
+      }))
+
+      // 이전 기간 Meta 데이터 (Airtable)
+      const previousAirtableData = await fetchAirtableData(resolvedSlug, previousStartDateStr, previousEndDateStr, 'meta')
+      metaPreviousData = previousAirtableData.map(r => ({
+        impressions: r.impressions,
+        clicks: r.clicks,
+        leads: r.leads,
+        spend: r.spend,
+      }))
+    }
 
     // 현재 기간 Meta 집계
     const metaCurrentPeriod = {
@@ -98,27 +115,14 @@ export async function GET(request: NextRequest) {
       video_views: 0,
     }
 
-    metaData?.forEach(row => {
+    metaCurrentData.forEach(row => {
       metaCurrentPeriod.impressions += row.impressions || 0
       metaCurrentPeriod.clicks += row.clicks || 0
       metaCurrentPeriod.leads += row.leads || 0
-      metaCurrentPeriod.spend += parseFloat(row.spend) || 0
-      metaCurrentPeriod.video_views += row.video_views || 0
+      metaCurrentPeriod.spend += row.spend || 0
     })
 
-    // 이전 기간 Meta 데이터
-    let metaPreviousQuery = supabase
-      .from(TABLES.META_DATA)
-      .select('impressions, clicks, leads, spend, video_views')
-      .gte('date', previousStartDateStr)
-      .lte('date', previousEndDateStr)
-
-    if (clientId) {
-      metaPreviousQuery = metaPreviousQuery.eq('client_id', clientId)
-    }
-
-    const { data: metaPreviousData } = await metaPreviousQuery
-
+    // 이전 기간 Meta 집계
     const metaPreviousPeriod = {
       impressions: 0,
       clicks: 0,
@@ -127,12 +131,11 @@ export async function GET(request: NextRequest) {
       video_views: 0,
     }
 
-    metaPreviousData?.forEach(row => {
+    metaPreviousData.forEach(row => {
       metaPreviousPeriod.impressions += row.impressions || 0
       metaPreviousPeriod.clicks += row.clicks || 0
       metaPreviousPeriod.leads += row.leads || 0
-      metaPreviousPeriod.spend += parseFloat(row.spend) || 0
-      metaPreviousPeriod.video_views += row.video_views || 0
+      metaPreviousPeriod.spend += row.spend || 0
     })
 
     // ===== 네이버 데이터 집계 (_total_ 키워드 제외) =====
@@ -190,12 +193,12 @@ export async function GET(request: NextRequest) {
     // ===== 일별 트렌드 데이터 =====
     // Meta 일별
     const metaDailyMap = new Map<string, { impressions: number; clicks: number; spend: number; leads: number }>()
-    metaData?.forEach(row => {
+    metaCurrentData.forEach(row => {
       const existing = metaDailyMap.get(row.date) || { impressions: 0, clicks: 0, spend: 0, leads: 0 }
       metaDailyMap.set(row.date, {
         impressions: existing.impressions + (row.impressions || 0),
         clicks: existing.clicks + (row.clicks || 0),
-        spend: existing.spend + (parseFloat(row.spend) || 0),
+        spend: existing.spend + (row.spend || 0),
         leads: existing.leads + (row.leads || 0),
       })
     })
@@ -266,7 +269,6 @@ export async function GET(request: NextRequest) {
       : 0
 
     // ===== 키워드 통계 데이터 (직접 fetch로 캐시 우회) =====
-    // Supabase JS 클라이언트 대신 직접 REST API 호출 (Vercel Edge 캐싱 문제 해결)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     let keywordApiUrl = `${supabaseUrl}/rest/v1/${TABLES.KEYWORD_STATS}?select=*&order=year_month.asc`
