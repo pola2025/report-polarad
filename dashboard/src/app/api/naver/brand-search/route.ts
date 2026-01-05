@@ -51,14 +51,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 브랜드검색 데이터 조회
+    // 브랜드검색 데이터 조회 (오름차순 정렬 - 차트에서 날짜순 표시)
     const { data: rawData, error: dataError } = await supabase
       .from('polarad_brand_search_data')
       .select('date, device, impressions, clicks')
       .eq('client_id', clientId)
       .gte('date', startDate)
       .lte('date', endDate)
-      .order('date', { ascending: false });
+      .order('date', { ascending: true });
 
     if (dataError) {
       console.error('Brand search data error:', dataError);

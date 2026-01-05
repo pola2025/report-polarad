@@ -628,7 +628,7 @@ function DashboardContent() {
                 {/* 총 지출액 - 전체 너비 */}
                 <KPICard
                   title="총 지출액"
-                  value={data.kpi.totalSpend}
+                  value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
                   format="currencyKRW"
                 />
@@ -636,12 +636,12 @@ function DashboardContent() {
                 <div className="grid grid-cols-2 gap-3">
                   <KPICard
                     title="총 노출수"
-                    value={data.kpi.totalImpressions}
+                    value={data.kpi.totalImpressions + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
                     previousValue={data.kpi.previousTotalImpressions}
                   />
                   <KPICard
                     title="총 클릭수"
-                    value={data.kpi.totalClicks}
+                    value={data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
                     previousValue={data.kpi.previousTotalClicks}
                   />
                   <KPICard
@@ -651,9 +651,13 @@ function DashboardContent() {
                   />
                   <KPICard
                     title="평균 CPC"
-                    value={data.meta.current.clicks > 0 ? data.meta.current.spend / data.meta.current.clicks : 0}
+                    value={(() => {
+                      const totalClicks = data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
+                      const totalSpend = data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
+                      return totalClicks > 0 ? totalSpend / totalClicks : 0
+                    })()}
                     previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
-                    format="currency"
+                    format="currencyKRW"
                   />
                 </div>
               </div>
@@ -662,17 +666,17 @@ function DashboardContent() {
               <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <KPICard
                   title="총 노출수"
-                  value={data.kpi.totalImpressions}
+                  value={data.kpi.totalImpressions + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
                   previousValue={data.kpi.previousTotalImpressions}
                 />
                 <KPICard
                   title="총 클릭수"
-                  value={data.kpi.totalClicks}
+                  value={data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
                   previousValue={data.kpi.previousTotalClicks}
                 />
                 <KPICard
                   title="총 지출액"
-                  value={data.kpi.totalSpend}
+                  value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
                   format="currencyKRW"
                 />
@@ -683,9 +687,13 @@ function DashboardContent() {
                 />
                 <KPICard
                   title="평균 CPC"
-                  value={data.meta.current.clicks > 0 ? data.meta.current.spend / data.meta.current.clicks : 0}
+                  value={(() => {
+                    const totalClicks = data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
+                    const totalSpend = data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
+                    return totalClicks > 0 ? totalSpend / totalClicks : 0
+                  })()}
                   previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
-                  format="currency"
+                  format="currencyKRW"
                 />
               </div>
 
