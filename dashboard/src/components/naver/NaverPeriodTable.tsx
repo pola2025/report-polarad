@@ -26,6 +26,7 @@ interface NaverPeriodTableProps {
   weekly: NaverWeeklyData[]
   monthly: NaverMonthlyData[]
   loading?: boolean
+  naverType?: 'place' | 'brand_search'
 }
 
 // 모바일 카드 컴포넌트
@@ -92,6 +93,7 @@ export function NaverPeriodTable({
   weekly,
   monthly,
   loading,
+  naverType = 'place',
 }: NaverPeriodTableProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
@@ -160,7 +162,8 @@ export function NaverPeriodTable({
     }> = []
 
     if (viewMode === 'monthly') {
-      monthly.forEach(m => {
+      // 최신 월이 위로 정렬
+      [...monthly].sort((a, b) => b.month.localeCompare(a.month)).forEach(m => {
         cards.push({
           period: m.month_label,
           impressions: m.impressions,
@@ -173,7 +176,8 @@ export function NaverPeriodTable({
         })
       })
     } else if (viewMode === 'weekly') {
-      weekly.forEach(w => {
+      // 최신 주가 위로 정렬
+      [...weekly].sort((a, b) => b.week_start.localeCompare(a.week_start)).forEach(w => {
         cards.push({
           period: w.week_label,
           subPeriod: `${w.week_start} ~ ${w.week_end}`,
@@ -187,7 +191,8 @@ export function NaverPeriodTable({
         })
       })
     } else {
-      daily.forEach(d => {
+      // 최신 날짜가 위로 정렬
+      [...daily].sort((a, b) => b.date.localeCompare(a.date)).forEach(d => {
         cards.push({
           period: d.date,
           impressions: d.impressions,
@@ -264,7 +269,9 @@ export function NaverPeriodTable({
       <CardContent>
         {/* 안내 문구 */}
         <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-3 py-2 rounded">
-          ※ 네이버 플레이스 키워드 성과분석 데이터는 클릭이 발생한 날짜만 표시됩니다.
+          {naverType === 'brand_search'
+            ? '※ 네이버 브랜드검색 광고 데이터입니다. 월 예산: PC 66만원 + 모바일 66만원 = 132만원'
+            : '※ 네이버 플레이스 키워드 성과분석 데이터는 클릭이 발생한 날짜만 표시됩니다.'}
         </p>
 
         {/* 모바일: 스와이프 카드 캐러셀 */}
@@ -356,8 +363,8 @@ export function NaverPeriodTable({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {/* 월별 뷰 */}
-              {viewMode === 'monthly' && monthly.map((m) => (
+              {/* 월별 뷰 - 최신 월이 위로 */}
+              {viewMode === 'monthly' && [...monthly].sort((a, b) => b.month.localeCompare(a.month)).map((m) => (
                 <Fragment key={m.month}>
                   <tr
                     className="bg-blue-50 hover:bg-blue-100 cursor-pointer"
@@ -452,8 +459,8 @@ export function NaverPeriodTable({
                 </Fragment>
               ))}
 
-              {/* 주별 뷰 */}
-              {viewMode === 'weekly' && weekly.map((w) => (
+              {/* 주별 뷰 - 최신 주가 위로 */}
+              {viewMode === 'weekly' && [...weekly].sort((a, b) => b.week_start.localeCompare(a.week_start)).map((w) => (
                 <tr key={w.week_label} className="hover:bg-gray-50">
                   <td className="px-3 py-2">
                     <div>

@@ -42,21 +42,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // meta_metric_type 조회 (컬럼이 없을 수 있으므로 별도 쿼리)
+    // meta_metric_type, naver_type 조회 (컬럼이 없을 수 있으므로 별도 쿼리)
     // 임시: H.E.A 판교(hea-pangyo)는 video 타입으로 설정
     let metaMetricType: 'lead' | 'video' = slug === 'hea-pangyo' ? 'video' : 'lead'
+    let naverType: 'place' | 'brand_search' = 'place'
 
     try {
-      const { data: clientWithMetric } = await supabase
+      const { data: clientWithExtra } = await supabase
         .from(TABLES.CLIENTS)
-        .select('meta_metric_type')
+        .select('meta_metric_type, naver_type')
         .eq('id', client.id)
         .single()
-      if (clientWithMetric?.meta_metric_type) {
-        metaMetricType = clientWithMetric.meta_metric_type
+      if (clientWithExtra?.meta_metric_type) {
+        metaMetricType = clientWithExtra.meta_metric_type
+      }
+      if (clientWithExtra?.naver_type) {
+        naverType = clientWithExtra.naver_type
       }
     } catch {
-      // 컬럼이 없으면 임시 설정 사용
+      // 컬럼이 없으면 기본값 사용
     }
 
     return NextResponse.json({
@@ -66,6 +70,7 @@ export async function GET(request: NextRequest) {
         client_name: client.client_name,
         slug: client.slug,
         meta_metric_type: metaMetricType,
+        naver_type: naverType,
       },
     })
   } catch (error) {

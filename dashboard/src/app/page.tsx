@@ -7,7 +7,7 @@ import { KPICard } from '@/components/ui/kpi-card'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MetaDailyTrendChart, ChannelComparisonChart, MetaSummaryCards, KeywordMonthlyTrendChart, MetaDayOfWeekChart, NaverKeywordDonutChart } from '@/components/charts'
-import { Loader2, BarChart3, DollarSign } from 'lucide-react'
+import { Loader2, BarChart3, DollarSign, Settings } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
@@ -88,7 +88,7 @@ function DashboardContent() {
   const isAdminView = !clientSlugFromUrl && isAuthenticated // 관리자가 선택한 경우
 
   const [data, setData] = useState<DashboardData | null>(null)
-  const [clientInfo, setClientInfo] = useState<{ name: string; slug: string; metaMetricType: 'lead' | 'video' } | null>(null)
+  const [clientInfo, setClientInfo] = useState<{ name: string; slug: string; metaMetricType: 'lead' | 'video'; naverType: 'place' | 'brand_search' } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
@@ -192,11 +192,12 @@ function DashboardContent() {
           setClientInfo({
             name: json.client.client_name,
             slug: json.client.slug,
-            metaMetricType: json.client.meta_metric_type || 'lead'
+            metaMetricType: json.client.meta_metric_type || 'lead',
+            naverType: json.client.naver_type || 'place'
           })
         }
       } catch {
-        setClientInfo({ name: clientSlug, slug: clientSlug, metaMetricType: 'lead' })
+        setClientInfo({ name: clientSlug, slug: clientSlug, metaMetricType: 'lead', naverType: 'place' })
       }
     }
 
@@ -329,18 +330,29 @@ function DashboardContent() {
       <div className="min-h-screen bg-gray-50">
         <header className="bg-[#F5A623] border-b border-[#E09000]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Image
-                src="/images/logo.png"
-                alt="Polarad"
-                width={48}
-                height={48}
-                className="rounded-lg"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-white">Polarad Report</h1>
-                <p className="text-sm text-white/80">관리자 모드</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Image
+                  src="/images/logo.png"
+                  alt="Polarad"
+                  width={48}
+                  height={48}
+                  className="rounded-lg"
+                />
+                <div>
+                  <h1 className="text-xl font-bold text-white">Polarad Report</h1>
+                  <p className="text-sm text-white/80">관리자 모드</p>
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/admin')}
+                className="text-white hover:bg-white/20"
+              >
+                <Settings className="h-5 w-5 mr-2" />
+                관리
+              </Button>
             </div>
           </div>
         </header>
@@ -873,7 +885,7 @@ function DashboardContent() {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle>네이버 플레이스 광고 성과</CardTitle>
+                  <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
@@ -1289,22 +1301,26 @@ function DashboardContent() {
                             <div className="text-xs md:text-sm text-gray-500">CPC</div>
                           </CardContent>
                         </Card>
-                        <Card>
-                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
-                            <div className="text-xl md:text-2xl font-bold text-teal-600">
-                              {naverData.summary.avg_rank.toFixed(1)}
-                            </div>
-                            <div className="text-xs md:text-sm text-gray-500">평균 순위</div>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
-                            <div className="text-xl md:text-2xl font-bold text-pink-600">
-                              {naverData.summary.unique_keywords}개
-                            </div>
-                            <div className="text-xs md:text-sm text-gray-500">고유 키워드</div>
-                          </CardContent>
-                        </Card>
+                        {clientInfo?.naverType !== 'brand_search' && (
+                          <Card>
+                            <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                              <div className="text-xl md:text-2xl font-bold text-teal-600">
+                                {naverData.summary.avg_rank.toFixed(1)}
+                              </div>
+                              <div className="text-xs md:text-sm text-gray-500">평균 순위</div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        {clientInfo?.naverType !== 'brand_search' && (
+                          <Card>
+                            <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
+                              <div className="text-xl md:text-2xl font-bold text-pink-600">
+                                {naverData.summary.unique_keywords}개
+                              </div>
+                              <div className="text-xs md:text-sm text-gray-500">고유 키워드</div>
+                            </CardContent>
+                          </Card>
+                        )}
                         <Card>
                           <CardContent className="pt-4 md:pt-6 pb-3 md:pb-4">
                             <div className="text-xl md:text-2xl font-bold text-gray-600">
@@ -1316,21 +1332,23 @@ function DashboardContent() {
                       </div>
                     </div>
 
-                    {/* 키워드별 지출 도넛 차트 */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>키워드별 광고비 분포</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {naverData.keywords && naverData.keywords.length > 0 ? (
-                          <NaverKeywordDonutChart keywords={naverData.keywords} />
-                        ) : (
-                          <div className="h-[300px] flex items-center justify-center text-gray-400">
-                            데이터 없음
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    {/* 키워드별 지출 도넛 차트 (플레이스만) */}
+                    {clientInfo?.naverType !== 'brand_search' && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>키워드별 광고비 분포</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {naverData.keywords && naverData.keywords.length > 0 ? (
+                            <NaverKeywordDonutChart keywords={naverData.keywords} />
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center text-gray-400">
+                              데이터 없음
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* 기간별 테이블 */}
                     <NaverPeriodTable
@@ -1338,19 +1356,22 @@ function DashboardContent() {
                       weekly={naverData.weekly}
                       monthly={naverData.monthly}
                       loading={false}
+                      naverType={clientInfo?.naverType}
                     />
 
-                    {/* 키워드 테이블 */}
-                    <NaverKeywordTable
-                      keywords={naverData.keywords}
-                      loading={false}
-                      dateRange={naverData.summary?.date_range}
-                      clientSlug={clientSlug}
-                      availableMonths={naverData.monthly?.map(m => ({
-                        value: m.month,
-                        label: m.month_label
-                      })) || []}
-                    />
+                    {/* 키워드 테이블 (플레이스만) */}
+                    {clientInfo?.naverType !== 'brand_search' && (
+                      <NaverKeywordTable
+                        keywords={naverData.keywords}
+                        loading={false}
+                        dateRange={naverData.summary?.date_range}
+                        clientSlug={clientSlug}
+                        availableMonths={naverData.monthly?.map(m => ({
+                          value: m.month,
+                          label: m.month_label
+                        })) || []}
+                      />
+                    )}
                   </>
                 ) : (
                   <Card>
