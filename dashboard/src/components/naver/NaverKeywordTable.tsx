@@ -1,19 +1,27 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { formatNumber } from '@/lib/utils'
-import { Search, ArrowUpDown, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ArrowUpDown, ExternalLink, ChevronLeft, ChevronRight, Calendar, Loader2 } from 'lucide-react'
 import type { NaverKeywordData } from '@/types/naver-analytics'
 
 type SortField = 'keyword' | 'impressions' | 'clicks' | 'ctr' | 'avg_cpc' | 'total_cost' | 'avg_rank'
 type SortOrder = 'asc' | 'desc'
+
+interface MonthOption {
+  value: string  // "2025-01" 형식
+  label: string  // "2025년 1월" 형식
+}
 
 interface NaverKeywordTableProps {
   keywords: NaverKeywordData[]
   loading?: boolean
   onKeywordClick?: (keyword: string) => void
   dateRange?: { start: string; end: string }
+  // 월별 필터용 추가 props
+  clientSlug?: string
+  availableMonths?: MonthOption[]
 }
 
 // 모바일 키워드 카드 컴포넌트
@@ -69,16 +77,92 @@ function MobileKeywordCard({ keyword, index, onKeywordClick }: { keyword: NaverK
 }
 
 export function NaverKeywordTable({
-  keywords,
-  loading,
+  keywords: initialKeywords,
+  loading: externalLoading,
   onKeywordClick,
-  dateRange,
+  dateRange: initialDateRange,
+  clientSlug,
+  availableMonths = [],
 }: NaverKeywordTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('total_cost')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [mobileCardIndex, setMobileCardIndex] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // 월별 필터 상태
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [filteredKeywords, setFilteredKeywords] = useState<NaverKeywordData[]>(initialKeywords)
+  const [currentDateRange, setCurrentDateRange] = useState(initialDateRange)
+  const [monthLoading, setMonthLoading] = useState(false)
+
+  // 초기 키워드 동기화
+  useEffect(() => {
+    if (selectedMonth === 'all') {
+      setFilteredKeywords(initialKeywords)
+      setCurrentDateRange(initialDateRange)
+    }
+  }, [initialKeywords, initialDateRange, selectedMonth])
+
+  // 월 변경 시 데이터 fetch
+  const handleMonthChange = useCallback(async (month: string) => {
+    setSelectedMonth(month)
+    setMobileCardIndex(0)
+
+    if (month === 'all') {
+      setFilteredKeywords(initialKeywords)
+      setCurrentDateRange(initialDateRange)
+      return
+    }
+
+    if (!clientSlug) {
+      // clientSlug가 없으면 로컬 필터링
+      const filtered = initialKeywords.filter(k => {
+        if (!k.first_date) return true
+        return k.first_date.startsWith(month) || k.last_date?.startsWith(month)
+      })
+      setFilteredKeywords(filtered)
+      const [year, m] = month.split('-')
+      const lastDay = new Date(parseInt(year), parseInt(m), 0).getDate()
+      setCurrentDateRange({
+        start: `${month}-01`,
+        end: `${month}-${lastDay}`
+      })
+      return
+    }
+
+    // API로 해당 월 데이터 fetch
+    setMonthLoading(true)
+    try {
+      const [year, m] = month.split('-')
+      const lastDay = new Date(parseInt(year), parseInt(m), 0).getDate()
+      const startDate = `${month}-01`
+      const endDate = `${month}-${lastDay}`
+
+      const params = new URLSearchParams({
+        clientSlug,
+        startDate,
+        endDate,
+        view: 'keywords'
+      })
+      const res = await fetch(`/api/naver/analytics?${params}`)
+      const json = await res.json()
+
+      if (!json.error && json.keywords) {
+        setFilteredKeywords(json.keywords)
+        setCurrentDateRange({ start: startDate, end: endDate })
+      }
+    } catch (err) {
+      console.error('Failed to fetch month keywords:', err)
+    } finally {
+      setMonthLoading(false)
+    }
+  }, [clientSlug, initialKeywords, initialDateRange])
+
+  // keywords 변수를 filteredKeywords로 사용
+  const keywords = filteredKeywords
+  const dateRange = currentDateRange
+  const loading = externalLoading || monthLoading
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -89,8 +173,8 @@ export function NaverKeywordTable({
     }
   }
 
-  // 필터링 및 정렬 (클릭이 0인 키워드는 제외)
-  const filteredKeywords = keywords
+  // 검색 및 정렬 (클릭이 0인 키워드는 제외)
+  const sortedKeywords = keywords
     .filter((k) => k.clicks > 0) // 클릭이 있는 키워드만 표시
     .filter((k) => k.keyword.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
@@ -130,9 +214,9 @@ export function NaverKeywordTable({
 
   // 스크롤 핸들러
   const handleScroll = () => {
-    if (scrollContainerRef.current && filteredKeywords.length > 0) {
+    if (scrollContainerRef.current && sortedKeywords.length > 0) {
       const container = scrollContainerRef.current
-      const cardWidth = container.scrollWidth / filteredKeywords.length
+      const cardWidth = container.scrollWidth / sortedKeywords.length
       const newIndex = Math.round(container.scrollLeft / cardWidth)
       setMobileCardIndex(newIndex)
     }
@@ -140,9 +224,9 @@ export function NaverKeywordTable({
 
   // 네비게이션 버튼 핸들러
   const scrollToCard = (index: number) => {
-    if (scrollContainerRef.current && filteredKeywords.length > 0) {
+    if (scrollContainerRef.current && sortedKeywords.length > 0) {
       const container = scrollContainerRef.current
-      const cardWidth = container.scrollWidth / filteredKeywords.length
+      const cardWidth = container.scrollWidth / sortedKeywords.length
       container.scrollTo({ left: cardWidth * index, behavior: 'smooth' })
       setMobileCardIndex(index)
     }
@@ -163,8 +247,32 @@ export function NaverKeywordTable({
               </p>
             )}
           </div>
-          <div className="text-sm text-gray-500">
-            총 {keywords.filter(k => k.clicks > 0).length}개 키워드 (클릭 발생)
+          <div className="flex items-center gap-3">
+            {/* 월별 필터 */}
+            {availableMonths.length > 0 && (
+              <div className="relative">
+                <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  disabled={monthLoading}
+                  className="pl-8 pr-8 py-1.5 text-sm border rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none cursor-pointer disabled:opacity-50"
+                >
+                  <option value="all">전체 기간</option>
+                  {availableMonths.map(month => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+                {monthLoading && (
+                  <Loader2 className="absolute right-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500 animate-spin" />
+                )}
+              </div>
+            )}
+            <div className="text-sm text-gray-500">
+              총 {keywords.filter(k => k.clicks > 0).length}개 키워드
+            </div>
           </div>
         </div>
         {/* 검색 */}
@@ -184,7 +292,7 @@ export function NaverKeywordTable({
       <CardContent>
         {/* 모바일: 스와이프 카드 캐러셀 */}
         <div className="md:hidden">
-          {filteredKeywords.length > 0 ? (
+          {sortedKeywords.length > 0 ? (
             <>
               {/* 캐러셀 컨테이너 */}
               <div
@@ -193,7 +301,7 @@ export function NaverKeywordTable({
                 className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-2 px-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {filteredKeywords.map((k, index) => (
+                {sortedKeywords.map((k, index) => (
                   <MobileKeywordCard
                     key={k.keyword}
                     keyword={k}
@@ -215,7 +323,7 @@ export function NaverKeywordTable({
 
                 {/* 도트 인디케이터 */}
                 <div className="flex gap-1.5">
-                  {filteredKeywords.slice(0, Math.min(filteredKeywords.length, 10)).map((_, index) => (
+                  {sortedKeywords.slice(0, Math.min(sortedKeywords.length, 10)).map((_, index) => (
                     <button
                       key={index}
                       onClick={() => scrollToCard(index)}
@@ -224,14 +332,14 @@ export function NaverKeywordTable({
                       }`}
                     />
                   ))}
-                  {filteredKeywords.length > 10 && (
-                    <span className="text-xs text-gray-400 ml-1">+{filteredKeywords.length - 10}</span>
+                  {sortedKeywords.length > 10 && (
+                    <span className="text-xs text-gray-400 ml-1">+{sortedKeywords.length - 10}</span>
                   )}
                 </div>
 
                 <button
-                  onClick={() => scrollToCard(Math.min(filteredKeywords.length - 1, mobileCardIndex + 1))}
-                  disabled={mobileCardIndex === filteredKeywords.length - 1}
+                  onClick={() => scrollToCard(Math.min(sortedKeywords.length - 1, mobileCardIndex + 1))}
+                  disabled={mobileCardIndex === sortedKeywords.length - 1}
                   className="p-1 rounded-full bg-gray-100 disabled:opacity-30"
                 >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
@@ -240,7 +348,7 @@ export function NaverKeywordTable({
 
               {/* 카드 카운터 */}
               <p className="text-center text-xs text-gray-400 mt-2">
-                {mobileCardIndex + 1} / {filteredKeywords.length}
+                {mobileCardIndex + 1} / {sortedKeywords.length}
               </p>
             </>
           ) : (
@@ -274,7 +382,7 @@ export function NaverKeywordTable({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredKeywords.map((k, idx) => (
+              {sortedKeywords.map((k, idx) => (
                 <tr
                   key={k.keyword}
                   className={`hover:bg-gray-50 ${onKeywordClick ? 'cursor-pointer' : ''}`}
@@ -310,7 +418,7 @@ export function NaverKeywordTable({
                   </td>
                 </tr>
               ))}
-              {filteredKeywords.length === 0 && (
+              {sortedKeywords.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
                     {searchTerm ? '검색 결과가 없습니다.' : '키워드 데이터가 없습니다.'}

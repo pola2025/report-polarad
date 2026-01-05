@@ -232,14 +232,18 @@ function DashboardContent() {
     }
   }, [dateRange, clientSlug])
 
-  // 네이버 상세 데이터 조회 (탭 전환 시)
+  // 네이버 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {
     async function fetchNaverData() {
       if (activeTab !== 'naver' || !clientSlug || !data) return
 
       setNaverLoading(true)
       try {
-        const params = new URLSearchParams({ clientSlug })
+        const params = new URLSearchParams({
+          clientSlug,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        })
         const res = await fetch(`/api/naver/analytics?${params}`)
         const json = await res.json()
         if (!json.error) {
@@ -253,7 +257,7 @@ function DashboardContent() {
     }
 
     fetchNaverData()
-  }, [activeTab, clientSlug, data])
+  }, [activeTab, clientSlug, data, dateRange])
 
   // Meta 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {
@@ -1341,6 +1345,11 @@ function DashboardContent() {
                       keywords={naverData.keywords}
                       loading={false}
                       dateRange={naverData.summary?.date_range}
+                      clientSlug={clientSlug}
+                      availableMonths={naverData.monthly?.map(m => ({
+                        value: m.month,
+                        label: m.month_label
+                      })) || []}
                     />
                   </>
                 ) : (
