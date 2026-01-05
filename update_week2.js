@@ -1,7 +1,7 @@
 const https = require('https');
 
 const SUPABASE_URL = 'mpljqcuqrrfwzamfyxnz.supabase.co';
-const API_KEY = '***REMOVED***';
+const API_KEY = 'process.env.SUPABASE_SERVICE_ROLE_KEY';
 const REPORT_ID = '29b786e9-b90f-4abc-ae45-24ded88a3ee1';
 
 const aiInsights = {

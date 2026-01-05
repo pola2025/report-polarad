@@ -1,7 +1,7 @@
 const https = require('https');
 
 const SUPABASE_URL = 'mpljqcuqrrfwzamfyxnz.supabase.co';
-const API_KEY = '***REMOVED***';
+const API_KEY = 'process.env.SUPABASE_SERVICE_ROLE_KEY';
 
 function fetchData(path) {
   return new Promise((resolve, reject) => {

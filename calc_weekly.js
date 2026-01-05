@@ -1,7 +1,7 @@
 const https = require('https');
 
 const SUPABASE_URL = 'mpljqcuqrrfwzamfyxnz.supabase.co';
-const API_KEY = '***REMOVED***';
+const API_KEY = 'process.env.SUPABASE_SERVICE_ROLE_KEY';
 const CLIENT_ID = '3ff2896e-6786-4936-9c57-311f69f43c63';
 
 function fetchData(startDate, endDate) {
