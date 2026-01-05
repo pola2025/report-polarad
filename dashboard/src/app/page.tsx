@@ -230,6 +230,17 @@ function DashboardContent() {
             naver: json.client.naver || defaultNaver,
             ga: json.client.ga || defaultGa,
           })
+        } else {
+          // API 실패 시에도 기본값으로 설정
+          setClientInfo({
+            name: clientSlug,
+            slug: clientSlug,
+            clientType: 'general',
+            metaMetricType: 'lead',
+            naverType: 'brand_search', // 기본값을 brand_search로 (나라똔 등)
+            naver: { enabled: true, type: 'brand_search', show_keywords: true, show_detail_tab: true, fixed_budget: 1320000 },
+            ga: { enabled: false, property_id: null },
+          })
         }
       } catch {
         setClientInfo({
