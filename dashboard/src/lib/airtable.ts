@@ -33,7 +33,7 @@ export interface AirtableAdRecord {
 }
 
 /**
- * Airtable에서 광고 데이터 조회
+ * Airtable에서 광고 데이터 조회 (페이지네이션 지원)
  */
 export async function fetchAirtableData(
   clientSlug: string,
@@ -54,39 +54,53 @@ export async function fetchAirtableData(
     formula = `AND({date}>='${startDate}', {date}<='${endDate}', {source}='${source}')`;
   }
 
-  const url = `https://api.airtable.com/v0/${config.baseId}/${config.tableId}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=date&sort[0][direction]=asc`;
+  const allRecords: AirtableAdRecord[] = [];
+  let offset: string | undefined;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-      },
-      cache: 'no-store',
-    });
+    // 페이지네이션 루프 (Airtable은 한 번에 최대 100개 반환)
+    do {
+      let url = `https://api.airtable.com/v0/${config.baseId}/${config.tableId}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=date&sort[0][direction]=asc`;
+      if (offset) {
+        url += `&offset=${offset}`;
+      }
 
-    const data = await response.json();
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        },
+        cache: 'no-store',
+      });
 
-    if (data.error) {
-      console.error('Airtable error:', data.error);
-      return [];
-    }
+      const data = await response.json();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data.records || []).map((record: any) => ({
-      date: record.fields.date,
-      device: record.fields.device || 'other',
-      impressions: record.fields.impressions || 0,
-      clicks: record.fields.clicks || 0,
-      leads: record.fields.leads || 0,
-      spend: record.fields.spend || 0,
-      source: record.fields.source || 'meta',
-      campaign_name: record.fields.campaign_name || '',
-      keywords: record.fields.keywords || '',
-      is_finalized: record.fields.is_finalized || false,
-    }));
+      if (data.error) {
+        console.error('Airtable error:', data.error);
+        return allRecords;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const records = (data.records || []).map((record: any) => ({
+        date: record.fields.date,
+        device: record.fields.device || 'other',
+        impressions: record.fields.impressions || 0,
+        clicks: record.fields.clicks || 0,
+        leads: record.fields.leads || 0,
+        spend: record.fields.spend || 0,
+        source: record.fields.source || 'meta',
+        campaign_name: record.fields.campaign_name || '',
+        keywords: record.fields.keywords || '',
+        is_finalized: record.fields.is_finalized || false,
+      }));
+
+      allRecords.push(...records);
+      offset = data.offset; // 다음 페이지가 있으면 offset 값이 존재
+    } while (offset);
+
+    return allRecords;
   } catch (error) {
     console.error('Airtable fetch error:', error);
-    return [];
+    return allRecords;
   }
 }
 
