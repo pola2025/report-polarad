@@ -22,7 +22,7 @@ const API_KEY = process.env.NAVER_API_KEY;
 const SECRET_KEY = process.env.NAVER_SECRET_KEY;
 
 // 텔레그램 설정
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '***REMOVED***';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BUDGET_ALERT_CHAT_ID = '-1003400452372';
 
 // 예산 임계값 (원)
