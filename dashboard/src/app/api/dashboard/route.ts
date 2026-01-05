@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, TABLES } from '@/lib/supabase'
+import { TABLES } from '@/lib/supabase'
 import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE, convertUsdToKrw } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient()  // 키워드 통계용으로만 사용
     const { searchParams } = new URL(request.url)
 
     // 클라이언트 필터 (선택적)

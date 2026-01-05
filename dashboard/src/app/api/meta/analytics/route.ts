@@ -46,7 +46,7 @@ function getWeekEnd(dateStr: string): string {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    let clientId = searchParams.get('clientId')
+    const clientId = searchParams.get('clientId')
     const clientSlug = searchParams.get('clientSlug')
     const startDate = searchParams.get('startDate') || '2025-01-01'
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
