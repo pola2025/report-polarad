@@ -66,7 +66,7 @@ function getActionValue(
   return action ? parseInt(action.value) || 0 : 0
 }
 
-// Meta API 호출 (광고 레벨, 영상 데이터 포함)
+// Meta API 호출 (캠페인 레벨, 영상 데이터 포함)
 async function fetchMetaData(
   accessToken: string,
   adAccountId: string,
@@ -78,27 +78,25 @@ async function fetchMetaData(
   impressions: string
   clicks: string
   spend: string
-  ad_id: string
-  ad_name: string
+  campaign_id: string
   campaign_name: string
   actions?: Array<{ action_type: string; value: string }>
-  video_play_actions?: Array<{ action_type: string; value: string }>
-  video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>
+  video_p100_watched_actions?: Array<{ action_type: string; value: string }>
+  video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>
 }>> {
-  // 영상 관련 필드 추가
-  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name,video_play_actions,video_thruplay_watched_actions'
+  // 영상 관련 필드 추가 (수동 백필과 동일)
+  const fields = 'date_start,campaign_id,campaign_name,impressions,clicks,spend,actions,video_p100_watched_actions,video_avg_time_watched_actions'
   const allData: Array<{
     date_start: string
     device_platform: string
     impressions: string
     clicks: string
     spend: string
-    ad_id: string
-    ad_name: string
+    campaign_id: string
     campaign_name: string
     actions?: Array<{ action_type: string; value: string }>
-    video_play_actions?: Array<{ action_type: string; value: string }>
-    video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>
+    video_p100_watched_actions?: Array<{ action_type: string; value: string }>
+    video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>
   }> = []
 
   let url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
@@ -106,7 +104,7 @@ async function fetchMetaData(
     `breakdowns=device_platform&` +
     `time_range={"since":"${startDate}","until":"${endDate}"}&` +
     `time_increment=1&` +
-    `level=ad&` +
+    `level=campaign&` +
     `limit=500&` +
     `access_token=${accessToken}`
 
@@ -130,18 +128,16 @@ async function fetchMetaData(
   return allData
 }
 
-// Airtable에서 기존 레코드 조회 (date + source + ad_id로 정합성 체크)
+// Airtable에서 기존 레코드 조회 (date + source + device + campaign_name으로 정합성 체크)
 async function findExistingRecord(
   baseId: string,
   tableId: string,
   date: string,
   source: string,
-  adId: string
+  device: string,
+  campaignName: string
 ): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
-  // ad_id가 있으면 ad_id로 체크 (광고 레벨), 없으면 기존 방식 (호환성)
-  const formula = adId
-    ? `AND({date}='${date}', {source}='${source}', {ad_id}='${adId}')`
-    : `AND({date}='${date}', {source}='${source}')`
+  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {campaign_name}='${campaignName}')`
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
 
   const response = await fetch(url, {
@@ -223,17 +219,15 @@ async function backfillClient(
     const date = row.date_start
     const device = row.device_platform?.toLowerCase() || 'unknown'
     const source = 'meta'
-    const adId = row.ad_id || ''
-    const adName = row.ad_name || ''
     const campaignName = row.campaign_name || ''
 
-    // 영상 데이터 추출
-    const videoViews = row.video_play_actions?.[0]?.value
-      ? parseInt(row.video_play_actions[0].value) : 0
-    const videoThruplay = row.video_thruplay_watched_actions?.[0]?.value
-      ? parseInt(row.video_thruplay_watched_actions[0].value) : 0
+    // 영상 데이터 추출 (수동 백필과 동일)
+    const videoViews = row.video_p100_watched_actions?.[0]?.value
+      ? parseInt(row.video_p100_watched_actions[0].value) : 0
+    const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value
+      ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
 
-    // 광고별 데이터 저장 (ad_id, 영상 데이터 포함)
+    // 캠페인별 데이터 저장 (수동 백필과 동일한 구조)
     const fields: Record<string, unknown> = {
       date,
       device,
@@ -241,10 +235,9 @@ async function backfillClient(
       clicks: parseInt(row.clicks) || 0,
       spend: Math.round(parseFloat(row.spend) || 0),
       source,
-      ad_id: adId,
-      campaign_name: `${adName}${campaignName ? ` (${campaignName})` : ''}`, // 광고명 (캠페인명)
+      campaign_name: campaignName,
       video_views: videoViews,
-      video_thruplay: videoThruplay,
+      avg_watch_time: avgWatchTime,
       keywords: '',
       is_finalized: false,
     }
@@ -253,8 +246,8 @@ async function backfillClient(
       fields.leads = getActionValue(row.actions, 'lead')
     }
 
-    // 기존 레코드 확인 (date + source + ad_id로 정합성 체크)
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId)
+    // 기존 레코드 확인 (date + source + device + campaign_name으로 정합성 체크)
+    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, campaignName)
 
     if (existing) {
       if (existing.fields.is_finalized === true) {

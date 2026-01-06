@@ -1,102 +1,96 @@
-# Report API Airtable 마이그레이션 완료
+# 다음 세션 요청문
 
-## 완료일: 2026-01-06
-
----
-
-## 완료된 작업
-
-| 항목 | 상태 |
-|------|------|
-| Airtable Reports 테이블 생성 | ✅ |
-| Airtable Comments 테이블 생성 | ✅ |
-| airtable.ts 리포트 함수 추가 | ✅ |
-| /api/admin/reports 마이그레이션 | ✅ |
-| /api/reports/monthly/[id] 마이그레이션 | ✅ |
-| /api/reports 마이그레이션 | ✅ |
-| 테스트 및 검증 | ✅ |
-
----
-
-## 테스트 결과 (2026-01-06)
-
-### /api/reports?clientSlug=hea-pangyo
-- ✅ 리포트 목록 정상 반환
-- ✅ 클라이언트 정보 포함 (name: "H.E.A 판교")
-
-### /api/reports/monthly/{id}
-- ✅ 리포트 상세 정보 반환
-- ✅ AI insights 포함
-- ✅ Meta 광고 데이터 (daily: 31개, campaigns: 1개)
-- ✅ Naver 데이터 (해당 기간 데이터 없음 - 정상)
-
----
-
-## Airtable 구조
-
-### Reports 테이블
-- **Base ID**: `appJlOqnadLsMJQYw`
-- **Table ID**: `tbl4BAtILQRH7JQaG`
-
-### Comments 테이블
-- **Base ID**: `appJlOqnadLsMJQYw`
-- **Table ID**: `tbl5u19uUCdPl4TCg`
-
----
-
-## 수정된 파일
-
-1. `dashboard/src/lib/airtable.ts`
-   - 리포트 CRUD 함수 추가
-   - 코멘트 CRUD 함수 추가
-   - `getClientSlugById()` 한글 클라이언트 ID 매핑 추가
-
-2. `dashboard/src/app/api/admin/reports/route.ts`
-   - Supabase → Airtable 완료
-
-3. `dashboard/src/app/api/reports/route.ts`
-   - Supabase → Airtable 완료
-
-4. `dashboard/src/app/api/reports/monthly/[id]/route.ts`
-   - Supabase → Airtable 완료
-
----
-
-## 환경변수 (필수)
-
+## 복사해서 사용:
 ```
-AIRTABLE_API_KEY=xxx
-AIRTABLE_REPORTS_BASE_ID=appJlOqnadLsMJQYw
-AIRTABLE_REPORTS_TABLE_ID=tbl4BAtILQRH7JQaG
-AIRTABLE_COMMENTS_TABLE_ID=tbl5u19uUCdPl4TCg
+polarad-meta 프로젝트 이어서 작업. NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
 ```
 
 ---
 
-## 클라이언트 slug 매핑
+## 다음 세션 작업 (우선순위)
 
-`getClientSlugById()` 함수에서 다음 매핑 지원:
-
-| 입력값 | 반환값 |
-|--------|--------|
-| `3ff2896e-6786-4936-9c57-311f69f43c63` | `hea-pangyo` |
-| `h-e-a-판교` | `hea-pangyo` |
-| `H.E.A 판교` | `hea-pangyo` |
-| `c2f60730-f8c1-4361-b9fc-3b44725c3955` | `naratton` |
-| `나라똔` | `naratton` |
-
----
-
-## 주의사항
-
-⛔ **Supabase 사용 금지**
-- `polarad_reports` 테이블 사용 금지
-- `polarad_report_comments` 테이블 사용 금지
-- 모든 리포트 데이터는 Airtable에서 조회
+### 1. Meta 자동 백필 Vercel Cron 설정 확인
+- **목적**: 매일 자동으로 Meta 데이터가 Airtable에 백필되는지 확인
+- **확인 사항**:
+  - Vercel cron 설정 (`vercel.json`)
+  - cron API 라우트 (`/api/cron/backfill`)
+  - Airtable에 저장하도록 되어 있는지 (Supabase 아님!)
+  - 캠페인별 데이터 수집 (`level=campaign`)
+- **중요**: 백필 시 항상 Airtable에 저장되어야 함
 
 ---
 
-## 다음 작업 (선택사항)
+## 이전 세션 완료 작업 (2026-01-06)
 
-- [ ] 프로덕션 배포 후 검증
-- [ ] Supabase polarad_reports, polarad_report_comments 테이블 백업 후 삭제 (선택)
+### 1. 관리자 코멘트 기능 추가
+- ✅ 주간/월간 리포트 페이지에 AdminCommentSection 추가
+- ✅ 코멘트 API를 Supabase → Airtable로 변경
+- ✅ 관리자만 코멘트 작성/수정 가능
+
+### 2. 백필 스크립트 캠페인별 데이터 수집으로 변경
+- ✅ `level=account` → `level=campaign` 변경
+- ✅ campaign_name 필드 추가
+- ✅ upsert 키에 campaign_name 추가
+- ✅ 기존 Meta 데이터 삭제 후 전체 재백필 (234개 레코드)
+
+### 3. 영상 데이터 추가
+- ✅ video_views, avg_watch_time 필드 추가
+- ✅ Meta API fields에 video_p100_watched_actions, video_avg_time_watched_actions 추가
+
+---
+
+## 프로젝트 정보
+
+| 항목 | 값 |
+|------|-----|
+| 로컬 경로 | `F:\polarad-meta` |
+| GitHub | `pola2025/report-polarad` |
+| 프로덕션 URL | https://report.polarad.co.kr |
+| 환경변수 | `dashboard/.env.local` |
+
+---
+
+## 데이터 소스 (⛔ 중요!)
+
+| 항목 | 데이터 소스 |
+|------|-------------|
+| Meta 광고 데이터 | **Airtable** |
+| 네이버 광고 데이터 | **Airtable** |
+| 리포트/코멘트 | **Airtable** |
+
+**❌ Supabase 사용 금지** - polarad_meta_data, polarad_naver_data 테이블 사용하지 않음
+
+---
+
+## H.E.A 판교 Airtable 설정
+
+| 항목 | 값 |
+|------|-----|
+| Base ID | `appJlOqnadLsMJQYw` |
+| 광고 데이터 Table | `tbl8ftclEFG5ypohX` |
+| Reports Table | `tbl4BAtILQRH7JQaG` |
+| Comments Table | `tbl5u19uUCdPl4TCg` |
+| slug | `hea-pangyo` |
+
+---
+
+## 백필 관련
+
+### 수동 백필 명령어
+```bash
+node scripts/backfill-airtable.js --client "H.E.A 판교" --start YYYY-MM-DD --end YYYY-MM-DD
+```
+
+### 자동 백필 (확인 필요)
+- Vercel Cron으로 매일 실행되어야 함
+- **반드시 Airtable에 저장**되어야 함
+
+---
+
+## 최근 커밋
+
+```
+8ccc36c fix: backfill-airtable.js 캠페인별 데이터 수집으로 변경
+5dc42a7 fix: backfill-airtable.js에 video_views, avg_watch_time 추가
+798b966 feat: 관리자 코멘트 기능 추가
+```
