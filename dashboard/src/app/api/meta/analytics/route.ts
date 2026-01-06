@@ -15,6 +15,7 @@ import type {
   MetaMonthlyData,
   MetaKPISummary,
   MetaPeriodDataResponse,
+  MetaAdData,
 } from '@/types/meta-analytics'
 
 // 주차 계산 (월요일 시작)
@@ -214,6 +215,59 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
+    // 광고(캠페인)별 집계
+    const adMap = new Map<string, {
+      impressions: number
+      clicks: number
+      leads: number
+      spend: number
+      dates: Set<string>
+      firstDate: string
+      lastDate: string
+    }>()
+
+    for (const row of rawData) {
+      const campaignName = row.campaign_name || '(캠페인 없음)'
+      const existing = adMap.get(campaignName) || {
+        impressions: 0,
+        clicks: 0,
+        leads: 0,
+        spend: 0,
+        dates: new Set<string>(),
+        firstDate: row.date,
+        lastDate: row.date,
+      }
+      existing.impressions += row.impressions || 0
+      existing.clicks += row.clicks || 0
+      existing.leads += row.leads || 0
+      existing.spend += row.spend || 0
+      existing.dates.add(row.date)
+      if (row.date < existing.firstDate) existing.firstDate = row.date
+      if (row.date > existing.lastDate) existing.lastDate = row.date
+      adMap.set(campaignName, existing)
+    }
+
+    const ads: MetaAdData[] = Array.from(adMap.entries())
+      .map(([campaignName, data], index) => ({
+        ad_id: `campaign-${index}`,
+        ad_name: campaignName,
+        campaign_name: campaignName,
+        impressions: data.impressions,
+        clicks: data.clicks,
+        ctr: data.impressions > 0 ? Math.round((data.clicks / data.impressions) * 10000) / 100 : 0,
+        spend: data.spend,
+        spend_krw: convertUsdToKrw(data.spend),
+        leads: data.leads,
+        cpl: data.leads > 0 ? Math.round((data.spend / data.leads) * 100) / 100 : 0,
+        cpl_krw: data.leads > 0 ? convertUsdToKrw(data.spend / data.leads) : 0,
+        video_views: 0,
+        days_count: data.dates.size,
+        first_date: data.firstDate,
+        last_date: data.lastDate,
+      }))
+      .filter(ad => ad.ad_name !== '(캠페인 없음)' || ad.impressions > 0)  // 빈 캠페인 제외 (데이터 있으면 포함)
+      .sort((a, b) => b.spend_krw - a.spend_krw)  // 지출액 높은 순 정렬
+
     // 전체 요약
     const totalImpressions = daily.reduce((sum, d) => sum + d.impressions, 0)
     const totalClicks = daily.reduce((sum, d) => sum + d.clicks, 0)
@@ -231,8 +285,8 @@ export async function GET(request: NextRequest) {
       avg_cpl: totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0,
       avg_cpl_krw: totalLeads > 0 ? convertUsdToKrw(totalSpend / totalLeads) : 0,
       total_video_views: 0,
-      unique_campaigns: 0,
-      unique_ads: 0,
+      unique_campaigns: ads.length,
+      unique_ads: ads.length,
       data_days: daily.length,
       date_range: {
         start: dates[0] || '',
@@ -245,8 +299,8 @@ export async function GET(request: NextRequest) {
       daily: view === 'all' || view === 'daily' ? daily : [],
       weekly: view === 'all' || view === 'weekly' ? weekly : [],
       monthly: view === 'all' || view === 'monthly' ? monthly : [],
-      campaigns: [], // Airtable에는 캠페인별 데이터 없음
-      ads: [], // Airtable에는 광고별 데이터 없음
+      campaigns: [], // 추후 캠페인 상세 분석용
+      ads,  // 캠페인별 성과 분석
       summary,
     }
 
