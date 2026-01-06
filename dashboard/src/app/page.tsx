@@ -1120,7 +1120,10 @@ function DashboardContent() {
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle>Meta 광고 성과</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Meta 광고 성과</CardTitle>
+                    <span className="text-xs text-gray-500">{dateRange.start} ~ {dateRange.end}</span>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {data.meta.current.impressions > 0 || data.meta.current.spend > 0 ? (
@@ -1140,7 +1143,10 @@ function DashboardContent() {
               {clientInfo?.naver?.enabled !== false && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>{clientInfo?.naverType === 'brand_search' ? '네이버 브랜드검색 광고 성과' : '네이버 플레이스 광고 성과'}</CardTitle>
+                      <span className="text-xs text-gray-500">{dateRange.start} ~ {dateRange.end}</span>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {/* 브랜드검색 타입일 때 */}
@@ -1223,75 +1229,6 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
               )}
-            </section>
-
-            {/* Channel Performance - 일별 추이 그래프 */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Meta 일별 추이</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {data.meta.current.impressions > 0 || data.meta.current.spend > 0 ? (
-                    <MetaDailyTrendChart data={data.dailyTrend} metric="spend" />
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-gray-400">
-                      데이터 없음
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">네이버 일별 추이</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {/* 브랜드검색 타입일 때 */}
-                  {clientInfo?.naverType === 'brand_search' ? (
-                    brandSearchData?.data?.daily && brandSearchData.data.daily.length > 0 ? (
-                      <MetaDailyTrendChart
-                        data={brandSearchData.data.daily.map(d => ({
-                          date: d.date,
-                          meta_impressions: d.total_impressions,
-                          meta_clicks: d.total_clicks,
-                          meta_spend: 0, // 브랜드검색은 일별 비용 없음 (월 고정)
-                          meta_leads: 0,
-                          naver_impressions: d.total_impressions,
-                          naver_clicks: d.total_clicks,
-                          naver_spend: 0,
-                        }))}
-                        metric="impressions"
-                      />
-                    ) : brandSearchLoading ? (
-                      <div className="h-[300px] flex items-center justify-center text-gray-400">
-                        데이터 로딩 중...
-                      </div>
-                    ) : (
-                      <div className="h-[300px] flex items-center justify-center text-gray-400">
-                        브랜드검색 데이터 없음
-                      </div>
-                    )
-                  ) : (
-                    /* 플레이스 타입일 때 */
-                    data.naver.current.impressions > 0 || data.naver.current.spend > 0 ? (
-                      <MetaDailyTrendChart
-                        data={data.dailyTrend.map(d => ({
-                          ...d,
-                          meta_impressions: d.naver_impressions,
-                          meta_clicks: d.naver_clicks,
-                          meta_spend: d.naver_spend,
-                        }))}
-                        metric="spend"
-                      />
-                    ) : (
-                      <div className="h-[300px] flex items-center justify-center text-gray-400">
-                        데이터 없음
-                      </div>
-                    )
-                  )}
-                </CardContent>
-              </Card>
             </section>
 
             {/* Keyword Stats */}
