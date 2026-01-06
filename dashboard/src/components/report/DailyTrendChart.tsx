@@ -40,7 +40,7 @@ type ViewMode = 'combined' | 'single'
 
 // 지표별 색상 설정
 const METRIC_COLORS = {
-  spend: '#3B82F6',       // 파란색
+  spend: '#8B5CF6',       // 보라색
   clicks: '#1877F2',      // 페이스북 파란색
   impressions: '#03C75A', // 녹색
   leads: '#8B5CF6',       // 보라색
@@ -145,7 +145,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
   // 막대 그래프 설정 (지출액 또는 클릭수)
   const barConfig = barMetric === 'clicks'
     ? { label: '클릭수', color: METRIC_COLORS.clicks, fillColor: '#DBEAFE' }
-    : { label: '지출액', color: METRIC_COLORS.spend, fillColor: '#DBEAFE' }
+    : { label: '지출액', color: METRIC_COLORS.spend, fillColor: '#EDE9FE' }  // 보라색 배경
 
   // 데이터 가공
   const chartData = daily.map(d => ({
@@ -383,14 +383,14 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
           {/* 통합 차트 요약 */}
           <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-4' : (showClicksLine || showSpendLine) ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {/* 첫 번째 카드: 지출액 또는 클릭수 */}
-            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${barMetric === 'spend' ? 'bg-purple-50' : 'bg-blue-50'}`}>
+              <div className={`w-3 h-3 rounded ${barMetric === 'spend' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
               <div>
                 {barMetric === 'spend' ? (
                   <>
-                    <p className="text-xs text-blue-600">총 지출액</p>
-                    <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                    <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                    <p className="text-xs text-purple-600">총 지출액</p>
+                    <p className="text-sm font-semibold text-purple-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                    <p className="text-xs text-purple-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
                   </>
                 ) : (
                   <>
@@ -414,12 +414,12 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
             )}
             {/* 지출액 카드 - Naver 채널에서만 */}
             {showSpendLine && (
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                 <div>
-                  <p className="text-xs text-blue-600">총 지출액</p>
-                  <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                  <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                  <p className="text-xs text-purple-600">총 지출액</p>
+                  <p className="text-sm font-semibold text-purple-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                  <p className="text-xs text-purple-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
                 </div>
               </div>
             )}
