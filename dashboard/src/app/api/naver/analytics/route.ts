@@ -1,13 +1,13 @@
 /**
  * 네이버 플레이스 광고 분석 API
  * 일간/주간/월간 집계 및 키워드별 분석
- * 데이터 소스: Airtable (클라이언트별 광고 데이터 테이블)
+ * 데이터 소스: Supabase (polarad_naver_data 테이블)
  */
 
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { AIRTABLE_CONFIG, fetchAirtableData } from '@/lib/airtable'
+import { createClient } from '@supabase/supabase-js'
 import type {
   NaverDailyData,
   NaverWeeklyData,
@@ -17,35 +17,33 @@ import type {
   NaverPeriodDataResponse,
 } from '@/types/naver-analytics'
 
-// Airtable 설정
-const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
-const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
-const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
+// Supabase 클라이언트 생성
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-// Airtable에서 클라이언트 조회 (UUID 또는 slug로)
-async function getClientFromAirtable(clientIdOrSlug: string) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`
+// Supabase에서 클라이언트 조회 (UUID 또는 slug로)
+async function getClientFromSupabase(clientIdOrSlug: string) {
+  // UUID 형식인지 확인
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientIdOrSlug)
 
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
-    cache: 'no-store',
-  })
+  let query = supabase.from('polarad_clients').select('id, client_id, slug, client_name')
 
-  const data = await response.json()
-  if (data.error) return null
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const record = data.records.find((r: any) =>
-    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
-  )
-
-  if (!record) return null
-
-  return {
-    id: record.fields.id || record.id,
-    client_name: record.fields.Name,
-    slug: record.fields.slug,
+  if (isUUID) {
+    query = query.eq('id', clientIdOrSlug)
+  } else {
+    query = query.eq('slug', clientIdOrSlug)
   }
+
+  const { data, error } = await query.single()
+
+  if (error || !data) {
+    console.log('Client not found:', clientIdOrSlug)
+    return null
+  }
+
+  return data
 }
 
 // 주차 계산 (월요일 시작)
@@ -73,86 +71,74 @@ function getWeekEnd(dateStr: string): string {
   return start.toISOString().split('T')[0]
 }
 
-// GET: 네이버 분석 데이터 조회 (Airtable)
+// GET: 네이버 분석 데이터 조회 (Supabase)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('clientId')
-    const clientSlug = searchParams.get('clientSlug') // 클라이언트 slug 지원
+    const clientSlug = searchParams.get('clientSlug')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const view = searchParams.get('view') || 'all' // daily, weekly, monthly, keywords, all
 
-    // Airtable에서 클라이언트 조회
+    // Supabase에서 클라이언트 조회
     let client = null
     if (clientSlug) {
-      client = await getClientFromAirtable(clientSlug)
+      client = await getClientFromSupabase(clientSlug)
     } else if (clientId) {
-      client = await getClientFromAirtable(clientId)
+      client = await getClientFromSupabase(clientId)
+    }
+
+    const emptyResponse = {
+      daily: [],
+      weekly: [],
+      monthly: [],
+      keywords: [],
+      summary: {
+        total_impressions: 0,
+        total_clicks: 0,
+        total_cost: 0,
+        avg_ctr: 0,
+        avg_cpc: 0,
+        avg_rank: 0,
+        unique_keywords: 0,
+        data_days: 0,
+        date_range: { start: '', end: '' },
+      },
     }
 
     if (!client) {
-      return NextResponse.json({
-        daily: [],
-        weekly: [],
-        monthly: [],
-        keywords: [],
-        summary: {
-          total_impressions: 0,
-          total_clicks: 0,
-          total_cost: 0,
-          avg_ctr: 0,
-          avg_cpc: 0,
-          avg_rank: 0,
-          unique_keywords: 0,
-          data_days: 0,
-          date_range: { start: '', end: '' },
-        },
-      })
+      console.log('Client not found for:', clientSlug || clientId)
+      return NextResponse.json(emptyResponse)
     }
 
-    // 클라이언트별 Airtable 설정 확인
-    const airtableConfig = AIRTABLE_CONFIG[client.slug]
-    if (!airtableConfig) {
-      return NextResponse.json({ error: `Airtable config not found for ${client.slug}` }, { status: 400 })
+    console.log('Found client:', client.id, client.slug)
+
+    // Supabase에서 네이버 데이터 조회 (client_id는 UUID)
+    let query = supabase
+      .from('polarad_naver_data')
+      .select('*')
+      .eq('client_id', client.id)
+      .order('date', { ascending: true })
+
+    if (startDate) {
+      query = query.gte('date', startDate)
+    }
+    if (endDate) {
+      query = query.lte('date', endDate)
     }
 
-    // Airtable에서 naver_place 데이터 조회
-    const airtableData = await fetchAirtableData(
-      client.slug,
-      startDate || '2020-01-01',
-      endDate || new Date().toISOString().split('T')[0],
-      'naver_place'
-    )
+    const { data: rawData, error } = await query
 
-    // Airtable 데이터를 기존 형식으로 변환
-    const rawData = airtableData.map(record => ({
-      date: record.date,
-      keyword: record.keywords || '_unknown_',
-      impressions: record.impressions || 0,
-      clicks: record.clicks || 0,
-      total_cost: record.spend || 0,
-      avg_rank: record.avg_rank || 1,  // 네이버 평균 순위
-    }))
+    if (error) {
+      console.error('Supabase query error:', error)
+      return NextResponse.json(emptyResponse)
+    }
+
+    console.log('Found naver data rows:', rawData?.length || 0)
 
     if (!rawData || rawData.length === 0) {
-      return NextResponse.json({
-        daily: [],
-        weekly: [],
-        monthly: [],
-        keywords: [],
-        summary: {
-          total_impressions: 0,
-          total_clicks: 0,
-          total_cost: 0,
-          avg_ctr: 0,
-          avg_cpc: 0,
-          avg_rank: 0,
-          unique_keywords: 0,
-          data_days: 0,
-          date_range: { start: '', end: '' },
-        },
-      })
+      return NextResponse.json(emptyResponse)
     }
 
     // 일별 집계
@@ -161,7 +147,7 @@ export async function GET(request: NextRequest) {
 
     for (const row of rawData) {
       const date = row.date
-      const keyword = row.keyword
+      const keyword = row.keyword || '_unknown_'
 
       // 일별 집계
       if (!dailyMap.has(date)) {
@@ -374,7 +360,11 @@ export async function GET(request: NextRequest) {
       summary,
     }
 
-    return NextResponse.json(response)
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
