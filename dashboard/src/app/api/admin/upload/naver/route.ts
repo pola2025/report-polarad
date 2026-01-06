@@ -1,20 +1,50 @@
 /**
  * Admin API - 네이버 플레이스 광고 CSV 업로드
- * 테이블: polarad_naver_data
+ * 저장소: Airtable (클라이언트별 광고 데이터 테이블)
  *
  * CSV 형식 (네이버 광고 시스템 다운로드):
  * 일별,검색어,노출수,클릭수,클릭률(%),평균클릭비용(VAT포함,원),총비용(VAT포함,원),평균노출순위
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { TABLES } from '@/lib/supabase'
 import { sendNaverUploadNotification } from '@/lib/telegram'
+import { AIRTABLE_CONFIG } from '@/lib/airtable'
+
+// Airtable 설정
+const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
+const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
+const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
 
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
   const adminKey = request.headers.get('x-admin-key')
   return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
+}
+
+// Airtable에서 클라이언트 조회 (UUID 또는 slug로)
+async function getClientFromAirtable(clientIdOrSlug: string) {
+  const url = `https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  })
+
+  const data = await response.json()
+  if (data.error) return null
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = data.records.find((r: any) =>
+    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+  )
+
+  if (!record) return null
+
+  return {
+    id: record.fields.id || record.id,
+    client_name: record.fields.Name,
+    slug: record.fields.slug,
+  }
 }
 
 // 날짜 형식 변환 (2025.11.29. → 2025-11-29)
@@ -91,15 +121,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '클라이언트 ID가 필요합니다.' }, { status: 400 })
     }
 
-    // 클라이언트 존재 확인
-    const { data: client, error: clientError } = await getSupabaseAdmin()
-      .from(TABLES.CLIENTS)
-      .select('id, client_name')
-      .eq('id', clientId)
-      .single()
-
-    if (clientError || !client) {
+    // Airtable에서 클라이언트 조회
+    const client = await getClientFromAirtable(clientId)
+    if (!client) {
       return NextResponse.json({ error: '존재하지 않는 클라이언트입니다.' }, { status: 404 })
+    }
+
+    // 클라이언트별 Airtable 설정 확인
+    const airtableConfig = AIRTABLE_CONFIG[client.slug]
+    if (!airtableConfig) {
+      return NextResponse.json({ error: `클라이언트 ${client.slug}의 Airtable 설정이 없습니다.` }, { status: 400 })
     }
 
     // CSV 파일 읽기
@@ -161,38 +192,84 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효한 데이터가 없습니다.' }, { status: 400 })
     }
 
-    // 날짜 범위 계산 (먼저 수행)
+    // 날짜 범위 계산
     const dates = records.map(r => r.date).sort()
     const dateRange = {
       start: dates[0],
       end: dates[dates.length - 1],
     }
 
-    // CSV 업로드 시 해당 날짜 범위의 _total_ 데이터 삭제 (API 합계와 중복 방지)
-    const { error: deleteError } = await getSupabaseAdmin()
-      .from(TABLES.NAVER_DATA)
-      .delete()
-      .eq('client_id', clientId)
-      .eq('keyword', '_total_')
-      .gte('date', dateRange.start)
-      .lte('date', dateRange.end)
+    // 일별 집계 (Airtable 스키마에 맞게)
+    const dailyAggregated = records.reduce((acc, r) => {
+      if (!acc[r.date]) {
+        acc[r.date] = { impressions: 0, clicks: 0, spend: 0, keywords: new Set<string>() }
+      }
+      acc[r.date].impressions += r.impressions
+      acc[r.date].clicks += r.clicks
+      acc[r.date].spend += r.total_cost
+      acc[r.date].keywords.add(r.keyword)
+      return acc
+    }, {} as Record<string, { impressions: number; clicks: number; spend: number; keywords: Set<string> }>)
 
-    if (deleteError) {
-      console.warn('_total_ 데이터 삭제 중 경고:', deleteError.message)
-      // 삭제 실패해도 계속 진행
+    // Airtable에 저장할 레코드 준비
+    const airtableRecords = Object.entries(dailyAggregated).map(([date, data]) => ({
+      fields: {
+        date,
+        device: 'all',
+        impressions: data.impressions,
+        clicks: data.clicks,
+        spend: data.spend,
+        source: 'naver_place',
+        keywords: Array.from(data.keywords).join(', '),
+        is_finalized: true,
+      }
+    }))
+
+    // 1. 해당 날짜 범위의 기존 naver_place 데이터 삭제
+    const endDateObj = new Date(dateRange.end)
+    endDateObj.setDate(endDateObj.getDate() + 1)
+    const nextDay = endDateObj.toISOString().split('T')[0]
+
+    const deleteFormula = `AND({date}>='${dateRange.start}', {date}<'${nextDay}', {source}='naver_place')`
+    const existingUrl = `https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?filterByFormula=${encodeURIComponent(deleteFormula)}`
+
+    const existingResponse = await fetch(existingUrl, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      cache: 'no-store',
+    })
+    const existingData = await existingResponse.json()
+
+    // 기존 레코드 삭제 (10개씩 배치)
+    if (existingData.records?.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const recordIds = existingData.records.map((r: any) => r.id)
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10)
+        const deleteParams = batch.map((id: string) => `records[]=${id}`).join('&')
+        await fetch(`https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?${deleteParams}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+        })
+      }
     }
 
-    // DB에 upsert
-    const { error: insertError } = await getSupabaseAdmin()
-      .from(TABLES.NAVER_DATA)
-      .upsert(records, {
-        onConflict: 'client_id,date,keyword',
-        ignoreDuplicates: false,
+    // 2. 새 레코드 삽입 (10개씩 배치)
+    for (let i = 0; i < airtableRecords.length; i += 10) {
+      const batch = airtableRecords.slice(i, i + 10)
+      const insertResponse = await fetch(`https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ records: batch }),
       })
 
-    if (insertError) {
-      console.error('Error inserting naver data:', insertError)
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
+      const insertResult = await insertResponse.json()
+      if (insertResult.error) {
+        console.error('Airtable insert error:', insertResult.error)
+        return NextResponse.json({ error: insertResult.error.message }, { status: 500 })
+      }
     }
 
     // 키워드별 통계
@@ -237,7 +314,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET: 네이버 광고 데이터 조회
+// GET: 네이버 광고 데이터 조회 (Airtable)
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -249,34 +326,67 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    let query = getSupabaseAdmin()
-      .from(TABLES.NAVER_DATA)
-      .select('*')
-      .order('date', { ascending: false })
-
-    if (clientId) {
-      query = query.eq('client_id', clientId)
+    if (!clientId) {
+      return NextResponse.json({ error: '클라이언트 ID가 필요합니다.' }, { status: 400 })
     }
 
-    if (startDate) {
-      query = query.gte('date', startDate)
+    // Airtable에서 클라이언트 조회
+    const client = await getClientFromAirtable(clientId)
+    if (!client) {
+      return NextResponse.json({ error: '존재하지 않는 클라이언트입니다.' }, { status: 404 })
     }
 
-    if (endDate) {
-      query = query.lte('date', endDate)
+    const airtableConfig = AIRTABLE_CONFIG[client.slug]
+    if (!airtableConfig) {
+      return NextResponse.json({ error: `클라이언트 ${client.slug}의 Airtable 설정이 없습니다.` }, { status: 400 })
     }
 
-    const { data, error } = await query.limit(1000)
-
-    if (error) {
-      console.error('Error fetching naver data:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // Airtable에서 naver_place 데이터 조회
+    let formula = `{source}='naver_place'`
+    if (startDate && endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setDate(endDateObj.getDate() + 1)
+      const nextDay = endDateObj.toISOString().split('T')[0]
+      formula = `AND({source}='naver_place', {date}>='${startDate}', {date}<'${nextDay}')`
+    } else if (startDate) {
+      formula = `AND({source}='naver_place', {date}>='${startDate}')`
+    } else if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setDate(endDateObj.getDate() + 1)
+      const nextDay = endDateObj.toISOString().split('T')[0]
+      formula = `AND({source}='naver_place', {date}<'${nextDay}')`
     }
+
+    const url = `https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=date&sort[0][direction]=desc`
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      cache: 'no-store',
+    })
+
+    const result = await response.json()
+    if (result.error) {
+      console.error('Airtable fetch error:', result.error)
+      return NextResponse.json({ error: result.error.message }, { status: 500 })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = result.records.map((r: any) => ({
+      id: r.id,
+      client_id: clientId,
+      date: r.fields.date,
+      device: r.fields.device,
+      impressions: r.fields.impressions || 0,
+      clicks: r.fields.clicks || 0,
+      total_cost: r.fields.spend || 0,
+      keywords: r.fields.keywords || '',
+      source: r.fields.source,
+    }))
 
     return NextResponse.json({
       success: true,
       data,
-      count: data?.length || 0,
+      count: data.length,
     })
   } catch (error) {
     console.error('Unexpected error:', error)

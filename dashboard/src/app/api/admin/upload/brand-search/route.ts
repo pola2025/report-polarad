@@ -1,9 +1,41 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, TABLES } from '@/lib/supabase';
 import { parseBrandSearchCSV } from '@/lib/brand-search-parser';
+import { AIRTABLE_CONFIG } from '@/lib/airtable';
 import type { BrandSearchUploadResponse } from '@/types/brand-search';
+
+// Airtable 설정
+const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!;
+const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn';
+const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F';
+
+// Airtable에서 클라이언트 조회 (UUID 또는 slug로)
+async function getClientFromAirtable(clientIdOrSlug: string) {
+  const url = `https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`;
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (data.error) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = data.records.find((r: any) =>
+    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+  );
+
+  if (!record) return null;
+
+  return {
+    id: record.fields.id || record.id,
+    client_name: record.fields.Name,
+    slug: record.fields.slug,
+    naver_type: record.fields.naver_type,
+  };
+}
 
 /**
  * 브랜드검색 CSV 업로드 API
@@ -13,8 +45,6 @@ import type { BrandSearchUploadResponse } from '@/types/brand-search';
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
-
     // Admin 인증 확인
     const adminKey = request.headers.get('x-admin-key');
     const envAdminKey = process.env.NEXT_PUBLIC_ADMIN_KEY;
@@ -68,17 +98,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 클라이언트 존재 확인
-    const { data: client, error: clientError } = await supabase
-      .from(TABLES.CLIENTS)
-      .select('id, client_name, naver_type')
-      .eq('id', clientId)
-      .single();
-
-    if (clientError || !client) {
+    // Airtable에서 클라이언트 조회
+    const client = await getClientFromAirtable(clientId);
+    if (!client) {
       return NextResponse.json(
         { success: false, error: 'Client not found', inserted: 0, updated: 0, total: 0, errors: [] } as BrandSearchUploadResponse,
         { status: 404 }
+      );
+    }
+
+    // 클라이언트별 Airtable 설정 확인
+    const airtableConfig = AIRTABLE_CONFIG[client.slug];
+    if (!airtableConfig) {
+      return NextResponse.json(
+        { success: false, error: `Airtable config not found for ${client.slug}`, inserted: 0, updated: 0, total: 0, errors: [] } as BrandSearchUploadResponse,
+        { status: 400 }
       );
     }
 
@@ -92,66 +126,96 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // UPSERT (날짜+디바이스 기준)
-    let inserted = 0;
-    let updated = 0;
+    // Airtable에 저장
     const errors: string[] = [];
 
-    for (const row of parsedData) {
-      // 기존 데이터 확인
-      const { data: existing } = await supabase
-        .from('polarad_brand_search_data')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('date', row.date)
-        .eq('device', row.device)
-        .single();
+    // 날짜 범위 계산
+    const dates = parsedData.map(r => r.date).sort();
+    const dateRange = { start: dates[0], end: dates[dates.length - 1] };
 
-      if (existing) {
-        // 업데이트
-        const { error: updateError } = await supabase
-          .from('polarad_brand_search_data')
-          .update({
-            impressions: row.impressions,
-            clicks: row.clicks,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
+    // 일별+디바이스별 집계 (Airtable 스키마에 맞게)
+    const aggregated = parsedData.reduce((acc, r) => {
+      const key = `${r.date}_${r.device}`;
+      if (!acc[key]) {
+        acc[key] = { date: r.date, device: r.device, impressions: 0, clicks: 0 };
+      }
+      acc[key].impressions += r.impressions;
+      acc[key].clicks += r.clicks;
+      return acc;
+    }, {} as Record<string, { date: string; device: string; impressions: number; clicks: number }>);
 
-        if (updateError) {
-          errors.push(`Update error for ${row.date} ${row.device}: ${updateError.message}`);
-        } else {
-          updated++;
-        }
+    // Airtable 레코드 준비
+    const airtableRecords = Object.values(aggregated).map(data => ({
+      fields: {
+        date: data.date,
+        device: data.device,
+        impressions: data.impressions,
+        clicks: data.clicks,
+        spend: 0, // 브랜드검색은 비용 없음
+        source: 'naver_brand_search',
+        is_finalized: true,
+      }
+    }));
+
+    // 1. 해당 날짜 범위의 기존 naver_brand_search 데이터 삭제
+    const endDateObj = new Date(dateRange.end);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const nextDay = endDateObj.toISOString().split('T')[0];
+
+    const deleteFormula = `AND({date}>='${dateRange.start}', {date}<'${nextDay}', {source}='naver_brand_search')`;
+    const existingUrl = `https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?filterByFormula=${encodeURIComponent(deleteFormula)}`;
+
+    const existingResponse = await fetch(existingUrl, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      cache: 'no-store',
+    });
+    const existingData = await existingResponse.json();
+
+    let deleted = 0;
+    if (existingData.records?.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const recordIds = existingData.records.map((r: any) => r.id);
+      for (let i = 0; i < recordIds.length; i += 10) {
+        const batch = recordIds.slice(i, i + 10);
+        const deleteParams = batch.map((id: string) => `records[]=${id}`).join('&');
+        await fetch(`https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?${deleteParams}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+        });
+        deleted += batch.length;
+      }
+    }
+
+    // 2. 새 레코드 삽입 (10개씩 배치)
+    let inserted = 0;
+    for (let i = 0; i < airtableRecords.length; i += 10) {
+      const batch = airtableRecords.slice(i, i + 10);
+      const insertResponse = await fetch(`https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ records: batch }),
+      });
+
+      const insertResult = await insertResponse.json();
+      if (insertResult.error) {
+        errors.push(`Airtable insert error: ${insertResult.error.message}`);
       } else {
-        // 삽입
-        const { error: insertError } = await supabase
-          .from('polarad_brand_search_data')
-          .insert({
-            client_id: clientId,
-            date: row.date,
-            device: row.device,
-            impressions: row.impressions,
-            clicks: row.clicks,
-          });
-
-        if (insertError) {
-          errors.push(`Insert error for ${row.date} ${row.device}: ${insertError.message}`);
-        } else {
-          inserted++;
-        }
+        inserted += insertResult.records?.length || 0;
       }
     }
 
     const response: BrandSearchUploadResponse = {
       success: errors.length === 0,
       inserted,
-      updated,
+      updated: deleted, // 삭제 후 삽입이므로 updated는 삭제된 수
       total: parsedData.length,
       errors,
     };
 
-    console.log(`Brand search upload: ${client.client_name} - ${inserted} inserted, ${updated} updated`);
+    console.log(`Brand search upload: ${client.client_name} - ${inserted} inserted, ${deleted} replaced`);
 
     return NextResponse.json(response);
   } catch (error) {

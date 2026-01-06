@@ -1,12 +1,13 @@
 /**
  * 네이버 플레이스 광고 분석 API
  * 일간/주간/월간 집계 및 키워드별 분석
+ * 데이터 소스: Airtable (클라이언트별 광고 데이터 테이블)
  */
 
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, TABLES } from '@/lib/supabase'
+import { AIRTABLE_CONFIG, fetchAirtableData } from '@/lib/airtable'
 import type {
   NaverDailyData,
   NaverWeeklyData,
@@ -15,6 +16,37 @@ import type {
   NaverKPISummary,
   NaverPeriodDataResponse,
 } from '@/types/naver-analytics'
+
+// Airtable 설정
+const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
+const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
+const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
+
+// Airtable에서 클라이언트 조회 (UUID 또는 slug로)
+async function getClientFromAirtable(clientIdOrSlug: string) {
+  const url = `https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  })
+
+  const data = await response.json()
+  if (data.error) return null
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = data.records.find((r: any) =>
+    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+  )
+
+  if (!record) return null
+
+  return {
+    id: record.fields.id || record.id,
+    client_name: record.fields.Name,
+    slug: record.fields.slug,
+  }
+}
 
 // 주차 계산 (월요일 시작)
 function getWeekLabel(dateStr: string): string {
@@ -41,79 +73,67 @@ function getWeekEnd(dateStr: string): string {
   return start.toISOString().split('T')[0]
 }
 
-// GET: 네이버 분석 데이터 조회
+// GET: 네이버 분석 데이터 조회 (Airtable)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    let clientId = searchParams.get('clientId')
+    const clientId = searchParams.get('clientId')
     const clientSlug = searchParams.get('clientSlug') // 클라이언트 slug 지원
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const view = searchParams.get('view') || 'all' // daily, weekly, monthly, keywords, all
 
-    // slug로 clientId 조회
-    const supabase = createServerClient()
-    if (!clientId && clientSlug) {
-      const { data: client } = await supabase
-        .from(TABLES.CLIENTS)
-        .select('id')
-        .eq('slug', clientSlug)
-        .single()
-      clientId = client?.id || null
+    // Airtable에서 클라이언트 조회
+    let client = null
+    if (clientSlug) {
+      client = await getClientFromAirtable(clientSlug)
+    } else if (clientId) {
+      client = await getClientFromAirtable(clientId)
     }
 
-    // 페이지네이션을 통해 모든 데이터 조회 (Supabase 기본 limit 1000개 극복)
-    const fetchAllData = async () => {
-      const allData: any[] = []
-      const pageSize = 1000
-      let offset = 0
-      let hasMore = true
-
-      while (hasMore) {
-        let query = supabase
-          .from(TABLES.NAVER_DATA)
-          .select('*')
-          .neq('keyword', '_total_')  // API 합계 데이터 제외
-          .order('date', { ascending: true })
-          .range(offset, offset + pageSize - 1)
-
-        if (clientId) {
-          query = query.eq('client_id', clientId)
-        }
-        if (startDate) {
-          query = query.gte('date', startDate)
-        }
-        if (endDate) {
-          query = query.lte('date', endDate)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-
-        if (data && data.length > 0) {
-          allData.push(...data)
-          offset += pageSize
-          hasMore = data.length === pageSize
-        } else {
-          hasMore = false
-        }
-      }
-
-      return allData
+    if (!client) {
+      return NextResponse.json({
+        daily: [],
+        weekly: [],
+        monthly: [],
+        keywords: [],
+        summary: {
+          total_impressions: 0,
+          total_clicks: 0,
+          total_cost: 0,
+          avg_ctr: 0,
+          avg_cpc: 0,
+          avg_rank: 0,
+          unique_keywords: 0,
+          data_days: 0,
+          date_range: { start: '', end: '' },
+        },
+      })
     }
 
-    const rawData = await fetchAllData().catch((err) => {
-      console.error('Naver analytics error:', err)
-      return null
-    })
-
-    const error = rawData === null ? { message: 'Failed to fetch data' } : null
-
-    if (error) {
-      console.error('Naver analytics error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // 클라이언트별 Airtable 설정 확인
+    const airtableConfig = AIRTABLE_CONFIG[client.slug]
+    if (!airtableConfig) {
+      return NextResponse.json({ error: `Airtable config not found for ${client.slug}` }, { status: 400 })
     }
+
+    // Airtable에서 naver_place 데이터 조회
+    const airtableData = await fetchAirtableData(
+      client.slug,
+      startDate || '2020-01-01',
+      endDate || new Date().toISOString().split('T')[0],
+      'naver_place'
+    )
+
+    // Airtable 데이터를 기존 형식으로 변환
+    const rawData = airtableData.map(record => ({
+      date: record.date,
+      keyword: record.keywords || '_unknown_',
+      impressions: record.impressions || 0,
+      clicks: record.clicks || 0,
+      total_cost: record.spend || 0,
+      avg_rank: 1, // Airtable에 순위 없음
+    }))
 
     if (!rawData || rawData.length === 0) {
       return NextResponse.json({
