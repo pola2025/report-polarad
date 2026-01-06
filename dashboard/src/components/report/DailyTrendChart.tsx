@@ -14,6 +14,7 @@ import {
   Legend,
   Bar,
   ComposedChart,
+  TooltipProps,
 } from 'recharts'
 import { formatNumber } from '@/lib/utils'
 
@@ -29,10 +30,20 @@ interface DailyTrendChartProps {
   daily: DailyData[]
   usdToKrw?: number
   showLeads?: boolean  // 리드수 표시 여부 (나라똔: true, H.E.A 판교: false)
+  channel?: 'meta' | 'naver'  // 채널 구분 (제목에 표시)
+  barMetric?: 'spend' | 'clicks'  // 막대 그래프에 표시할 지표 (기본: spend)
 }
 
 type MetricType = 'clicks' | 'impressions' | 'spend' | 'ctr'
 type ViewMode = 'combined' | 'single'
+
+// 지표별 색상 설정
+const METRIC_COLORS = {
+  spend: '#3B82F6',       // 파란색
+  clicks: '#1877F2',      // 페이스북 파란색
+  impressions: '#03C75A', // 녹색
+  leads: '#8B5CF6',       // 보라색
+} as const
 
 // 날짜 포맷 (MM/DD)
 function formatDate(dateStr: string): string {
@@ -47,11 +58,80 @@ function getDayOfWeek(dateStr: string): string {
   return days[date.getDay()]
 }
 
-export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: DailyTrendChartProps) {
+// 커스텀 툴팁 컴포넌트 (지표별 색상 적용)
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  usdToKrw: number
+  showLeads: boolean
+  barMetric: 'spend' | 'clicks'
+  chartData: Array<{ day: number; label: string }>
+}
+
+function CustomTooltip({ active, payload, label, usdToKrw, showLeads, barMetric, chartData }: CustomTooltipProps) {
+  if (!active || !payload?.length) return null
+
+  const dateLabel = chartData.find(d => d.day === label)?.label || ''
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+      <p className="text-sm font-semibold text-gray-900 mb-2">{dateLabel}</p>
+      {payload.map((entry) => {
+        const { dataKey, value } = entry
+        let displayName = ''
+        let displayValue = ''
+        let color = '#374151'
+
+        switch (dataKey) {
+          case 'spend':
+            if (barMetric !== 'spend') return null
+            displayName = '지출액'
+            displayValue = `₩${formatNumber(Math.round((value as number) * usdToKrw))}`
+            color = METRIC_COLORS.spend
+            break
+          case 'clicks':
+            if (barMetric !== 'clicks') return null
+            displayName = '클릭수'
+            displayValue = formatNumber(value as number)
+            color = METRIC_COLORS.clicks
+            break
+          case 'impressions':
+            displayName = '노출수'
+            displayValue = formatNumber(value as number)
+            color = METRIC_COLORS.impressions
+            break
+          case 'leads':
+            if (!showLeads) return null
+            displayName = '리드수'
+            displayValue = formatNumber(value as number)
+            color = METRIC_COLORS.leads
+            break
+          default:
+            return null
+        }
+
+        return (
+          <div key={dataKey as string} className="flex items-center justify-between gap-4 text-sm">
+            <span style={{ color }} className="font-medium">{displayName}</span>
+            <span style={{ color }} className="font-semibold">{displayValue}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, channel, barMetric = 'spend' }: DailyTrendChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('combined')
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('clicks')
 
   if (daily.length === 0) return null
+
+  // 채널명 표시
+  const channelName = channel === 'meta' ? 'Meta' : channel === 'naver' ? 'Naver' : ''
+
+  // 막대 그래프 설정 (지출액 또는 클릭수)
+  const barConfig = barMetric === 'clicks'
+    ? { label: '클릭수', color: METRIC_COLORS.clicks, fillColor: '#DBEAFE' }
+    : { label: '지출액', color: METRIC_COLORS.spend, fillColor: '#DBEAFE' }
 
   // 데이터 가공
   const chartData = daily.map(d => ({
@@ -90,9 +170,11 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
 
   // 통합 차트용 통계
   const totalSpend = chartData.reduce((sum, d) => sum + d.spend, 0)
+  const totalClicks = chartData.reduce((sum, d) => sum + d.clicks, 0)
   const totalImpressions = chartData.reduce((sum, d) => sum + d.impressions, 0)
   const totalLeads = chartData.reduce((sum, d) => sum + d.leads, 0)
   const avgSpend = totalSpend / chartData.length
+  const avgClicks = totalClicks / chartData.length
   const avgImpressions = totalImpressions / chartData.length
 
   return (
@@ -100,7 +182,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
           <span>📈</span>
-          <span>일별 성과 추이</span>
+          <span>{channelName ? `${channelName} ` : ''}일별 성과 추이</span>
         </div>
 
         {/* 뷰 모드 전환 */}
@@ -147,7 +229,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
         </div>
       )}
 
-      {/* 통합 차트 (지출액 + 노출수 + 리드수) */}
+      {/* 통합 차트 (지출액/클릭수 + 노출수 + 리드수) */}
       {viewMode === 'combined' && (
         <>
           <div className={showLeads ? "h-96" : "h-80"}>
@@ -160,15 +242,18 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                   axisLine={{ stroke: '#E5E7EB' }}
                   tickLine={false}
                 />
-                {/* 왼쪽 Y축: 지출액 (파란색) */}
+                {/* 왼쪽 Y축: 지출액 또는 클릭수 */}
                 <YAxis
-                  yAxisId="spend"
+                  yAxisId="bar"
                   orientation="left"
-                  tick={{ fontSize: 11, fill: '#3B82F6' }}
-                  axisLine={{ stroke: '#3B82F6' }}
+                  tick={{ fontSize: 11, fill: barConfig.color }}
+                  axisLine={{ stroke: barConfig.color }}
                   tickLine={false}
-                  tickFormatter={(v) => `₩${(v * usdToKrw / 1000).toFixed(0)}K`}
-                  label={{ value: '지출액', angle: -90, position: 'insideLeft', fill: '#3B82F6', fontSize: 11 }}
+                  tickFormatter={(v) => barMetric === 'spend'
+                    ? `₩${(v * usdToKrw / 1000).toFixed(0)}K`
+                    : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString()
+                  }
+                  label={{ value: barConfig.label, angle: -90, position: 'insideLeft', fill: barConfig.color, fontSize: 11 }}
                 />
                 {/* 오른쪽 Y축: 노출수 (녹색) */}
                 <YAxis
@@ -193,40 +278,23 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                   />
                 )}
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    padding: '12px',
-                  }}
-                  labelStyle={{
-                    color: '#111827',
-                    fontWeight: 600,
-                    marginBottom: '8px',
-                  }}
-                  formatter={(value: number, name: string) => {
-                    if (name === 'spend') return [`₩${formatNumber(Math.round(value * usdToKrw))}`, '지출액']
-                    if (name === 'impressions') return [formatNumber(value), '노출수']
-                    if (name === 'leads') return [formatNumber(value), '리드수']
-                    return [value, name]
-                  }}
-                  itemStyle={{ color: '#374151' }}
-                  labelFormatter={(label) => chartData.find(d => d.day === label)?.label || ''}
+                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} barMetric={barMetric} chartData={chartData} />}
                 />
                 <Legend
                   formatter={(value) => {
                     if (value === 'spend') return '지출액'
+                    if (value === 'clicks') return '클릭수'
                     if (value === 'impressions') return '노출수'
                     if (value === 'leads') return '리드수'
                     return value
                   }}
                 />
-                {/* 지출액: 막대 그래프 (파란색) */}
+                {/* 막대 그래프: 지출액 또는 클릭수 */}
                 <Bar
-                  yAxisId="spend"
-                  dataKey="spend"
-                  fill="#DBEAFE"
-                  stroke="#3B82F6"
+                  yAxisId="bar"
+                  dataKey={barMetric}
+                  fill={barConfig.fillColor}
+                  stroke={barConfig.color}
                   strokeWidth={1}
                   radius={[4, 4, 0, 0]}
                 />
@@ -258,12 +326,23 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
 
           {/* 통합 차트 요약 */}
           <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {/* 첫 번째 카드: 지출액 또는 클릭수 */}
             <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
               <div className="w-3 h-3 bg-blue-500 rounded"></div>
               <div>
-                <p className="text-xs text-blue-600">총 지출액</p>
-                <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                {barMetric === 'spend' ? (
+                  <>
+                    <p className="text-xs text-blue-600">총 지출액</p>
+                    <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                    <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-blue-600">총 클릭수</p>
+                    <p className="text-sm font-semibold text-blue-700">{formatNumber(totalClicks)}</p>
+                    <p className="text-xs text-blue-400">일평균 {formatNumber(Math.round(avgClicks))}</p>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">

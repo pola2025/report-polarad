@@ -1092,6 +1092,26 @@ function DashboardContent() {
                   }))}
                   usdToKrw={1}
                   showLeads={clientSlug === 'naratton' || clientInfo?.clientType === 'consulting'}
+                  channel="meta"
+                />
+              </section>
+            )}
+
+            {/* Naver 일별 성과 추이 (통합 차트) - 네이버 데이터가 있을 때만 */}
+            {data.dailyTrend.length > 0 && clientInfo?.naver?.enabled !== false && (
+              <section className="mb-6">
+                <DailyTrendChart
+                  daily={data.dailyTrend.map(d => ({
+                    date: d.date,
+                    impressions: d.naver_impressions,
+                    clicks: d.naver_clicks,
+                    leads: 0,  // 네이버는 리드수 없음
+                    spend: d.naver_spend,
+                  }))}
+                  usdToKrw={1}
+                  showLeads={false}
+                  channel="naver"
+                  barMetric="clicks"
                 />
               </section>
             )}
