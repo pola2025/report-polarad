@@ -510,7 +510,9 @@ export function MetaPeriodTable({
                     {metricType === 'video' ? formatNumber(w.video_views || 0) : formatNumber(w.leads)}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {metricType === 'video' ? '-' : (w.leads > 0 ? `${formatNumber(w.cpl_krw)}원` : '-')}
+                    {metricType === 'video'
+                      ? (w.avg_watch_time ? `${w.avg_watch_time.toFixed(1)}초` : '-')
+                      : (w.leads > 0 ? `${formatNumber(w.cpl_krw)}원` : '-')}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <ChangeIndicator value={w.spend_change} />
@@ -531,6 +533,8 @@ export function MetaPeriodTable({
                 // 월별 합계 계산
                 const monthSummaries = Object.entries(dailyByMonth).map(([month, days]) => {
                   const [year, m] = month.split('-')
+                  const video_views = days.reduce((sum, d) => sum + (d.video_views || 0), 0)
+                  const total_watch_time = days.reduce((sum, d) => sum + (d.video_views || 0) * (d.avg_watch_time || 0), 0)
                   return {
                     month,
                     month_label: `${year}년 ${parseInt(m)}월`,
@@ -539,7 +543,8 @@ export function MetaPeriodTable({
                     clicks: days.reduce((sum, d) => sum + d.clicks, 0),
                     spend_krw: days.reduce((sum, d) => sum + d.spend_krw, 0),
                     leads: days.reduce((sum, d) => sum + d.leads, 0),
-                    video_views: days.reduce((sum, d) => sum + (d.video_views || 0), 0),
+                    video_views,
+                    avg_watch_time: video_views > 0 ? Math.round((total_watch_time / video_views) * 10) / 10 : 0,
                   }
                 }).sort((a, b) => b.month.localeCompare(a.month)) // 최신 월이 위로
 
@@ -572,7 +577,9 @@ export function MetaPeriodTable({
                         {metricType === 'video' ? formatNumber(ms.video_views) : formatNumber(ms.leads)}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {metricType === 'video' ? '-' : (ms.leads > 0 ? `${formatNumber(Math.round(ms.spend_krw / ms.leads))}원` : '-')}
+                        {metricType === 'video'
+                          ? (ms.avg_watch_time ? `${ms.avg_watch_time.toFixed(1)}초` : '-')
+                          : (ms.leads > 0 ? `${formatNumber(Math.round(ms.spend_krw / ms.leads))}원` : '-')}
                       </td>
                       <td className="px-3 py-2"></td>
                     </tr>
@@ -616,7 +623,9 @@ export function MetaPeriodTable({
                     {metricType === 'video' ? formatNumber(summary.total_video_views) : formatNumber(summary.total_leads)}
                   </td>
                   <td className="px-3 py-3 text-right">
-                    {metricType === 'video' ? '-' : (summary.total_leads > 0 ? `${formatNumber(summary.avg_cpl_krw)}원` : '-')}
+                    {metricType === 'video'
+                      ? (summary.avg_watch_time ? `${summary.avg_watch_time.toFixed(1)}초` : '-')
+                      : (summary.total_leads > 0 ? `${formatNumber(summary.avg_cpl_krw)}원` : '-')}
                   </td>
                   <td className="px-3 py-3"></td>
                 </tr>

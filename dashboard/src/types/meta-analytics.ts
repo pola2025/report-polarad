@@ -31,6 +31,7 @@ export interface MetaWeeklyData {
   cpl: number
   cpl_krw: number
   video_views: number
+  avg_watch_time?: number // 평균 시청 시간 (초)
   // 전주 대비
   impressions_change?: number
   clicks_change?: number
@@ -111,6 +112,7 @@ export interface MetaKPISummary {
   avg_cpl: number // USD
   avg_cpl_krw: number // KRW
   total_video_views: number
+  avg_watch_time?: number // 평균 시청 시간 (초)
   unique_campaigns: number
   unique_ads: number
   data_days: number

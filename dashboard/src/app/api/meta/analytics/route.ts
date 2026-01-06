@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => a.date.localeCompare(b.date))
 
     // 주별 집계
-    const weeklyMap = new Map<string, MetaWeeklyData>()
+    const weeklyMap = new Map<string, MetaWeeklyData & { total_watch_time: number }>()
     for (const d of daily) {
       const weekLabel = getWeekLabel(d.date)
       if (!weeklyMap.has(weekLabel)) {
@@ -172,6 +172,7 @@ export async function GET(request: NextRequest) {
           cpl: 0,
           cpl_krw: 0,
           video_views: 0,
+          total_watch_time: 0, // 가중 평균 계산용
         })
       }
       const week = weeklyMap.get(weekLabel)!
@@ -179,20 +180,31 @@ export async function GET(request: NextRequest) {
       week.clicks += d.clicks
       week.spend += d.spend
       week.leads += d.leads
+      week.video_views += d.video_views
+      // 가중 평균: video_views * avg_watch_time
+      week.total_watch_time += d.video_views * d.avg_watch_time
     }
 
     const weekly: MetaWeeklyData[] = Array.from(weeklyMap.values())
       .map((w) => ({
-        ...w,
+        week_label: w.week_label,
+        week_start: w.week_start,
+        week_end: w.week_end,
+        impressions: w.impressions,
+        clicks: w.clicks,
         ctr: w.impressions > 0 ? Math.round((w.clicks / w.impressions) * 10000) / 100 : 0,
+        spend: w.spend,
         spend_krw: convertUsdToKrw(w.spend),
+        leads: w.leads,
         cpl: w.leads > 0 ? Math.round((w.spend / w.leads) * 100) / 100 : 0,
         cpl_krw: w.leads > 0 ? convertUsdToKrw(w.spend / w.leads) : 0,
+        video_views: w.video_views,
+        avg_watch_time: w.video_views > 0 ? Math.round((w.total_watch_time / w.video_views) * 10) / 10 : 0,
       }))
       .sort((a, b) => a.week_start.localeCompare(b.week_start))
 
     // 월별 집계
-    const monthlyMap = new Map<string, MetaMonthlyData>()
+    const monthlyMap = new Map<string, MetaMonthlyData & { total_watch_time: number }>()
     for (const d of daily) {
       const month = d.date.substring(0, 7)
       if (!monthlyMap.has(month)) {
@@ -209,6 +221,7 @@ export async function GET(request: NextRequest) {
           cpl: 0,
           cpl_krw: 0,
           video_views: 0,
+          total_watch_time: 0, // 가중 평균 계산용
         })
       }
       const monthData = monthlyMap.get(month)!
@@ -216,15 +229,25 @@ export async function GET(request: NextRequest) {
       monthData.clicks += d.clicks
       monthData.spend += d.spend
       monthData.leads += d.leads
+      monthData.video_views += d.video_views
+      // 가중 평균: video_views * avg_watch_time
+      monthData.total_watch_time += d.video_views * d.avg_watch_time
     }
 
     const monthly: MetaMonthlyData[] = Array.from(monthlyMap.values())
       .map((m) => ({
-        ...m,
+        month: m.month,
+        month_label: m.month_label,
+        impressions: m.impressions,
+        clicks: m.clicks,
         ctr: m.impressions > 0 ? Math.round((m.clicks / m.impressions) * 10000) / 100 : 0,
+        spend: m.spend,
         spend_krw: convertUsdToKrw(m.spend),
+        leads: m.leads,
         cpl: m.leads > 0 ? Math.round((m.spend / m.leads) * 100) / 100 : 0,
         cpl_krw: m.leads > 0 ? convertUsdToKrw(m.spend / m.leads) : 0,
+        video_views: m.video_views,
+        avg_watch_time: m.video_views > 0 ? Math.round((m.total_watch_time / m.video_views) * 10) / 10 : 0,
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
@@ -311,6 +334,9 @@ export async function GET(request: NextRequest) {
     const totalSpend = daily.reduce((sum, d) => sum + d.spend, 0)
     const totalLeads = daily.reduce((sum, d) => sum + d.leads, 0)
     const totalVideoViews = daily.reduce((sum, d) => sum + d.video_views, 0)
+    // 가중 평균 시청 시간 계산
+    const totalWatchTime = daily.reduce((sum, d) => sum + d.video_views * d.avg_watch_time, 0)
+    const avgWatchTime = totalVideoViews > 0 ? Math.round((totalWatchTime / totalVideoViews) * 10) / 10 : 0
     const dates = daily.map((d) => d.date).sort()
 
     const summary: MetaKPISummary = {
@@ -323,6 +349,7 @@ export async function GET(request: NextRequest) {
       avg_cpl: totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0,
       avg_cpl_krw: totalLeads > 0 ? convertUsdToKrw(totalSpend / totalLeads) : 0,
       total_video_views: totalVideoViews,
+      avg_watch_time: avgWatchTime,
       unique_campaigns: ads.length,
       unique_ads: ads.length,
       data_days: daily.length,
@@ -360,6 +387,7 @@ function createEmptySummary(): MetaKPISummary {
     avg_cpl: 0,
     avg_cpl_krw: 0,
     total_video_views: 0,
+    avg_watch_time: 0,
     unique_campaigns: 0,
     unique_ads: 0,
     data_days: 0,
