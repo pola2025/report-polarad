@@ -29,6 +29,8 @@ interface DailyTrendChartProps {
   daily: DailyData[]
   usdToKrw?: number
   showLeads?: boolean  // 리드수 표시 여부 (나라똔: true, H.E.A 판교: false)
+  showClicks?: boolean  // 클릭수 선 표시 여부 (H.E.A 판교 Meta: true)
+  showSpend?: boolean  // 지출액 선 표시 여부 (H.E.A 판교 Naver: true)
   channel?: 'meta' | 'naver'  // 채널 구분 (제목에 표시)
   barMetric?: 'spend' | 'clicks'  // 막대 그래프에 표시할 지표 (기본: spend)
 }
@@ -65,11 +67,12 @@ interface CustomTooltipProps {
   usdToKrw: number
   showLeads: boolean
   showClicksLine: boolean  // 클릭수 선 표시 여부
+  showSpendLine: boolean  // 지출액 선 표시 여부
   barMetric: 'spend' | 'clicks'
   chartData: Array<{ day: number; label: string }>
 }
 
-function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicksLine, barMetric, chartData }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicksLine, showSpendLine, barMetric, chartData }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
   const dateLabel = chartData.find(d => d.day === label)?.label || ''
@@ -85,7 +88,8 @@ function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicks
 
         switch (dataKey) {
           case 'spend':
-            if (barMetric !== 'spend') return null
+            // 막대가 지출액이거나, 지출액 선이 표시될 때
+            if (barMetric !== 'spend' && !showSpendLine) return null
             displayName = '지출액'
             displayValue = `₩${formatNumber(Math.round((value as number) * usdToKrw))}`
             color = METRIC_COLORS.spend
@@ -123,7 +127,7 @@ function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicks
   )
 }
 
-export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, channel, barMetric = 'spend' }: DailyTrendChartProps) {
+export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, showClicks = false, showSpend = false, channel, barMetric = 'spend' }: DailyTrendChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('combined')
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('clicks')
 
@@ -132,8 +136,11 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
   // 채널명 표시
   const channelName = channel === 'meta' ? 'Meta' : channel === 'naver' ? 'Naver' : ''
 
-  // Meta 채널이고 막대가 지출액일 때 클릭수 선 표시
-  const showClicksLine = channel === 'meta' && barMetric === 'spend'
+  // 클릭수 선 표시 여부 (외부에서 제어, Meta 채널에서만 유효)
+  const showClicksLine = showClicks && channel === 'meta' && barMetric === 'spend'
+
+  // 지출액 선 표시 여부 (외부에서 제어, Naver 채널에서 barMetric이 clicks일 때)
+  const showSpendLine = showSpend && channel === 'naver' && barMetric === 'clicks'
 
   // 막대 그래프 설정 (지출액 또는 클릭수)
   const barConfig = barMetric === 'clicks'
@@ -293,8 +300,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                     domain={['dataMin * 0.8', 'dataMax * 1.2']}
                   />
                 )}
+                {/* 지출액용 Y축 (숨김 - 스케일만 적용) */}
+                {showSpendLine && (
+                  <YAxis
+                    yAxisId="spend"
+                    orientation="right"
+                    hide={true}
+                    domain={['dataMin * 0.8', 'dataMax * 1.2']}
+                  />
+                )}
                 <Tooltip
-                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} showClicksLine={showClicksLine} barMetric={barMetric} chartData={chartData} />}
+                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} showClicksLine={showClicksLine} showSpendLine={showSpendLine} barMetric={barMetric} chartData={chartData} />}
                 />
                 <Legend
                   formatter={(value) => {
@@ -348,12 +364,24 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                     activeDot={{ r: 6 }}
                   />
                 )}
+                {/* 지출액: 선 그래프 (파란색) - Naver 채널에서만, 별도 Y축 (숨김) */}
+                {showSpendLine && (
+                  <Line
+                    yAxisId="spend"
+                    type="monotone"
+                    dataKey="spend"
+                    stroke={METRIC_COLORS.spend}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: METRIC_COLORS.spend }}
+                    activeDot={{ r: 6 }}
+                  />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
           {/* 통합 차트 요약 */}
-          <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-4' : showClicksLine ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-4' : (showClicksLine || showSpendLine) ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {/* 첫 번째 카드: 지출액 또는 클릭수 */}
             <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
               <div className="w-3 h-3 bg-blue-500 rounded"></div>
@@ -381,6 +409,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                   <p className="text-xs text-indigo-600">총 클릭수</p>
                   <p className="text-sm font-semibold text-indigo-700">{formatNumber(totalClicks)}</p>
                   <p className="text-xs text-indigo-400">일평균 {formatNumber(Math.round(avgClicks))}</p>
+                </div>
+              </div>
+            )}
+            {/* 지출액 카드 - Naver 채널에서만 */}
+            {showSpendLine && (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div>
+                  <p className="text-xs text-blue-600">총 지출액</p>
+                  <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                  <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
                 </div>
               </div>
             )}

@@ -1092,6 +1092,7 @@ function DashboardContent() {
                   }))}
                   usdToKrw={1}
                   showLeads={clientSlug === 'naratton' || clientInfo?.clientType === 'consulting'}
+                  showClicks={clientSlug === 'hea-pangyo' || clientInfo?.clientType === 'restaurant'}
                   channel="meta"
                 />
               </section>
@@ -1110,6 +1111,7 @@ function DashboardContent() {
                   }))}
                   usdToKrw={1}
                   showLeads={false}
+                  showSpend={clientSlug === 'hea-pangyo' || clientInfo?.clientType === 'restaurant'}
                   channel="naver"
                   barMetric="clicks"
                 />
