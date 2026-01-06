@@ -14,7 +14,6 @@ import {
   Legend,
   Bar,
   ComposedChart,
-  TooltipProps,
 } from 'recharts'
 import { formatNumber } from '@/lib/utils'
 
@@ -59,7 +58,10 @@ function getDayOfWeek(dateStr: string): string {
 }
 
 // 커스텀 툴팁 컴포넌트 (지표별 색상 적용)
-interface CustomTooltipProps extends TooltipProps<number, string> {
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{ dataKey: string; value: number; color?: string }>
+  label?: string | number
   usdToKrw: number
   showLeads: boolean
   barMetric: 'spend' | 'clicks'
