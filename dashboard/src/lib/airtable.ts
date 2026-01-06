@@ -37,6 +37,8 @@ export interface AirtableAdRecord {
   video_thruplay?: number;  // 영상 완전 시청 수
   avg_watch_time?: number;  // 평균 시청 시간 (초)
   keywords?: string;
+  avg_rank?: number;  // 네이버 평균 노출 순위
+  avg_cpc?: number;   // 네이버 평균 CPC
   is_finalized: boolean;
 }
 
@@ -106,6 +108,8 @@ export async function fetchAirtableData(
         video_thruplay: record.fields.video_thruplay || 0,
         avg_watch_time: record.fields.avg_watch_time || 0,
         keywords: record.fields.keywords || '',
+        avg_rank: record.fields.avg_rank || 0,
+        avg_cpc: record.fields.avg_cpc || 0,
         is_finalized: record.fields.is_finalized || false,
       }));
 

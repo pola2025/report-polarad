@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       impressions: record.impressions || 0,
       clicks: record.clicks || 0,
       total_cost: record.spend || 0,
-      avg_rank: 1, // Airtable에 순위 없음
+      avg_rank: record.avg_rank || 1,  // 네이버 평균 순위
     }))
 
     if (!rawData || rawData.length === 0) {

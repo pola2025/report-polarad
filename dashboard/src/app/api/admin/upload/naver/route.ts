@@ -209,6 +209,8 @@ export async function POST(request: NextRequest) {
         spend: r.total_cost,
         source: 'naver_place',
         keywords: r.keyword,  // 개별 키워드
+        avg_rank: r.avg_rank,  // 평균 순위
+        avg_cpc: r.avg_cpc,    // 평균 CPC
         is_finalized: true,
       }
     }))
