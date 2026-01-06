@@ -105,6 +105,30 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        {/* 데이터 테이블 */}
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="py-2 px-3 text-left text-xs font-medium text-gray-500">월</th>
+                <th className="py-2 px-3 text-right text-xs font-medium text-gray-500">PC</th>
+                <th className="py-2 px-3 text-right text-xs font-medium text-gray-500">모바일</th>
+                <th className="py-2 px-3 text-right text-xs font-medium text-gray-500">합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chartData.map((row, idx) => (
+                <tr key={row.month} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="py-2 px-3 text-gray-700">20{row.displayMonth}</td>
+                  <td className="py-2 px-3 text-right text-orange-600">{formatNumber(row.pc)}</td>
+                  <td className="py-2 px-3 text-right text-green-600">{formatNumber(row.mobile)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-gray-900">{formatNumber(row.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   )
