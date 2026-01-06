@@ -150,9 +150,9 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
       {/* 통합 차트 (지출액 + 노출수 + 리드수) */}
       {viewMode === 'combined' && (
         <>
-          <div className="h-80">
+          <div className={showLeads ? "h-96" : "h-80"}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 5, right: 60, left: 20, bottom: 5 }}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: showLeads ? 80 : 60, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <XAxis
                   dataKey="day"
@@ -160,17 +160,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                   axisLine={{ stroke: '#E5E7EB' }}
                   tickLine={false}
                 />
-                {/* 왼쪽 Y축: 지출액 */}
+                {/* 왼쪽 Y축: 지출액 (파란색) */}
                 <YAxis
                   yAxisId="spend"
                   orientation="left"
-                  tick={{ fontSize: 11, fill: '#F59E0B' }}
-                  axisLine={{ stroke: '#F59E0B' }}
+                  tick={{ fontSize: 11, fill: '#3B82F6' }}
+                  axisLine={{ stroke: '#3B82F6' }}
                   tickLine={false}
                   tickFormatter={(v) => `₩${(v * usdToKrw / 1000).toFixed(0)}K`}
-                  label={{ value: '지출액', angle: -90, position: 'insideLeft', fill: '#F59E0B', fontSize: 11 }}
+                  label={{ value: '지출액', angle: -90, position: 'insideLeft', fill: '#3B82F6', fontSize: 11 }}
                 />
-                {/* 오른쪽 Y축: 노출수 */}
+                {/* 오른쪽 Y축: 노출수 (녹색) */}
                 <YAxis
                   yAxisId="impressions"
                   orientation="right"
@@ -178,8 +178,20 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                   axisLine={{ stroke: '#03C75A' }}
                   tickLine={false}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString()}
-                  label={{ value: '노출수', angle: 90, position: 'insideRight', fill: '#03C75A', fontSize: 11 }}
+                  label={{ value: '노출수', angle: 90, position: 'insideRight', fill: '#03C75A', fontSize: 11, offset: showLeads ? -20 : 0 }}
                 />
+                {/* 오른쪽 Y축 2: 리드수 (보라색) - showLeads가 true일 때만 */}
+                {showLeads && (
+                  <YAxis
+                    yAxisId="leads"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: '#8B5CF6' }}
+                    axisLine={{ stroke: '#8B5CF6' }}
+                    tickLine={false}
+                    tickFormatter={(v) => v.toString()}
+                    label={{ value: '리드수', angle: 90, position: 'right', fill: '#8B5CF6', fontSize: 11, offset: 15 }}
+                  />
+                )}
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'white',
@@ -187,13 +199,10 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                     borderRadius: '8px',
                     padding: '12px',
                   }}
-                  itemStyle={{
-                    color: '#374151',
-                  }}
                   labelStyle={{
                     color: '#111827',
                     fontWeight: 600,
-                    marginBottom: '4px',
+                    marginBottom: '8px',
                   }}
                   formatter={(value: number, name: string) => {
                     if (name === 'spend') return [`₩${formatNumber(Math.round(value * usdToKrw))}`, '지출액']
@@ -201,6 +210,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                     if (name === 'leads') return [formatNumber(value), '리드수']
                     return [value, name]
                   }}
+                  itemStyle={{ color: '#374151' }}
                   labelFormatter={(label) => chartData.find(d => d.day === label)?.label || ''}
                 />
                 <Legend
@@ -211,16 +221,16 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                     return value
                   }}
                 />
-                {/* 지출액: 막대 그래프 */}
+                {/* 지출액: 막대 그래프 (파란색) */}
                 <Bar
                   yAxisId="spend"
                   dataKey="spend"
-                  fill="#FEF3C7"
-                  stroke="#F59E0B"
+                  fill="#DBEAFE"
+                  stroke="#3B82F6"
                   strokeWidth={1}
                   radius={[4, 4, 0, 0]}
                 />
-                {/* 노출수: 선 그래프 */}
+                {/* 노출수: 선 그래프 (녹색) */}
                 <Line
                   yAxisId="impressions"
                   type="monotone"
@@ -230,17 +240,16 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                   dot={{ r: 3, fill: '#03C75A' }}
                   activeDot={{ r: 6 }}
                 />
-                {/* 리드수: 선 그래프 (showLeads가 true일 때만) */}
+                {/* 리드수: 선 그래프 (보라색) - 별도 Y축 */}
                 {showLeads && (
                   <Line
-                    yAxisId="impressions"
+                    yAxisId="leads"
                     type="monotone"
                     dataKey="leads"
                     stroke="#8B5CF6"
                     strokeWidth={2}
-                    dot={{ r: 3, fill: '#8B5CF6' }}
-                    activeDot={{ r: 6 }}
-                    strokeDasharray="5 5"
+                    dot={{ r: 4, fill: '#8B5CF6' }}
+                    activeDot={{ r: 7 }}
                   />
                 )}
               </ComposedChart>
@@ -249,29 +258,29 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
 
           {/* 통합 차트 요약 */}
           <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg">
-              <div className="w-3 h-3 bg-amber-400 rounded"></div>
+            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+              <div className="w-3 h-3 bg-blue-500 rounded"></div>
               <div>
-                <p className="text-xs text-gray-500">총 지출액</p>
-                <p className="text-sm font-semibold">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                <p className="text-xs text-gray-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                <p className="text-xs text-blue-600">총 지출액</p>
+                <p className="text-sm font-semibold text-blue-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                <p className="text-xs text-blue-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <div>
-                <p className="text-xs text-gray-500">총 노출수</p>
-                <p className="text-sm font-semibold">{formatNumber(totalImpressions)}</p>
-                <p className="text-xs text-gray-400">일평균 {formatNumber(Math.round(avgImpressions))}</p>
+                <p className="text-xs text-green-600">총 노출수</p>
+                <p className="text-sm font-semibold text-green-700">{formatNumber(totalImpressions)}</p>
+                <p className="text-xs text-green-400">일평균 {formatNumber(Math.round(avgImpressions))}</p>
               </div>
             </div>
             {showLeads && (
               <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                 <div>
-                  <p className="text-xs text-gray-500">총 리드수</p>
-                  <p className="text-sm font-semibold">{formatNumber(totalLeads)}</p>
-                  <p className="text-xs text-gray-400">일평균 {(totalLeads / chartData.length).toFixed(1)}</p>
+                  <p className="text-xs text-purple-600">총 리드수</p>
+                  <p className="text-sm font-semibold text-purple-700">{formatNumber(totalLeads)}</p>
+                  <p className="text-xs text-purple-400">일평균 {(totalLeads / chartData.length).toFixed(1)}</p>
                 </div>
               </div>
             )}
