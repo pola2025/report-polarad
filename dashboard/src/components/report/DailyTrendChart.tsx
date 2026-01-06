@@ -337,15 +337,15 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                   dot={{ r: 3, fill: '#03C75A' }}
                   activeDot={{ r: 6 }}
                 />
-                {/* 리드수: 선 그래프 (보라색) - 별도 Y축 */}
+                {/* 리드수: 선 그래프 (빨간색) - 별도 Y축 */}
                 {showLeads && (
                   <Line
                     yAxisId="leads"
                     type="monotone"
                     dataKey="leads"
-                    stroke="#8B5CF6"
+                    stroke={METRIC_COLORS.leads}
                     strokeWidth={2}
-                    dot={{ r: 4, fill: '#8B5CF6' }}
+                    dot={{ r: 4, fill: METRIC_COLORS.leads }}
                     activeDot={{ r: 7 }}
                   />
                 )}
