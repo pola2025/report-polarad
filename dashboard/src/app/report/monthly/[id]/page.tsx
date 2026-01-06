@@ -219,6 +219,14 @@ export default function MonthlyReportPage() {
           <NaverKeywordsSection keywords={naver.keywords} />
         )}
 
+        {/* 담당자 코멘트 섹션 */}
+        <AdminCommentSection
+          comment={report.comment || null}
+          reportId={report.id}
+          isAdmin={isAdmin}
+          onCommentUpdate={handleCommentUpdate}
+        />
+
         {/* AI 인사이트 섹션 */}
         <AIInsightsSection
           insights={report.ai_insights}
@@ -261,16 +269,6 @@ export default function MonthlyReportPage() {
             metricType: meta.videoViews && meta.videoViews > 0 ? 'video' : 'lead',
           }}
         />
-
-        {/* 관리자 코멘트 섹션 - 월간 리포트에서만 표시 */}
-        {report.report_type !== 'weekly' && (
-          <AdminCommentSection
-            comment={report.comment || null}
-            reportId={report.id}
-            isAdmin={isAdmin}
-            onCommentUpdate={handleCommentUpdate}
-          />
-        )}
 
         {/* 푸터 */}
         <footer className="text-center py-6 text-sm text-gray-500">

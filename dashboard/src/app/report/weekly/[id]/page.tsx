@@ -9,9 +9,10 @@ import {
   MetaCampaignsSection,
   AIInsightsSection,
   DailyPerformanceSection,
+  AdminCommentSection,
 } from '@/components/report'
 import { Card } from '@/components/ui/card'
-import type { MonthlyReportData } from '@/types/report'
+import type { MonthlyReportData, ReportComment } from '@/types/report'
 
 export default function WeeklyReportPage() {
   const params = useParams()
@@ -21,6 +22,7 @@ export default function WeeklyReportPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [comment, setComment] = useState<ReportComment | null>(null)
 
   useEffect(() => {
     // 관리자 모드 확인
@@ -46,6 +48,10 @@ export default function WeeklyReportPage() {
 
         const result = await response.json()
         setData(result.data)
+        // 코멘트 상태 설정
+        if (result.data?.report?.comment) {
+          setComment(result.data.report.comment)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '오류가 발생했습니다.')
       } finally {
@@ -173,6 +179,14 @@ export default function WeeklyReportPage() {
         {naver.keywords.length > 0 && (
           <NaverKeywordsSection keywords={naver.keywords} />
         )}
+
+        {/* 담당자 코멘트 섹션 */}
+        <AdminCommentSection
+          comment={comment}
+          reportId={reportId}
+          isAdmin={isAdmin}
+          onCommentUpdate={(updatedComment) => setComment(updatedComment)}
+        />
 
         {/* AI 인사이트 섹션 */}
         <AIInsightsSection

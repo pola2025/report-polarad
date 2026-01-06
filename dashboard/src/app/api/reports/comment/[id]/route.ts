@@ -1,11 +1,11 @@
 /**
  * 리포트 코멘트 수정/삭제 API
  * PUT/DELETE /api/reports/comment/[id]
+ * 데이터 소스: Airtable
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { TABLES } from '@/lib/supabase'
+import { updateReportComment } from '@/lib/airtable'
 import type { ReportCommentUpdate } from '@/types/report'
 
 // 관리자 키 검증
@@ -29,27 +29,16 @@ export async function PUT(
     const body: ReportCommentUpdate = await request.json()
     const { content, author_name, author_role, is_visible } = body
 
-    const supabase = getSupabaseAdmin()
-
     const updateData: ReportCommentUpdate = {}
     if (content !== undefined) updateData.content = content
     if (author_name !== undefined) updateData.author_name = author_name
     if (author_role !== undefined) updateData.author_role = author_role
     if (is_visible !== undefined) updateData.is_visible = is_visible
 
-    const { data: comment, error } = await supabase
-      .from(TABLES.REPORT_COMMENTS)
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const comment = await updateReportComment(id, updateData)
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: '코멘트를 찾을 수 없습니다.' }, { status: 404 })
-      }
-      console.error('Error updating comment:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!comment) {
+      return NextResponse.json({ error: '코멘트를 찾을 수 없습니다.' }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -62,7 +51,7 @@ export async function PUT(
   }
 }
 
-// DELETE: 코멘트 삭제 (실제로는 is_visible = false로 처리)
+// DELETE: 코멘트 삭제 (is_visible = false로 처리)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,16 +63,10 @@ export async function DELETE(
   const { id } = await params
 
   try {
-    const supabase = getSupabaseAdmin()
+    const comment = await updateReportComment(id, { is_visible: false })
 
-    const { error } = await supabase
-      .from(TABLES.REPORT_COMMENTS)
-      .update({ is_visible: false })
-      .eq('id', id)
-
-    if (error) {
-      console.error('Error deleting comment:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!comment) {
+      return NextResponse.json({ error: '코멘트를 찾을 수 없습니다.' }, { status: 404 })
     }
 
     return NextResponse.json({
