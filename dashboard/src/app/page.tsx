@@ -1626,6 +1626,9 @@ function DashboardContent() {
                         <CardTitle>키워드별 광고비 분포</CardTitle>
                       </CardHeader>
                       <CardContent>
+                        <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-3 py-2 rounded">
+                          ※ 광고비 상위 8개 키워드를 표시하며, 나머지 키워드는 &apos;기타&apos;로 합산됩니다.
+                        </p>
                         {naverData.keywords && naverData.keywords.length > 0 ? (
                           <NaverKeywordDonutChart keywords={naverData.keywords} />
                         ) : (
