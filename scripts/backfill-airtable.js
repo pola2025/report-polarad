@@ -76,6 +76,8 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
     'clicks',
     'spend',
     'actions',
+    'video_p100_watched_actions',
+    'video_avg_time_watched_actions',
   ].join(',');
 
   // 일별 + 디바이스별 집계
@@ -187,6 +189,10 @@ async function upsertToAirtable(baseId, tableId, records) {
 // Meta 데이터를 Airtable 형식으로 변환
 function transformMetaData(rawData, includeLeads = true) {
   return rawData.map(row => {
+    // 영상 관련 데이터 추출
+    const videoViews = row.video_p100_watched_actions?.[0]?.value || 0;
+    const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value || 0;
+
     const record = {
       date: row.date_start,
       device: row.device_platform?.toLowerCase() || 'unknown',
@@ -197,6 +203,8 @@ function transformMetaData(rawData, includeLeads = true) {
       campaign_name: '',
       keywords: '',
       is_finalized: false,
+      video_views: parseInt(videoViews) || 0,
+      avg_watch_time: parseFloat(avgWatchTime) || 0,
     };
     // leads는 나라똔만 (H.E.A 판교는 식당이라 리드 없음)
     if (includeLeads) {
