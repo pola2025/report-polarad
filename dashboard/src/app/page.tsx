@@ -351,17 +351,19 @@ function DashboardContent() {
     fetchBrandSearchData()
   }, [activeTab, clientSlug, clientInfo, dateRange])
 
-  // Meta 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
+  // Meta 상세 데이터 조회 (탭 전환 시)
+  // 기간별 성과는 날짜 범위와 관계없이 전체 데이터 표시
   useEffect(() => {
     async function fetchMetaData() {
       if (activeTab !== 'meta' || !clientSlug || !data) return
 
       setMetaLoading(true)
       try {
+        // 전체 데이터 조회 (기간별 성과에서 모든 월 표시)
         const params = new URLSearchParams({
           clientSlug,
-          startDate: dateRange.start,
-          endDate: dateRange.end,
+          startDate: '2024-01-01',
+          endDate: '2026-12-31',
         })
         const res = await fetch(`/api/meta/analytics?${params}`)
         const json = await res.json()
@@ -376,7 +378,7 @@ function DashboardContent() {
     }
 
     fetchMetaData()
-  }, [activeTab, clientSlug, data, dateRange])
+  }, [activeTab, clientSlug, data])
 
   // 관리자 로그인 화면 (URL에 클라이언트 슬러그 없고, 인증 안 됨)
   if (!clientSlugFromUrl && !isAuthenticated) {
