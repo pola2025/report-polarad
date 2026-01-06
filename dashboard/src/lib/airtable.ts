@@ -113,14 +113,27 @@ export async function fetchAirtableData(
 }
 
 /**
- * 클라이언트 UUID로 slug 조회
+ * 클라이언트 UUID 또는 slug로 slug 조회
+ * - UUID 입력 시: slug 반환
+ * - slug 입력 시: 그대로 반환 (AIRTABLE_CONFIG에 있는 경우)
  */
 export function getClientSlugById(clientId: string): string | null {
-  const CLIENT_MAPPING: Record<string, string> = {
+  const UUID_TO_SLUG: Record<string, string> = {
     '3ff2896e-6786-4936-9c57-311f69f43c63': 'hea-pangyo',
     'c2f60730-f8c1-4361-b9fc-3b44725c3955': 'naratton',
   };
-  return CLIENT_MAPPING[clientId] || null;
+
+  // 1. UUID로 매핑 시도
+  if (UUID_TO_SLUG[clientId]) {
+    return UUID_TO_SLUG[clientId];
+  }
+
+  // 2. slug로 직접 사용 가능한지 확인
+  if (AIRTABLE_CONFIG[clientId]) {
+    return clientId;
+  }
+
+  return null;
 }
 
 /**
