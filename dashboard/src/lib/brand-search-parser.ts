@@ -55,6 +55,10 @@ export function calculateCTR(clicks: number, impressions: number): number {
 
 /**
  * CSV 텍스트 파싱
+ *
+ * 지원 형식:
+ * 1. 5열: 캠페인,일별,광고그룹,노출수,클릭수
+ * 2. 4열: 광고그룹,일별,노출수,클릭수 (네이버 광고그룹 보고서)
  */
 export function parseBrandSearchCSV(csvText: string, clientId: string): BrandSearchInsertData[] {
   const lines = csvText.trim().split('\n');
@@ -65,26 +69,45 @@ export function parseBrandSearchCSV(csvText: string, clientId: string): BrandSea
   const results: BrandSearchInsertData[] = [];
   const errors: string[] = [];
 
-  // 헤더 확인 (첫 줄 스킵)
+  // 헤더 확인하여 형식 감지
   const header = lines[0].toLowerCase();
-  if (!header.includes('캠페인') && !header.includes('campaign')) {
-    // 헤더가 없으면 첫 줄도 데이터로 처리
-    lines.unshift(''); // 빈 헤더 추가
+  let dataStartIndex = 1;
+  let format: '5col' | '4col' = '5col';
+
+  // 제목 행 감지 (예: "광고그룹 보고서(2025.12.01.~2025.12.31.)")
+  if (header.includes('보고서') && header.includes('~')) {
+    dataStartIndex = 2; // 제목 행 + 헤더 행 스킵
   }
 
-  for (let i = 1; i < lines.length; i++) {
+  // 형식 감지: 4열 vs 5열
+  const headerLine = lines[dataStartIndex - 1];
+  if (headerLine && !headerLine.toLowerCase().includes('캠페인') && headerLine.toLowerCase().includes('광고그룹')) {
+    format = '4col';
+  }
+
+  for (let i = dataStartIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
     // CSV 파싱 (간단한 콤마 분리)
     const cols = line.split(',').map(col => col.trim());
-    if (cols.length < 5) {
-      errors.push(`Line ${i + 1}: Invalid column count`);
-      continue;
-    }
 
     try {
-      const [, dateStr, adGroup, impressionsStr, clicksStr] = cols;
+      let dateStr: string;
+      let adGroup: string;
+      let impressionsStr: string;
+      let clicksStr: string;
+
+      if (format === '4col' && cols.length >= 4) {
+        // 4열 형식: 광고그룹,일별,노출수,클릭수
+        [adGroup, dateStr, impressionsStr, clicksStr] = cols;
+      } else if (cols.length >= 5) {
+        // 5열 형식: 캠페인,일별,광고그룹,노출수,클릭수
+        [, dateStr, adGroup, impressionsStr, clicksStr] = cols;
+      } else {
+        errors.push(`Line ${i + 1}: Invalid column count (${cols.length})`);
+        continue;
+      }
 
       const date = parseDateString(dateStr);
       const device = extractDevice(adGroup);
