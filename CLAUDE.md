@@ -1,5 +1,30 @@
 # Polarad Meta 프로젝트
 
+## ⛔⛔⛔ 데이터 소스: Airtable 전용 (CRITICAL) ⛔⛔⛔
+
+**이 프로젝트는 Supabase를 데이터 소스로 사용하지 않습니다!**
+
+| 항목 | 데이터 소스 |
+|------|-------------|
+| Meta 광고 데이터 | **Airtable** |
+| 네이버 광고 데이터 | **Airtable** |
+| 클라이언트 정보 | **Airtable** |
+
+### Airtable 설정
+- **H.E.A 판교**: `appJlOqnadLsMJQYw` / `tbl8ftclEFG5ypohX`
+- **나라똔**: `appN2KzUoORRrb8X9` / `tblmC9Ft2ioXKXsrL`
+
+### ❌ 금지 사항
+- Supabase에서 광고 데이터 조회 금지
+- `polarad_meta_data`, `polarad_naver_data` 테이블 사용 금지
+- Supabase 클라이언트로 데이터 조회 금지
+
+### ✅ 필수 사항
+- 모든 광고 데이터는 `fetchAirtableData()` 함수 사용
+- `AIRTABLE_CONFIG`에 정의된 설정 사용
+
+---
+
 ## ⛔ 과거 연도 데이터 절대 금지 (CRITICAL)
 
 **이 프로젝트는 2024년 이전 데이터를 사용하지 않습니다.**

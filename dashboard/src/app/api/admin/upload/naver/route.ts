@@ -186,7 +186,13 @@ export async function POST(request: NextRequest) {
       avg_cpc: Math.round(parseNumber(row[cpcIdx] || '0')),
       total_cost: Math.round(parseNumber(row[costIdx] || '0')),
       avg_rank: Math.round(parseNumber(row[rankIdx] || '1')) || 1,
-    })).filter(r => r.date && r.keyword)
+    })).filter(r => {
+      // 총계/합계 행 제외 (중복 데이터 방지)
+      if (!r.date || !r.keyword) return false
+      const lowerKeyword = r.keyword.toLowerCase()
+      if (lowerKeyword === 'total' || lowerKeyword === '총계' || lowerKeyword === '합계') return false
+      return true
+    })
 
     if (records.length === 0) {
       return NextResponse.json({ error: '유효한 데이터가 없습니다.' }, { status: 400 })
