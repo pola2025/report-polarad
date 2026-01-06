@@ -106,25 +106,28 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // 일별 집계
+    // 일별 집계 (avg_watch_time은 가중 평균으로 계산)
     const dailyMap = new Map<string, {
       impressions: number
       clicks: number
       leads: number
       spend: number
       video_views: number
-      video_thruplay: number
+      total_watch_time: number  // video_views * avg_watch_time 합계
     }>()
 
     for (const row of rawData) {
       const date = row.date
-      const existing = dailyMap.get(date) || { impressions: 0, clicks: 0, leads: 0, spend: 0, video_views: 0, video_thruplay: 0 }
+      const existing = dailyMap.get(date) || { impressions: 0, clicks: 0, leads: 0, spend: 0, video_views: 0, total_watch_time: 0 }
       existing.impressions += row.impressions || 0
       existing.clicks += row.clicks || 0
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
       existing.video_views += row.video_views || 0
-      existing.video_thruplay += row.video_thruplay || 0
+      // avg_watch_time 가중 합계 (Airtable에서 직접 가져온 값 사용)
+      const rowVideoViews = row.video_views || 0
+      const rowAvgWatchTime = row.avg_watch_time || 0
+      existing.total_watch_time += rowVideoViews * rowAvgWatchTime
       dailyMap.set(date, existing)
     }
 
@@ -141,8 +144,9 @@ export async function GET(request: NextRequest) {
         cpl: d.leads > 0 ? Math.round((d.spend / d.leads) * 100) / 100 : 0,
         cpl_krw: d.leads > 0 ? convertUsdToKrw(d.spend / d.leads) : 0,
         video_views: d.video_views,
-        avg_watch_time: d.video_thruplay > 0 && d.video_views > 0
-          ? Math.round((d.video_thruplay / d.video_views) * 100) / 100
+        // avg_watch_time: 가중 평균 (총 시청시간 / 총 조회수)
+        avg_watch_time: d.video_views > 0
+          ? Math.round((d.total_watch_time / d.video_views) * 10) / 10
           : 0,
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
