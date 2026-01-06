@@ -187,6 +187,14 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false }: D
                     borderRadius: '8px',
                     padding: '12px',
                   }}
+                  itemStyle={{
+                    color: '#374151',
+                  }}
+                  labelStyle={{
+                    color: '#111827',
+                    fontWeight: 600,
+                    marginBottom: '4px',
+                  }}
                   formatter={(value: number, name: string) => {
                     if (name === 'spend') return [`₩${formatNumber(Math.round(value * usdToKrw))}`, '지출액']
                     if (name === 'impressions') return [formatNumber(value), '노출수']
