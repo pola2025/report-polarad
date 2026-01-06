@@ -112,15 +112,19 @@ export async function GET(request: NextRequest) {
       clicks: number
       leads: number
       spend: number
+      video_views: number
+      video_thruplay: number
     }>()
 
     for (const row of rawData) {
       const date = row.date
-      const existing = dailyMap.get(date) || { impressions: 0, clicks: 0, leads: 0, spend: 0 }
+      const existing = dailyMap.get(date) || { impressions: 0, clicks: 0, leads: 0, spend: 0, video_views: 0, video_thruplay: 0 }
       existing.impressions += row.impressions || 0
       existing.clicks += row.clicks || 0
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
+      existing.video_views += row.video_views || 0
+      existing.video_thruplay += row.video_thruplay || 0
       dailyMap.set(date, existing)
     }
 
@@ -136,8 +140,10 @@ export async function GET(request: NextRequest) {
         leads: d.leads,
         cpl: d.leads > 0 ? Math.round((d.spend / d.leads) * 100) / 100 : 0,
         cpl_krw: d.leads > 0 ? convertUsdToKrw(d.spend / d.leads) : 0,
-        video_views: 0,
-        avg_watch_time: 0,
+        video_views: d.video_views,
+        avg_watch_time: d.video_thruplay > 0 && d.video_views > 0
+          ? Math.round((d.video_thruplay / d.video_views) * 100) / 100
+          : 0,
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
 
@@ -286,6 +292,7 @@ export async function GET(request: NextRequest) {
     const totalClicks = daily.reduce((sum, d) => sum + d.clicks, 0)
     const totalSpend = daily.reduce((sum, d) => sum + d.spend, 0)
     const totalLeads = daily.reduce((sum, d) => sum + d.leads, 0)
+    const totalVideoViews = daily.reduce((sum, d) => sum + d.video_views, 0)
     const dates = daily.map((d) => d.date).sort()
 
     const summary: MetaKPISummary = {
@@ -297,7 +304,7 @@ export async function GET(request: NextRequest) {
       avg_ctr: totalImpressions > 0 ? Math.round((totalClicks / totalImpressions) * 10000) / 100 : 0,
       avg_cpl: totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0,
       avg_cpl_krw: totalLeads > 0 ? convertUsdToKrw(totalSpend / totalLeads) : 0,
-      total_video_views: 0,
+      total_video_views: totalVideoViews,
       unique_campaigns: ads.length,
       unique_ads: ads.length,
       data_days: daily.length,
