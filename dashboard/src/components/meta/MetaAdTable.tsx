@@ -69,7 +69,9 @@ function MobileAdCard({ ad, index, metricType }: MobileAdCardProps) {
         <div>
           <p className="text-gray-500 text-xs">{metricType === 'video' ? '평균시청' : 'CPL'}</p>
           <p className="font-medium text-purple-600">
-            {metricType === 'video' ? '-' : (ad.leads > 0 ? `${formatNumber(ad.cpl_krw)}원` : '-')}
+            {metricType === 'video'
+              ? (ad.avg_watch_time && ad.avg_watch_time > 0 ? `${(ad.avg_watch_time * 100).toFixed(0)}%` : '-')
+              : (ad.leads > 0 ? `${formatNumber(ad.cpl_krw)}원` : '-')}
           </p>
         </div>
         <div>
@@ -361,7 +363,9 @@ export function MetaAdTable({ ads, loading, metricType = 'lead' }: MetaAdTablePr
                     {metricType === 'video' ? formatNumber(ad.video_views || 0) : formatNumber(ad.leads)}
                   </td>
                   <td className="px-3 py-2 text-right text-purple-600">
-                    {metricType === 'video' ? '-' : (ad.leads > 0 ? `${formatNumber(ad.cpl_krw)}원` : '-')}
+                    {metricType === 'video'
+                      ? (ad.avg_watch_time && ad.avg_watch_time > 0 ? `${(ad.avg_watch_time * 100).toFixed(0)}%` : '-')
+                      : (ad.leads > 0 ? `${formatNumber(ad.cpl_krw)}원` : '-')}
                   </td>
                   <td className="px-3 py-2 text-right text-gray-500 text-xs">
                     {ad.days_count}일

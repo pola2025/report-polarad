@@ -93,6 +93,8 @@ export interface MetaAdData {
   cpl: number
   cpl_krw: number
   video_views: number
+  video_thruplay?: number
+  avg_watch_time?: number
   days_count: number
   first_date: string
   last_date: string

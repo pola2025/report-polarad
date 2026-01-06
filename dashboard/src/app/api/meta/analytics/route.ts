@@ -280,6 +280,10 @@ export async function GET(request: NextRequest) {
         cpl: data.leads > 0 ? Math.round((data.spend / data.leads) * 100) / 100 : 0,
         cpl_krw: data.leads > 0 ? convertUsdToKrw(data.spend / data.leads) : 0,
         video_views: data.video_views,
+        video_thruplay: data.video_thruplay,
+        avg_watch_time: data.video_views > 0 && data.video_thruplay > 0
+          ? Math.round((data.video_thruplay / data.video_views) * 100) / 100
+          : 0,
         days_count: data.dates.size,
         first_date: data.firstDate,
         last_date: data.lastDate,
