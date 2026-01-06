@@ -223,6 +223,8 @@ export async function GET(request: NextRequest) {
       clicks: number
       leads: number
       spend: number
+      video_views: number
+      video_thruplay: number
       dates: Set<string>
       firstDate: string
       lastDate: string
@@ -240,6 +242,8 @@ export async function GET(request: NextRequest) {
         clicks: 0,
         leads: 0,
         spend: 0,
+        video_views: 0,
+        video_thruplay: 0,
         dates: new Set<string>(),
         firstDate: row.date,
         lastDate: row.date,
@@ -248,6 +252,8 @@ export async function GET(request: NextRequest) {
       existing.clicks += row.clicks || 0
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
+      existing.video_views += row.video_views || 0
+      existing.video_thruplay += row.video_thruplay || 0
       existing.dates.add(row.date)
       if (row.date < existing.firstDate) existing.firstDate = row.date
       if (row.date > existing.lastDate) existing.lastDate = row.date
@@ -267,7 +273,7 @@ export async function GET(request: NextRequest) {
         leads: data.leads,
         cpl: data.leads > 0 ? Math.round((data.spend / data.leads) * 100) / 100 : 0,
         cpl_krw: data.leads > 0 ? convertUsdToKrw(data.spend / data.leads) : 0,
-        video_views: 0,
+        video_views: data.video_views,
         days_count: data.dates.size,
         first_date: data.firstDate,
         last_date: data.lastDate,

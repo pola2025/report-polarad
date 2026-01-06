@@ -66,7 +66,7 @@ function getActionValue(
   return action ? parseInt(action.value) || 0 : 0
 }
 
-// Meta API 호출 (광고 레벨)
+// Meta API 호출 (광고 레벨, 영상 데이터 포함)
 async function fetchMetaData(
   accessToken: string,
   adAccountId: string,
@@ -82,8 +82,11 @@ async function fetchMetaData(
   ad_name: string
   campaign_name: string
   actions?: Array<{ action_type: string; value: string }>
+  video_play_actions?: Array<{ action_type: string; value: string }>
+  video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>
 }>> {
-  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name'
+  // 영상 관련 필드 추가
+  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name,video_play_actions,video_thruplay_watched_actions'
   const allData: Array<{
     date_start: string
     device_platform: string
@@ -94,6 +97,8 @@ async function fetchMetaData(
     ad_name: string
     campaign_name: string
     actions?: Array<{ action_type: string; value: string }>
+    video_play_actions?: Array<{ action_type: string; value: string }>
+    video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>
   }> = []
 
   let url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
@@ -222,7 +227,13 @@ async function backfillClient(
     const adName = row.ad_name || ''
     const campaignName = row.campaign_name || ''
 
-    // 광고별 데이터 저장 (ad_id 포함)
+    // 영상 데이터 추출
+    const videoViews = row.video_play_actions?.[0]?.value
+      ? parseInt(row.video_play_actions[0].value) : 0
+    const videoThruplay = row.video_thruplay_watched_actions?.[0]?.value
+      ? parseInt(row.video_thruplay_watched_actions[0].value) : 0
+
+    // 광고별 데이터 저장 (ad_id, 영상 데이터 포함)
     const fields: Record<string, unknown> = {
       date,
       device,
@@ -232,6 +243,8 @@ async function backfillClient(
       source,
       ad_id: adId,
       campaign_name: `${adName}${campaignName ? ` (${campaignName})` : ''}`, // 광고명 (캠페인명)
+      video_views: videoViews,
+      video_thruplay: videoThruplay,
       keywords: '',
       is_finalized: false,
     }
