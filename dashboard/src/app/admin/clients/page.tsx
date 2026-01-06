@@ -11,6 +11,8 @@ import {
   XCircle,
   Users,
   Shield,
+  Plus,
+  Edit,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -18,24 +20,55 @@ type ClientStatus = 'pending' | 'active' | 'suspended' | 'expired'
 
 interface Client {
   id: string
+  airtable_record_id?: string
   client_id: string
   client_name: string
   slug: string | null
+  client_type?: string
   meta_ad_account_id: string | null
   meta_user_id: string | null
   meta_token_expires_at: string | null
   status: ClientStatus
   is_active: boolean
+  naver_type?: string
+  naver_enabled?: boolean
+  naver_fixed_budget?: number | null
+  telegram_enabled?: boolean
+  telegram_chat_id?: string | null
   approved_at: string | null
   approved_by: string | null
-  contract_start_date: string | null
-  contract_end_date: string | null
+  service_start_date: string | null
+  service_end_date: string | null
   suspended_at: string | null
   suspension_reason: string | null
   dataCount: number
   daysUntilExpiry: number | null
   isExpiringSoon: boolean
   created_at: string
+}
+
+interface ClientForm {
+  client_name: string
+  slug: string
+  client_type: string
+  naver_type: string
+  naver_enabled: boolean
+  naver_fixed_budget: string
+  telegram_enabled: boolean
+  telegram_chat_id: string
+  service_start_date: string
+}
+
+const initialFormState: ClientForm = {
+  client_name: '',
+  slug: '',
+  client_type: 'other',
+  naver_type: 'none',
+  naver_enabled: false,
+  naver_fixed_budget: '',
+  telegram_enabled: false,
+  telegram_chat_id: '',
+  service_start_date: new Date().toISOString().split('T')[0],
 }
 
 interface Stats {
@@ -57,8 +90,12 @@ export default function AdminClientsPage() {
   // 모달 상태
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [suspendReason, setSuspendReason] = useState('')
+  const [formData, setFormData] = useState<ClientForm>(initialFormState)
+  const [formLoading, setFormLoading] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!adminKey) return
@@ -198,6 +235,133 @@ export default function AdminClientsPage() {
     }
   }
 
+  // 클라이언트 추가 모달 열기
+  const openAddModal = () => {
+    setFormData(initialFormState)
+    setShowAddModal(true)
+  }
+
+  // 클라이언트 수정 모달 열기
+  const openEditModal = (client: Client) => {
+    setSelectedClient(client)
+    setFormData({
+      client_name: client.client_name || '',
+      slug: client.slug || '',
+      client_type: client.client_type || 'other',
+      naver_type: client.naver_type || 'none',
+      naver_enabled: client.naver_enabled || false,
+      naver_fixed_budget: client.naver_fixed_budget?.toString() || '',
+      telegram_enabled: client.telegram_enabled || false,
+      telegram_chat_id: client.telegram_chat_id || '',
+      service_start_date: client.service_start_date || new Date().toISOString().split('T')[0],
+    })
+    setShowEditModal(true)
+  }
+
+  // 폼 입력 핸들러
+  const handleFormChange = (field: keyof ClientForm, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // slug 자동 생성 (client_name에서)
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9가-힣\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+  }
+
+  // 클라이언트 생성 제출
+  const handleAddSubmit = async () => {
+    if (!formData.client_name.trim() || !formData.slug.trim()) {
+      alert('클라이언트명과 슬러그는 필수입니다.')
+      return
+    }
+
+    setFormLoading(true)
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey,
+        },
+        body: JSON.stringify({
+          client_name: formData.client_name,
+          slug: formData.slug,
+          client_type: formData.client_type,
+          naver_type: formData.naver_type,
+          naver_enabled: formData.naver_enabled,
+          naver_fixed_budget: formData.naver_fixed_budget ? Number(formData.naver_fixed_budget) : null,
+          telegram_enabled: formData.telegram_enabled,
+          telegram_chat_id: formData.telegram_chat_id || null,
+          service_start_date: formData.service_start_date,
+        }),
+      })
+
+      if (res.ok) {
+        alert('클라이언트가 추가되었습니다.')
+        setShowAddModal(false)
+        setFormData(initialFormState)
+        fetchData()
+      } else {
+        const error = await res.json()
+        alert(`추가 실패: ${error.error}`)
+      }
+    } catch {
+      alert('클라이언트 추가 중 오류 발생')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  // 클라이언트 수정 제출
+  const handleEditSubmit = async () => {
+    if (!selectedClient?.airtable_record_id) {
+      alert('수정할 수 없는 클라이언트입니다.')
+      return
+    }
+
+    setFormLoading(true)
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey,
+        },
+        body: JSON.stringify({
+          airtable_record_id: selectedClient.airtable_record_id,
+          client_name: formData.client_name,
+          slug: formData.slug,
+          client_type: formData.client_type,
+          naver_type: formData.naver_type,
+          naver_enabled: formData.naver_enabled,
+          naver_fixed_budget: formData.naver_fixed_budget ? Number(formData.naver_fixed_budget) : null,
+          telegram_enabled: formData.telegram_enabled,
+          telegram_chat_id: formData.telegram_chat_id || null,
+          service_start_date: formData.service_start_date,
+        }),
+      })
+
+      if (res.ok) {
+        alert('클라이언트 정보가 수정되었습니다.')
+        setShowEditModal(false)
+        setSelectedClient(null)
+        fetchData()
+      } else {
+        const error = await res.json()
+        alert(`수정 실패: ${error.error}`)
+      }
+    } catch {
+      alert('클라이언트 수정 중 오류 발생')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
   // 인증 화면
   if (!isAuthenticated) {
     return (
@@ -246,10 +410,16 @@ export default function AdminClientsPage() {
             <span className="text-neutral-400">/</span>
             <span className="text-neutral-600">클라이언트 관리</span>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            새로고침
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={openAddModal}>
+              <Plus className="w-4 h-4 mr-2" />
+              클라이언트 추가
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              새로고침
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -404,6 +574,14 @@ export default function AdminClientsPage() {
                         </td>
                         <td className="py-3 px-2 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openEditModal(client)}
+                              className="text-neutral-600 hover:text-blue-600"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
                             {client.status === 'pending' && (
                               <Button
                                 size="sm"
@@ -500,6 +678,347 @@ export default function AdminClientsPage() {
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
                 일시 중지
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 클라이언트 추가 모달 */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg my-8">
+            <h3 className="text-lg font-bold mb-4">새 클라이언트 추가</h3>
+
+            <div className="space-y-4">
+              {/* 기본 정보 */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  클라이언트명 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.client_name}
+                  onChange={(e) => {
+                    handleFormChange('client_name', e.target.value)
+                    if (!formData.slug) {
+                      handleFormChange('slug', generateSlug(e.target.value))
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="예: H.E.A 판교"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  슬러그 (URL용) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => handleFormChange('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="예: hea-pangyo"
+                />
+                <p className="text-xs text-neutral-500 mt-1">영문 소문자, 숫자, 하이픈만 사용</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  클라이언트 유형
+                </label>
+                <select
+                  value={formData.client_type}
+                  onChange={(e) => handleFormChange('client_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="franchise">프랜차이즈</option>
+                  <option value="local">지역업체</option>
+                  <option value="other">기타</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  서비스 시작일
+                </label>
+                <input
+                  type="date"
+                  value={formData.service_start_date}
+                  onChange={(e) => handleFormChange('service_start_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* 네이버 광고 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">네이버 광고 설정</h4>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="naver_enabled"
+                    checked={formData.naver_enabled}
+                    onChange={(e) => handleFormChange('naver_enabled', e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="naver_enabled" className="text-sm text-neutral-700">
+                    네이버 광고 사용
+                  </label>
+                </div>
+
+                {formData.naver_enabled && (
+                  <>
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">
+                        네이버 광고 유형
+                      </label>
+                      <select
+                        value={formData.naver_type}
+                        onChange={(e) => handleFormChange('naver_type', e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="none">없음</option>
+                        <option value="naver">네이버 (파워링크)</option>
+                        <option value="place">플레이스 광고</option>
+                        <option value="both">둘 다</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">
+                        고정 예산 (원)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.naver_fixed_budget}
+                        onChange={(e) => handleFormChange('naver_fixed_budget', e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="예: 500000"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 텔레그램 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">텔레그램 알림 설정</h4>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="telegram_enabled"
+                    checked={formData.telegram_enabled}
+                    onChange={(e) => handleFormChange('telegram_enabled', e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="telegram_enabled" className="text-sm text-neutral-700">
+                    텔레그램 알림 사용
+                  </label>
+                </div>
+
+                {formData.telegram_enabled && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      채팅 ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.telegram_chat_id}
+                      onChange={(e) => handleFormChange('telegram_chat_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="예: -1001234567890"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddModal(false)
+                  setFormData(initialFormState)
+                }}
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleAddSubmit}
+                disabled={formLoading || !formData.client_name.trim() || !formData.slug.trim()}
+                className="flex-1"
+              >
+                {formLoading ? '추가 중...' : '추가'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 클라이언트 수정 모달 */}
+      {showEditModal && selectedClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg my-8">
+            <h3 className="text-lg font-bold mb-4">클라이언트 수정</h3>
+            <p className="text-sm text-neutral-500 mb-4">ID: {selectedClient.id}</p>
+
+            <div className="space-y-4">
+              {/* 기본 정보 */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  클라이언트명 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.client_name}
+                  onChange={(e) => handleFormChange('client_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  슬러그 (URL용) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => handleFormChange('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  클라이언트 유형
+                </label>
+                <select
+                  value={formData.client_type}
+                  onChange={(e) => handleFormChange('client_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="franchise">프랜차이즈</option>
+                  <option value="local">지역업체</option>
+                  <option value="other">기타</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  서비스 시작일
+                </label>
+                <input
+                  type="date"
+                  value={formData.service_start_date}
+                  onChange={(e) => handleFormChange('service_start_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* 네이버 광고 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">네이버 광고 설정</h4>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="edit_naver_enabled"
+                    checked={formData.naver_enabled}
+                    onChange={(e) => handleFormChange('naver_enabled', e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="edit_naver_enabled" className="text-sm text-neutral-700">
+                    네이버 광고 사용
+                  </label>
+                </div>
+
+                {formData.naver_enabled && (
+                  <>
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">
+                        네이버 광고 유형
+                      </label>
+                      <select
+                        value={formData.naver_type}
+                        onChange={(e) => handleFormChange('naver_type', e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="none">없음</option>
+                        <option value="naver">네이버 (파워링크)</option>
+                        <option value="place">플레이스 광고</option>
+                        <option value="both">둘 다</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">
+                        고정 예산 (원)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.naver_fixed_budget}
+                        onChange={(e) => handleFormChange('naver_fixed_budget', e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 텔레그램 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">텔레그램 알림 설정</h4>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="edit_telegram_enabled"
+                    checked={formData.telegram_enabled}
+                    onChange={(e) => handleFormChange('telegram_enabled', e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="edit_telegram_enabled" className="text-sm text-neutral-700">
+                    텔레그램 알림 사용
+                  </label>
+                </div>
+
+                {formData.telegram_enabled && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      채팅 ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.telegram_chat_id}
+                      onChange={(e) => handleFormChange('telegram_chat_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false)
+                  setSelectedClient(null)
+                }}
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleEditSubmit}
+                disabled={formLoading || !formData.client_name.trim() || !formData.slug.trim()}
+                className="flex-1"
+              >
+                {formLoading ? '저장 중...' : '저장'}
               </Button>
             </div>
           </div>

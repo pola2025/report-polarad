@@ -146,6 +146,9 @@ export async function GET(
       clicks: number
       leads: number
       spend: number
+      video_views: number
+      avg_watch_time: number
+      avg_watch_time_count: number
     }>()
 
     for (const row of metaData) {
@@ -156,11 +159,19 @@ export async function GET(
         clicks: 0,
         leads: 0,
         spend: 0,
+        video_views: 0,
+        avg_watch_time: 0,
+        avg_watch_time_count: 0,
       }
       existing.impressions += row.impressions || 0
       existing.clicks += row.clicks || 0
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
+      existing.video_views += row.video_views || 0
+      if (row.avg_watch_time && row.avg_watch_time > 0) {
+        existing.avg_watch_time += row.avg_watch_time
+        existing.avg_watch_time_count += 1
+      }
       campaignMap.set(name, existing)
     }
 
@@ -169,6 +180,8 @@ export async function GET(
       spend: c.spend * USD_TO_KRW,
       ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
       cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0,
+      video_views: c.video_views,
+      avg_watch_time: c.avg_watch_time_count > 0 ? c.avg_watch_time / c.avg_watch_time_count : 0,
     }))
 
     // 8. Naver keyword 집계

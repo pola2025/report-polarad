@@ -17,7 +17,124 @@ const COMMENTS_TABLE_ID = process.env.AIRTABLE_COMMENTS_TABLE_ID || 'tbl5u19uUCd
 const CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn';
 const CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F';
 
-// 클라이언트별 Airtable 설정
+// 클라이언트 설정 타입
+export interface ClientConfig {
+  id: string;  // UUID
+  client_id: string;  // 내부 ID (예: hea-pangyo)
+  slug: string;
+  client_name: string;
+  client_type: 'restaurant' | 'consulting' | 'general';
+  meta_metric_type: 'video' | 'lead';
+  airtable_base_id: string;
+  airtable_table_id: string;
+  naver_enabled: boolean;
+  naver_type: 'place' | 'brand_search';
+  naver_show_keywords: boolean;
+  naver_show_detail_tab: boolean;
+  naver_fixed_budget: number | null;
+  ga_enabled: boolean;
+  ga_property_id: string | null;
+  telegram_enabled: boolean;
+  telegram_chat_id: string | null;
+  is_active: boolean;
+  status: string;
+  service_start_date: string | null;
+  service_end_date: string | null;
+}
+
+// 클라이언트 캐시 (성능 최적화)
+let clientsCache: ClientConfig[] | null = null;
+let clientsCacheTime: number = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5분
+
+/**
+ * 모든 클라이언트 조회 (캐시 지원)
+ */
+export async function getAllClients(forceRefresh = false): Promise<ClientConfig[]> {
+  const now = Date.now();
+
+  // 캐시가 유효하면 캐시 반환
+  if (!forceRefresh && clientsCache && (now - clientsCacheTime) < CACHE_TTL) {
+    return clientsCache;
+  }
+
+  const url = `https://api.airtable.com/v0/${CLIENTS_BASE_ID}/${CLIENTS_TABLE_ID}`;
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (data.error) {
+    console.error('getAllClients error:', data.error);
+    return clientsCache || [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clients = data.records.map((r: any) => mapAirtableToClientConfig(r));
+
+  // 캐시 업데이트
+  clientsCache = clients;
+  clientsCacheTime = now;
+
+  return clients;
+}
+
+/**
+ * 특정 클라이언트 설정 조회 (slug 또는 UUID로)
+ */
+export async function getClientConfig(slugOrId: string): Promise<ClientConfig | null> {
+  const clients = await getAllClients();
+
+  return clients.find(c =>
+    c.slug === slugOrId ||
+    c.id === slugOrId ||
+    c.client_id === slugOrId ||
+    c.client_name === slugOrId
+  ) || null;
+}
+
+/**
+ * 활성화된 클라이언트만 조회
+ */
+export async function getActiveClients(): Promise<ClientConfig[]> {
+  const clients = await getAllClients();
+  return clients.filter(c => c.is_active && c.status === 'active');
+}
+
+/**
+ * Airtable 레코드를 ClientConfig로 매핑
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapAirtableToClientConfig(record: any): ClientConfig {
+  const f = record.fields;
+  return {
+    id: f.id || record.id,
+    client_id: f.client_id || f.slug,
+    slug: f.slug,
+    client_name: f.Name,
+    client_type: f.client_type || 'general',
+    meta_metric_type: f.meta_metric_type || 'lead',
+    airtable_base_id: f.airtable_base_id || '',
+    airtable_table_id: f.airtable_table_id || '',
+    naver_enabled: f.naver_enabled || false,
+    naver_type: f.naver_type || 'place',
+    naver_show_keywords: f.naver_show_keywords ?? true,
+    naver_show_detail_tab: f.naver_show_detail_tab ?? true,
+    naver_fixed_budget: f.naver_fixed_budget || null,
+    ga_enabled: f.ga_enabled || false,
+    ga_property_id: f.ga_property_id || null,
+    telegram_enabled: f.telegram_enabled || false,
+    telegram_chat_id: f.telegram_chat_id || null,
+    is_active: f.is_active ?? true,
+    status: f.status || 'active',
+    service_start_date: f.service_start_date || null,
+    service_end_date: f.service_end_date || null,
+  };
+}
+
+// 하위 호환성을 위한 AIRTABLE_CONFIG (deprecated - getClientConfig 사용 권장)
 export const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }> = {
   'hea-pangyo': {
     baseId: process.env.AIRTABLE_HEA_BASE_ID!,
@@ -62,11 +179,25 @@ export async function fetchAirtableData(
   endDate: string,
   source?: string
 ): Promise<AirtableAdRecord[]> {
-  const config = AIRTABLE_CONFIG[clientSlug];
+  // DB에서 클라이언트 설정 조회 (새로운 방식)
+  const clientConfig = await getClientConfig(clientSlug);
 
-  if (!config) {
-    console.error(`Airtable config not found for client: ${clientSlug}`);
-    return [];
+  let baseId: string;
+  let tableId: string;
+
+  if (clientConfig && clientConfig.airtable_base_id && clientConfig.airtable_table_id) {
+    // DB에서 조회한 설정 사용
+    baseId = clientConfig.airtable_base_id;
+    tableId = clientConfig.airtable_table_id;
+  } else {
+    // 하위 호환성: 기존 AIRTABLE_CONFIG 사용
+    const legacyConfig = AIRTABLE_CONFIG[clientSlug];
+    if (!legacyConfig) {
+      console.error(`Airtable config not found for client: ${clientSlug}`);
+      return [];
+    }
+    baseId = legacyConfig.baseId;
+    tableId = legacyConfig.tableId;
   }
 
   // 필터 조건 (endDate 다음날로 < 비교 - Airtable <= 연산자 버그 우회)
@@ -85,7 +216,7 @@ export async function fetchAirtableData(
   try {
     // 페이지네이션 루프 (Airtable은 한 번에 최대 100개 반환)
     do {
-      let url = `https://api.airtable.com/v0/${config.baseId}/${config.tableId}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=date&sort[0][direction]=asc`;
+      let url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=date&sort[0][direction]=asc`;
       if (offset) {
         url += `&offset=${offset}`;
       }
