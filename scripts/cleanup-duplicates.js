@@ -129,11 +129,26 @@ async function main() {
     }
   }
 
+  // avg_watch_time 값 체크
+  const withAvgWatchTime = allRecords.filter(r => r.fields.avg_watch_time && r.fields.avg_watch_time > 0);
+  const withVideoViews = allRecords.filter(r => r.fields.video_views && r.fields.video_views > 0);
+
   console.log(`\n📈 데이터 분류:`);
   console.log(`   - ad_id 있음 (기존): ${withAdId.length}개`);
   console.log(`   - ad_id 없음 (새로운): ${withoutAdId.length}개`);
   console.log(`   - 중복 레코드: ${duplicates.length}개`);
   console.log(`   - 10월 이전: ${beforeOctober.length}개`);
+  console.log(`   - video_views > 0: ${withVideoViews.length}개`);
+  console.log(`   - avg_watch_time > 0: ${withAvgWatchTime.length}개`);
+
+  // 샘플 데이터 출력
+  if (args.includes('--sample')) {
+    console.log('\n📋 샘플 데이터 (최근 5개):');
+    const sorted = [...allRecords].sort((a, b) => (b.fields.date || '').localeCompare(a.fields.date || ''));
+    sorted.slice(0, 5).forEach(r => {
+      console.log(`   ${r.fields.date} | ${(r.fields.campaign_name || '').substring(0, 25)} | video: ${r.fields.video_views || 0} | avg_watch: ${r.fields.avg_watch_time || 0}`);
+    });
+  }
 
   // 삭제 대상 결정
   const toDelete = [];
