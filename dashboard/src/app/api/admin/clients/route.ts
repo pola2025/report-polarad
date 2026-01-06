@@ -46,11 +46,16 @@ async function fetchClientsFromAirtable() {
     client_name: record.fields.Name,
     slug: record.fields.slug,
     client_type: record.fields.client_type || 'other',
+    meta_metric_type: record.fields.meta_metric_type || 'lead',
+    airtable_base_id: record.fields.airtable_base_id || null,
+    airtable_table_id: record.fields.airtable_table_id || null,
     is_active: record.fields.is_active || false,
     status: record.fields.status || 'pending',
     naver_type: record.fields.naver_type || 'none',
     naver_enabled: record.fields.naver_enabled || false,
     naver_fixed_budget: record.fields.naver_fixed_budget || null,
+    naver_show_keywords: record.fields.naver_show_keywords ?? true,
+    naver_show_detail_tab: record.fields.naver_show_detail_tab ?? true,
     telegram_enabled: record.fields.telegram_enabled || false,
     telegram_chat_id: record.fields.telegram_chat_id || null,
     meta_ad_account_id: record.fields.meta_ad_account_id || null,
@@ -124,7 +129,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { client_name, slug, client_type, naver_type, naver_enabled, naver_fixed_budget, telegram_enabled, service_start_date } = body
+    const {
+      client_name,
+      slug,
+      client_type,
+      meta_metric_type,
+      airtable_base_id,
+      airtable_table_id,
+      naver_type,
+      naver_enabled,
+      naver_fixed_budget,
+      naver_show_keywords,
+      naver_show_detail_tab,
+      telegram_enabled,
+      telegram_chat_id,
+      service_start_date
+    } = body
 
     if (!client_name || !slug) {
       return NextResponse.json({ success: false, error: 'client_name과 slug는 필수입니다' }, { status: 400 })
@@ -147,12 +167,18 @@ export async function POST(request: NextRequest) {
             client_id: slug,
             slug,
             client_type: client_type || 'other',
+            meta_metric_type: meta_metric_type || 'lead',
+            airtable_base_id: airtable_base_id || null,
+            airtable_table_id: airtable_table_id || null,
             is_active: true,
             status: 'active',
             naver_type: naver_type || 'none',
             naver_enabled: naver_enabled || false,
             naver_fixed_budget: naver_fixed_budget || null,
+            naver_show_keywords: naver_show_keywords ?? true,
+            naver_show_detail_tab: naver_show_detail_tab ?? true,
             telegram_enabled: telegram_enabled || false,
+            telegram_chat_id: telegram_chat_id || null,
             service_start_date: service_start_date || new Date().toISOString().split('T')[0],
           }
         }]
@@ -204,13 +230,18 @@ export async function PUT(request: NextRequest) {
       fields.client_id = updateFields.slug
     }
     if (updateFields.client_type) fields.client_type = updateFields.client_type
+    if (updateFields.meta_metric_type) fields.meta_metric_type = updateFields.meta_metric_type
+    if (updateFields.airtable_base_id !== undefined) fields.airtable_base_id = updateFields.airtable_base_id
+    if (updateFields.airtable_table_id !== undefined) fields.airtable_table_id = updateFields.airtable_table_id
     if (updateFields.is_active !== undefined) fields.is_active = updateFields.is_active
     if (updateFields.status) fields.status = updateFields.status
     if (updateFields.naver_type) fields.naver_type = updateFields.naver_type
     if (updateFields.naver_enabled !== undefined) fields.naver_enabled = updateFields.naver_enabled
     if (updateFields.naver_fixed_budget !== undefined) fields.naver_fixed_budget = updateFields.naver_fixed_budget
+    if (updateFields.naver_show_keywords !== undefined) fields.naver_show_keywords = updateFields.naver_show_keywords
+    if (updateFields.naver_show_detail_tab !== undefined) fields.naver_show_detail_tab = updateFields.naver_show_detail_tab
     if (updateFields.telegram_enabled !== undefined) fields.telegram_enabled = updateFields.telegram_enabled
-    if (updateFields.telegram_chat_id) fields.telegram_chat_id = updateFields.telegram_chat_id
+    if (updateFields.telegram_chat_id !== undefined) fields.telegram_chat_id = updateFields.telegram_chat_id
     if (updateFields.service_start_date) fields.service_start_date = updateFields.service_start_date
     if (updateFields.service_end_date) fields.service_end_date = updateFields.service_end_date
 

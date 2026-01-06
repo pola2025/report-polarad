@@ -28,11 +28,16 @@ interface Client {
   meta_ad_account_id: string | null
   meta_user_id: string | null
   meta_token_expires_at: string | null
+  meta_metric_type?: string
+  airtable_base_id?: string
+  airtable_table_id?: string
   status: ClientStatus
   is_active: boolean
   naver_type?: string
   naver_enabled?: boolean
   naver_fixed_budget?: number | null
+  naver_show_keywords?: boolean
+  naver_show_detail_tab?: boolean
   telegram_enabled?: boolean
   telegram_chat_id?: string | null
   approved_at: string | null
@@ -51,9 +56,14 @@ interface ClientForm {
   client_name: string
   slug: string
   client_type: string
+  meta_metric_type: string
+  airtable_base_id: string
+  airtable_table_id: string
   naver_type: string
   naver_enabled: boolean
   naver_fixed_budget: string
+  naver_show_keywords: boolean
+  naver_show_detail_tab: boolean
   telegram_enabled: boolean
   telegram_chat_id: string
   service_start_date: string
@@ -63,12 +73,52 @@ const initialFormState: ClientForm = {
   client_name: '',
   slug: '',
   client_type: 'other',
+  meta_metric_type: 'lead',
+  airtable_base_id: '',
+  airtable_table_id: '',
   naver_type: 'none',
   naver_enabled: false,
   naver_fixed_budget: '',
+  naver_show_keywords: true,
+  naver_show_detail_tab: true,
   telegram_enabled: false,
   telegram_chat_id: '',
   service_start_date: new Date().toISOString().split('T')[0],
+}
+
+// 클라이언트 유형별 기본 설정
+const CLIENT_TYPE_DEFAULTS: Record<string, Partial<ClientForm>> = {
+  restaurant: {
+    meta_metric_type: 'video',
+    naver_enabled: true,
+    naver_type: 'place',
+    naver_show_keywords: true,
+    naver_show_detail_tab: true,
+  },
+  franchise: {
+    meta_metric_type: 'lead',
+    naver_enabled: true,
+    naver_type: 'place',
+    naver_show_keywords: true,
+    naver_show_detail_tab: true,
+  },
+  consulting: {
+    meta_metric_type: 'lead',
+    naver_enabled: false,
+    naver_type: 'none',
+  },
+  local: {
+    meta_metric_type: 'lead',
+    naver_enabled: true,
+    naver_type: 'place',
+    naver_show_keywords: true,
+    naver_show_detail_tab: true,
+  },
+  other: {
+    meta_metric_type: 'lead',
+    naver_enabled: false,
+    naver_type: 'none',
+  },
 }
 
 interface Stats {
@@ -248,9 +298,14 @@ export default function AdminClientsPage() {
       client_name: client.client_name || '',
       slug: client.slug || '',
       client_type: client.client_type || 'other',
+      meta_metric_type: client.meta_metric_type || 'lead',
+      airtable_base_id: client.airtable_base_id || '',
+      airtable_table_id: client.airtable_table_id || '',
       naver_type: client.naver_type || 'none',
       naver_enabled: client.naver_enabled || false,
       naver_fixed_budget: client.naver_fixed_budget?.toString() || '',
+      naver_show_keywords: client.naver_show_keywords ?? true,
+      naver_show_detail_tab: client.naver_show_detail_tab ?? true,
       telegram_enabled: client.telegram_enabled || false,
       telegram_chat_id: client.telegram_chat_id || '',
       service_start_date: client.service_start_date || new Date().toISOString().split('T')[0],
@@ -260,7 +315,19 @@ export default function AdminClientsPage() {
 
   // 폼 입력 핸들러
   const handleFormChange = (field: keyof ClientForm, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+
+      // 클라이언트 유형 변경 시 기본값 자동 적용
+      if (field === 'client_type' && typeof value === 'string') {
+        const defaults = CLIENT_TYPE_DEFAULTS[value]
+        if (defaults) {
+          return { ...newData, ...defaults }
+        }
+      }
+
+      return newData
+    })
   }
 
   // slug 자동 생성 (client_name에서)
@@ -292,9 +359,14 @@ export default function AdminClientsPage() {
           client_name: formData.client_name,
           slug: formData.slug,
           client_type: formData.client_type,
+          meta_metric_type: formData.meta_metric_type,
+          airtable_base_id: formData.airtable_base_id || null,
+          airtable_table_id: formData.airtable_table_id || null,
           naver_type: formData.naver_type,
           naver_enabled: formData.naver_enabled,
           naver_fixed_budget: formData.naver_fixed_budget ? Number(formData.naver_fixed_budget) : null,
+          naver_show_keywords: formData.naver_show_keywords,
+          naver_show_detail_tab: formData.naver_show_detail_tab,
           telegram_enabled: formData.telegram_enabled,
           telegram_chat_id: formData.telegram_chat_id || null,
           service_start_date: formData.service_start_date,
@@ -337,9 +409,14 @@ export default function AdminClientsPage() {
           client_name: formData.client_name,
           slug: formData.slug,
           client_type: formData.client_type,
+          meta_metric_type: formData.meta_metric_type,
+          airtable_base_id: formData.airtable_base_id || null,
+          airtable_table_id: formData.airtable_table_id || null,
           naver_type: formData.naver_type,
           naver_enabled: formData.naver_enabled,
           naver_fixed_budget: formData.naver_fixed_budget ? Number(formData.naver_fixed_budget) : null,
+          naver_show_keywords: formData.naver_show_keywords,
+          naver_show_detail_tab: formData.naver_show_detail_tab,
           telegram_enabled: formData.telegram_enabled,
           telegram_chat_id: formData.telegram_chat_id || null,
           service_start_date: formData.service_start_date,
@@ -686,11 +763,13 @@ export default function AdminClientsPage() {
 
       {/* 클라이언트 추가 모달 */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg my-8">
-            <h3 className="text-lg font-bold mb-4">새 클라이언트 추가</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="p-6 border-b border-neutral-200 shrink-0">
+              <h3 className="text-lg font-bold">새 클라이언트 추가</h3>
+            </div>
 
-            <div className="space-y-4">
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
               {/* 기본 정보 */}
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
@@ -733,7 +812,9 @@ export default function AdminClientsPage() {
                   onChange={(e) => handleFormChange('client_type', e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
+                  <option value="restaurant">음식점</option>
                   <option value="franchise">프랜차이즈</option>
+                  <option value="consulting">컨설팅</option>
                   <option value="local">지역업체</option>
                   <option value="other">기타</option>
                 </select>
@@ -749,6 +830,55 @@ export default function AdminClientsPage() {
                   onChange={(e) => handleFormChange('service_start_date', e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              {/* Meta 광고 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">Meta 광고 설정</h4>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Meta 지표 유형
+                  </label>
+                  <select
+                    value={formData.meta_metric_type}
+                    onChange={(e) => handleFormChange('meta_metric_type', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="lead">리드 (전환 중심)</option>
+                    <option value="video">영상 (조회수 중심)</option>
+                  </select>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    리드: 전환수, CPA 중심 / 영상: 조회수, 평균시청시간 중심
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Airtable Base ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.airtable_base_id}
+                      onChange={(e) => handleFormChange('airtable_base_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="app..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Airtable Table ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.airtable_table_id}
+                      onChange={(e) => handleFormChange('airtable_table_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="tbl..."
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 네이버 광고 설정 */}
@@ -798,6 +928,33 @@ export default function AdminClientsPage() {
                         placeholder="예: 500000"
                       />
                     </div>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="naver_show_keywords"
+                          checked={formData.naver_show_keywords}
+                          onChange={(e) => handleFormChange('naver_show_keywords', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="naver_show_keywords" className="text-sm text-neutral-700">
+                          키워드 탭 표시
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="naver_show_detail_tab"
+                          checked={formData.naver_show_detail_tab}
+                          onChange={(e) => handleFormChange('naver_show_detail_tab', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="naver_show_detail_tab" className="text-sm text-neutral-700">
+                          상세 탭 표시
+                        </label>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -836,7 +993,7 @@ export default function AdminClientsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="p-6 border-t border-neutral-200 shrink-0 flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -861,12 +1018,14 @@ export default function AdminClientsPage() {
 
       {/* 클라이언트 수정 모달 */}
       {showEditModal && selectedClient && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg my-8">
-            <h3 className="text-lg font-bold mb-4">클라이언트 수정</h3>
-            <p className="text-sm text-neutral-500 mb-4">ID: {selectedClient.id}</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="p-6 border-b border-neutral-200 shrink-0">
+              <h3 className="text-lg font-bold">클라이언트 수정</h3>
+              <p className="text-sm text-neutral-500 mt-1">ID: {selectedClient.id}</p>
+            </div>
 
-            <div className="space-y-4">
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
               {/* 기본 정보 */}
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
@@ -901,7 +1060,9 @@ export default function AdminClientsPage() {
                   onChange={(e) => handleFormChange('client_type', e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
+                  <option value="restaurant">음식점</option>
                   <option value="franchise">프랜차이즈</option>
+                  <option value="consulting">컨설팅</option>
                   <option value="local">지역업체</option>
                   <option value="other">기타</option>
                 </select>
@@ -917,6 +1078,55 @@ export default function AdminClientsPage() {
                   onChange={(e) => handleFormChange('service_start_date', e.target.value)}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              {/* Meta 광고 설정 */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-neutral-800 mb-3">Meta 광고 설정</h4>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Meta 지표 유형
+                  </label>
+                  <select
+                    value={formData.meta_metric_type}
+                    onChange={(e) => handleFormChange('meta_metric_type', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="lead">리드 (전환 중심)</option>
+                    <option value="video">영상 (조회수 중심)</option>
+                  </select>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    리드: 전환수, CPA 중심 / 영상: 조회수, 평균시청시간 중심
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Airtable Base ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.airtable_base_id}
+                      onChange={(e) => handleFormChange('airtable_base_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="app..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Airtable Table ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.airtable_table_id}
+                      onChange={(e) => handleFormChange('airtable_table_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="tbl..."
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 네이버 광고 설정 */}
@@ -965,6 +1175,33 @@ export default function AdminClientsPage() {
                         className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="edit_naver_show_keywords"
+                          checked={formData.naver_show_keywords}
+                          onChange={(e) => handleFormChange('naver_show_keywords', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="edit_naver_show_keywords" className="text-sm text-neutral-700">
+                          키워드 탭 표시
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="edit_naver_show_detail_tab"
+                          checked={formData.naver_show_detail_tab}
+                          onChange={(e) => handleFormChange('naver_show_detail_tab', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="edit_naver_show_detail_tab" className="text-sm text-neutral-700">
+                          상세 탭 표시
+                        </label>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -1002,7 +1239,7 @@ export default function AdminClientsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="p-6 border-t border-neutral-200 shrink-0 flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
