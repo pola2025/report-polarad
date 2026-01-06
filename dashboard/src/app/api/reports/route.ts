@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const clientSlug = searchParams.get('clientSlug')
-    const reportType = searchParams.get('type') as 'monthly' | 'weekly' | null
+    const reportType = searchParams.get('type') as 'monthly' | 'weekly' | 'all' | null
 
     if (!clientSlug) {
       return NextResponse.json({ error: 'clientSlug is required' }, { status: 400 })
