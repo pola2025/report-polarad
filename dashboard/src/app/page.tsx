@@ -288,17 +288,20 @@ function DashboardContent() {
     }
   }, [dateRange, clientSlug])
 
-  // 네이버 상세 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
+  // 네이버 상세 데이터 조회 (탭 전환 시)
+  // 기간별 성과는 날짜 범위와 관계없이 현재 연도 전체 데이터 표시
   useEffect(() => {
     async function fetchNaverData() {
       if (activeTab !== 'naver' || !clientSlug || !data) return
 
       setNaverLoading(true)
       try {
+        // 전체 데이터 조회 (기간별 성과에서 모든 월 표시)
+        // 날짜 범위를 넓게 설정하여 모든 데이터 포함
         const params = new URLSearchParams({
           clientSlug,
-          startDate: dateRange.start,
-          endDate: dateRange.end,
+          startDate: '2024-01-01',
+          endDate: '2026-12-31',
         })
         const res = await fetch(`/api/naver/analytics?${params}`)
         const json = await res.json()
@@ -313,7 +316,7 @@ function DashboardContent() {
     }
 
     fetchNaverData()
-  }, [activeTab, clientSlug, data, dateRange])
+  }, [activeTab, clientSlug, data])
 
   // 브랜드검색 데이터 조회 (탭 전환 시 또는 날짜 변경 시)
   useEffect(() => {

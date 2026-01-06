@@ -1,13 +1,13 @@
 /**
  * 통합 광고 분석 API
  * Meta + 네이버 데이터 통합 조회
+ * 데이터 소스: Airtable (클라이언트별 광고 데이터 테이블)
  */
 
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { TABLES } from '@/lib/supabase'
+import { AIRTABLE_CONFIG, fetchAirtableData } from '@/lib/airtable'
 import { USD_TO_KRW_RATE, convertUsdToKrw } from '@/lib/constants'
 import type {
   IntegratedSummary,
@@ -25,6 +25,37 @@ import type {
   NaverKPISummary,
   NaverPeriodDataResponse,
 } from '@/types/naver-analytics'
+
+// Airtable 설정
+const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
+const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
+const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
+
+// Airtable에서 클라이언트 조회 (UUID 또는 slug로)
+async function getClientFromAirtable(clientIdOrSlug: string) {
+  const url = `https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  })
+
+  const data = await response.json()
+  if (data.error) return null
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = data.records.find((r: any) =>
+    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+  )
+
+  if (!record) return null
+
+  return {
+    id: record.fields.id || record.id,
+    client_name: record.fields.Name,
+    slug: record.fields.slug,
+  }
+}
 
 // 주차 계산 (월요일 시작)
 function getWeekLabel(dateStr: string): string {
@@ -55,58 +86,49 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('clientId')
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
+    const startDate = searchParams.get('startDate') || '2020-01-01'
+    const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
 
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'clientId is required' }, { status: 400 })
     }
 
-    const supabase = getSupabaseAdmin()
-
-    // ===== 1. Meta 데이터 조회 =====
-    let metaQuery = supabase
-      .from(TABLES.META_DATA)
-      .select('*')
-      .eq('client_id', clientId)
-      .order('date', { ascending: true })
-
-    if (startDate) metaQuery = metaQuery.gte('date', startDate)
-    if (endDate) metaQuery = metaQuery.lte('date', endDate)
-
-    const { data: metaRaw, error: metaError } = await metaQuery
-
-    if (metaError) {
-      console.error('Meta data error:', metaError)
-      return NextResponse.json({ success: false, error: metaError.message }, { status: 500 })
+    // Airtable에서 클라이언트 조회
+    const client = await getClientFromAirtable(clientId)
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 })
     }
 
-    // ===== 2. 네이버 데이터 조회 =====
-    let naverQuery = supabase
-      .from(TABLES.NAVER_DATA)
-      .select('*')
-      .eq('client_id', clientId)
-      .order('date', { ascending: true })
-
-    if (startDate) naverQuery = naverQuery.gte('date', startDate)
-    if (endDate) naverQuery = naverQuery.lte('date', endDate)
-
-    const { data: naverRaw, error: naverError } = await naverQuery
-
-    if (naverError) {
-      console.error('Naver data error:', naverError)
-      return NextResponse.json({ success: false, error: naverError.message }, { status: 500 })
+    // 클라이언트별 Airtable 설정 확인
+    const airtableConfig = AIRTABLE_CONFIG[client.slug]
+    if (!airtableConfig) {
+      return NextResponse.json({ success: false, error: `Airtable config not found for ${client.slug}` }, { status: 400 })
     }
 
-    // ===== 3. Meta 데이터 집계 =====
+    // ===== 1. Airtable에서 전체 광고 데이터 조회 =====
+    const allData = await fetchAirtableData(client.slug, startDate, endDate)
+
+    // Meta 데이터 필터링
+    const metaRaw = allData.filter(r => r.source === 'meta')
+
+    // Naver 데이터 필터링 (total/총계 제외)
+    const naverRaw = allData
+      .filter(r => r.source === 'naver_place')
+      .filter(r => {
+        const kw = (r.keywords || '').toLowerCase()
+        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '') return false
+        return true
+      })
+
+    // ===== 2. Meta 데이터 집계 =====
     const metaDailyMap = new Map<string, MetaDailyData>()
     let totalMetaSpendUsd = 0
     let totalMetaImpressions = 0
     let totalMetaClicks = 0
     let totalMetaLeads = 0
 
-    for (const row of metaRaw || []) {
-      const spendUsd = parseFloat(row.spend) || 0
+    for (const row of metaRaw) {
+      const spendUsd = row.spend || 0
       totalMetaSpendUsd += spendUsd
       totalMetaImpressions += row.impressions || 0
       totalMetaClicks += row.clicks || 0
@@ -160,13 +182,15 @@ export async function GET(request: NextRequest) {
       daily: metaDaily,
     }
 
-    // ===== 4. 네이버 데이터 집계 (기존 로직 재사용) =====
+    // ===== 3. 네이버 데이터 집계 =====
     const naverDailyMap = new Map<string, NaverDailyData>()
     const keywordMap = new Map<string, NaverKeywordData>()
 
-    for (const row of naverRaw || []) {
+    for (const row of naverRaw) {
       const date = row.date
-      const keyword = row.keyword
+      const keyword = row.keywords || '_unknown_'
+      const total_cost = row.spend || 0
+      const avg_rank = row.avg_rank || 1
 
       if (!naverDailyMap.has(date)) {
         naverDailyMap.set(date, {
@@ -183,8 +207,8 @@ export async function GET(request: NextRequest) {
       const daily = naverDailyMap.get(date)!
       daily.impressions += row.impressions || 0
       daily.clicks += row.clicks || 0
-      daily.total_cost += row.total_cost || 0
-      daily.avg_rank += row.avg_rank || 0
+      daily.total_cost += total_cost
+      daily.avg_rank += avg_rank
       daily.keyword_count += 1
 
       if (!keywordMap.has(keyword)) {
@@ -204,8 +228,8 @@ export async function GET(request: NextRequest) {
       const kw = keywordMap.get(keyword)!
       kw.impressions += row.impressions || 0
       kw.clicks += row.clicks || 0
-      kw.total_cost += row.total_cost || 0
-      kw.avg_rank += row.avg_rank || 0
+      kw.total_cost += total_cost
+      kw.avg_rank += avg_rank
       kw.days_count += 1
       if (date < kw.first_date) kw.first_date = date
       if (date > kw.last_date) kw.last_date = date
@@ -330,7 +354,7 @@ export async function GET(request: NextRequest) {
       summary: naverSummary,
     }
 
-    // ===== 5. 통합 일별 데이터 =====
+    // ===== 4. 통합 일별 데이터 =====
     const allDates = new Set<string>()
     metaDaily.forEach(d => allDates.add(d.date))
     naverDaily.forEach(d => allDates.add(d.date))
@@ -340,7 +364,7 @@ export async function GET(request: NextRequest) {
       const metaDay = metaDailyMap.get(date)
       const naverDay = naverDailyMap.get(date)
 
-      const metaSpendKrw = metaDay ? convertUsdToKrw(metaDay.spend_usd) : 0
+      const metaDaySpendKrw = metaDay ? convertUsdToKrw(metaDay.spend_usd) : 0
       const naverSpend = naverDay?.total_cost || 0
 
       return {
@@ -348,18 +372,18 @@ export async function GET(request: NextRequest) {
         meta_impressions: metaDay?.impressions || 0,
         meta_clicks: metaDay?.clicks || 0,
         meta_spend_usd: metaDay?.spend_usd || 0,
-        meta_spend_krw: metaSpendKrw,
+        meta_spend_krw: metaDaySpendKrw,
         meta_leads: metaDay?.leads || 0,
         naver_impressions: naverDay?.impressions || 0,
         naver_clicks: naverDay?.clicks || 0,
         naver_spend: naverSpend,
         total_impressions: (metaDay?.impressions || 0) + (naverDay?.impressions || 0),
         total_clicks: (metaDay?.clicks || 0) + (naverDay?.clicks || 0),
-        total_spend_krw: metaSpendKrw + naverSpend,
+        total_spend_krw: metaDaySpendKrw + naverSpend,
       }
     })
 
-    // ===== 6. 통합 요약 =====
+    // ===== 5. 통합 요약 =====
     const totalSpendKrw = metaSpendKrw + totalNaverCost
     const totalImpressions = totalMetaImpressions + totalNaverImpressions
     const totalClicks = totalMetaClicks + totalNaverClicks
@@ -389,7 +413,7 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    // ===== 7. 채널 비교 데이터 =====
+    // ===== 6. 채널 비교 데이터 =====
     const comparison: ChannelComparisonData[] = [
       {
         metric: '광고비',
@@ -430,7 +454,7 @@ export async function GET(request: NextRequest) {
       },
     ]
 
-    // ===== 8. 응답 =====
+    // ===== 7. 응답 =====
     const response: IntegratedAnalyticsResponse = {
       success: true,
       summary,
@@ -439,8 +463,8 @@ export async function GET(request: NextRequest) {
       daily_combined: dailyCombined,
       comparison,
       period: {
-        start: startDate || sortedDates[0] || '',
-        end: endDate || sortedDates[sortedDates.length - 1] || '',
+        start: startDate,
+        end: endDate,
       },
       exchange_rate: USD_TO_KRW_RATE,
     }
