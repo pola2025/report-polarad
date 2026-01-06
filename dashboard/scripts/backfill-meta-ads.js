@@ -37,7 +37,7 @@ function getActionValue(actions, actionType) {
 
 // Meta API 호출 (광고 레벨, 영상 데이터 포함, 페이지네이션)
 async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
-  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name,video_play_actions,video_thruplay_watched_actions';
+  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name,video_play_actions,video_thruplay_watched_actions,video_avg_time_watched_actions';
   const allData = [];
 
   let url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
@@ -154,6 +154,9 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
       ? parseInt(row.video_play_actions[0].value) : 0;
     const videoThruplay = row.video_thruplay_watched_actions?.[0]?.value
       ? parseInt(row.video_thruplay_watched_actions[0].value) : 0;
+    // 평균 시청 시간 (초 단위)
+    const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value
+      ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0;
 
     const fields = {
       date,
@@ -166,6 +169,7 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
       campaign_name: `${adName}${campaignName ? ` (${campaignName})` : ''}`,
       video_views: videoViews,
       video_thruplay: videoThruplay,
+      avg_watch_time: avgWatchTime,
       keywords: '',
       is_finalized: false,
     };

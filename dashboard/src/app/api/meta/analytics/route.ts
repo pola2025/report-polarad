@@ -231,6 +231,7 @@ export async function GET(request: NextRequest) {
       spend: number
       video_views: number
       video_thruplay: number
+      total_watch_time: number  // 총 시청 시간 (video_views * avg_watch_time 합계)
       dates: Set<string>
       firstDate: string
       lastDate: string
@@ -250,6 +251,7 @@ export async function GET(request: NextRequest) {
         spend: 0,
         video_views: 0,
         video_thruplay: 0,
+        total_watch_time: 0,
         dates: new Set<string>(),
         firstDate: row.date,
         lastDate: row.date,
@@ -260,6 +262,10 @@ export async function GET(request: NextRequest) {
       existing.spend += row.spend || 0
       existing.video_views += row.video_views || 0
       existing.video_thruplay += row.video_thruplay || 0
+      // 평균 시청 시간 가중 합계 (Airtable에서 직접 가져온 avg_watch_time 사용)
+      const rowAvgWatchTime = row.avg_watch_time || 0
+      const rowVideoViews = row.video_views || 0
+      existing.total_watch_time += rowVideoViews * rowAvgWatchTime
       existing.dates.add(row.date)
       if (row.date < existing.firstDate) existing.firstDate = row.date
       if (row.date > existing.lastDate) existing.lastDate = row.date
@@ -281,8 +287,9 @@ export async function GET(request: NextRequest) {
         cpl_krw: data.leads > 0 ? convertUsdToKrw(data.spend / data.leads) : 0,
         video_views: data.video_views,
         video_thruplay: data.video_thruplay,
-        avg_watch_time: data.video_views > 0 && data.video_thruplay > 0
-          ? Math.round((data.video_thruplay / data.video_views) * 100) / 100
+        // 평균 시청 시간 (초): 총 시청 시간 / 총 조회수
+        avg_watch_time: data.video_views > 0
+          ? Math.round(data.total_watch_time / data.video_views)
           : 0,
         days_count: data.dates.size,
         first_date: data.firstDate,

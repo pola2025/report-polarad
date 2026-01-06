@@ -35,6 +35,7 @@ export interface AirtableAdRecord {
   campaign_name?: string;  // 광고명 (캠페인명) 형식으로 저장
   video_views?: number;  // 영상 재생 수
   video_thruplay?: number;  // 영상 완전 시청 수
+  avg_watch_time?: number;  // 평균 시청 시간 (초)
   keywords?: string;
   is_finalized: boolean;
 }
