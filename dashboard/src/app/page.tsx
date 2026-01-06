@@ -7,6 +7,7 @@ import { KPICard } from '@/components/ui/kpi-card'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MetaDailyTrendChart, ChannelComparisonChart, MetaSummaryCards, KeywordMonthlyTrendChart, MetaDayOfWeekChart, NaverKeywordDonutChart } from '@/components/charts'
+import { DailyTrendChart } from '@/components/report'
 import { Loader2, BarChart3, DollarSign, Settings } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
@@ -1077,6 +1078,23 @@ function DashboardContent() {
                 </CardContent>
               </Card>
             </section>
+
+            {/* Meta 일별 성과 추이 (통합 차트) */}
+            {data.dailyTrend.length > 0 && (
+              <section className="mb-6">
+                <DailyTrendChart
+                  daily={data.dailyTrend.map(d => ({
+                    date: d.date,
+                    impressions: d.meta_impressions,
+                    clicks: d.meta_clicks,
+                    leads: d.meta_leads,
+                    spend: d.meta_spend_krw || d.meta_spend * (data.exchange_rate || 1350),
+                  }))}
+                  usdToKrw={1}
+                  showLeads={clientSlug === 'naratton' || clientInfo?.clientType === 'consulting'}
+                />
+              </section>
+            )}
 
             {/* Channel Performance - 요약 카드 */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
