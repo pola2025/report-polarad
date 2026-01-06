@@ -215,8 +215,10 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
-    // 광고(캠페인)별 집계
+    // 광고별 집계 (ad_id 기준)
     const adMap = new Map<string, {
+      ad_id: string
+      ad_name: string  // campaign_name 필드에 저장된 "광고명 (캠페인명)"
       impressions: number
       clicks: number
       leads: number
@@ -227,8 +229,13 @@ export async function GET(request: NextRequest) {
     }>()
 
     for (const row of rawData) {
-      const campaignName = row.campaign_name || '(캠페인 없음)'
-      const existing = adMap.get(campaignName) || {
+      // ad_id가 있으면 ad_id 기준, 없으면 campaign_name 기준 (호환성)
+      const adId = row.ad_id || row.campaign_name || '(광고 없음)'
+      const adName = row.campaign_name || '(광고명 없음)'
+
+      const existing = adMap.get(adId) || {
+        ad_id: adId,
+        ad_name: adName,
         impressions: 0,
         clicks: 0,
         leads: 0,
@@ -244,14 +251,14 @@ export async function GET(request: NextRequest) {
       existing.dates.add(row.date)
       if (row.date < existing.firstDate) existing.firstDate = row.date
       if (row.date > existing.lastDate) existing.lastDate = row.date
-      adMap.set(campaignName, existing)
+      adMap.set(adId, existing)
     }
 
-    const ads: MetaAdData[] = Array.from(adMap.entries())
-      .map(([campaignName, data], index) => ({
-        ad_id: `campaign-${index}`,
-        ad_name: campaignName,
-        campaign_name: campaignName,
+    const ads: MetaAdData[] = Array.from(adMap.values())
+      .map((data) => ({
+        ad_id: data.ad_id,
+        ad_name: data.ad_name,
+        campaign_name: data.ad_name,  // 호환성 유지
         impressions: data.impressions,
         clicks: data.clicks,
         ctr: data.impressions > 0 ? Math.round((data.clicks / data.impressions) * 10000) / 100 : 0,
@@ -265,7 +272,7 @@ export async function GET(request: NextRequest) {
         first_date: data.firstDate,
         last_date: data.lastDate,
       }))
-      .filter(ad => ad.ad_name !== '(캠페인 없음)' || ad.impressions > 0)  // 빈 캠페인 제외 (데이터 있으면 포함)
+      .filter(ad => ad.ad_name !== '(광고 없음)' || ad.impressions > 0)  // 빈 광고 제외 (데이터 있으면 포함)
       .sort((a, b) => b.spend_krw - a.spend_krw)  // 지출액 높은 순 정렬
 
     // 전체 요약

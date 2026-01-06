@@ -31,7 +31,8 @@ export interface AirtableAdRecord {
   leads?: number;  // 나라똔만 (H.E.A 판교는 식당이라 없음)
   spend: number;
   source: 'meta' | 'naver_place' | 'naver_brand_search';
-  campaign_name?: string;
+  ad_id?: string;  // Meta 광고 고유 ID (중복 체크용)
+  campaign_name?: string;  // 광고명 (캠페인명) 형식으로 저장
   keywords?: string;
   is_finalized: boolean;
 }
@@ -96,6 +97,7 @@ export async function fetchAirtableData(
         leads: record.fields.leads || 0,
         spend: record.fields.spend || 0,
         source: record.fields.source || 'meta',
+        ad_id: record.fields.ad_id || '',
         campaign_name: record.fields.campaign_name || '',
         keywords: record.fields.keywords || '',
         is_finalized: record.fields.is_finalized || false,

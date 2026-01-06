@@ -66,7 +66,7 @@ function getActionValue(
   return action ? parseInt(action.value) || 0 : 0
 }
 
-// Meta API 호출
+// Meta API 호출 (광고 레벨)
 async function fetchMetaData(
   accessToken: string,
   adAccountId: string,
@@ -78,37 +78,65 @@ async function fetchMetaData(
   impressions: string
   clicks: string
   spend: string
+  ad_id: string
+  ad_name: string
+  campaign_name: string
   actions?: Array<{ action_type: string; value: string }>
 }>> {
-  const fields = 'date_start,impressions,clicks,spend,actions'
-  const url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
+  const fields = 'date_start,impressions,clicks,spend,actions,ad_id,ad_name,campaign_name'
+  const allData: Array<{
+    date_start: string
+    device_platform: string
+    impressions: string
+    clicks: string
+    spend: string
+    ad_id: string
+    ad_name: string
+    campaign_name: string
+    actions?: Array<{ action_type: string; value: string }>
+  }> = []
+
+  let url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
     `fields=${fields}&` +
     `breakdowns=device_platform&` +
     `time_range={"since":"${startDate}","until":"${endDate}"}&` +
     `time_increment=1&` +
-    `level=account&` +
-    `limit=1000&` +
+    `level=ad&` +
+    `limit=500&` +
     `access_token=${accessToken}`
 
-  const response = await fetch(url)
-  const data = await response.json()
+  // 페이지네이션 처리
+  while (url) {
+    const response = await fetch(url)
+    const data = await response.json()
 
-  if (data.error) {
-    throw new Error(`Meta API 오류: ${data.error.message}`)
+    if (data.error) {
+      throw new Error(`Meta API 오류: ${data.error.message}`)
+    }
+
+    if (data.data) {
+      allData.push(...data.data)
+    }
+
+    // 다음 페이지 URL (있으면)
+    url = data.paging?.next || ''
   }
 
-  return data.data || []
+  return allData
 }
 
-// Airtable에서 기존 레코드 조회
+// Airtable에서 기존 레코드 조회 (date + source + ad_id로 정합성 체크)
 async function findExistingRecord(
   baseId: string,
   tableId: string,
   date: string,
   source: string,
-  device: string
+  adId: string
 ): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
-  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}')`
+  // ad_id가 있으면 ad_id로 체크 (광고 레벨), 없으면 기존 방식 (호환성)
+  const formula = adId
+    ? `AND({date}='${date}', {source}='${source}', {ad_id}='${adId}')`
+    : `AND({date}='${date}', {source}='${source}')`
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
 
   const response = await fetch(url, {
@@ -190,8 +218,11 @@ async function backfillClient(
     const date = row.date_start
     const device = row.device_platform?.toLowerCase() || 'unknown'
     const source = 'meta'
+    const adId = row.ad_id || ''
+    const adName = row.ad_name || ''
+    const campaignName = row.campaign_name || ''
 
-    // H.E.A 판교는 식당이라 leads 제외
+    // 광고별 데이터 저장 (ad_id 포함)
     const fields: Record<string, unknown> = {
       date,
       device,
@@ -199,16 +230,18 @@ async function backfillClient(
       clicks: parseInt(row.clicks) || 0,
       spend: Math.round(parseFloat(row.spend) || 0),
       source,
-      campaign_name: '',
+      ad_id: adId,
+      campaign_name: `${adName}${campaignName ? ` (${campaignName})` : ''}`, // 광고명 (캠페인명)
       keywords: '',
       is_finalized: false,
     }
+    // 나라똔은 리드 수집
     if (clientName !== 'H.E.A 판교') {
       fields.leads = getActionValue(row.actions, 'lead')
     }
 
-    // 기존 레코드 확인
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, device)
+    // 기존 레코드 확인 (date + source + ad_id로 정합성 체크)
+    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId)
 
     if (existing) {
       if (existing.fields.is_finalized === true) {
