@@ -1385,9 +1385,9 @@ function DashboardContent() {
                         <Card>
                           <CardContent className="pt-6">
                             <div className="text-2xl font-bold text-indigo-600">
-                              ${data.meta.current.spend.toFixed(2)}
+                              {Math.round(data.meta.current.spend).toLocaleString()}원
                             </div>
-                            <div className="text-sm text-gray-500">지출 (USD)</div>
+                            <div className="text-sm text-gray-500">지출</div>
                           </CardContent>
                         </Card>
                         <Card>
