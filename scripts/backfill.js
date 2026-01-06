@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
- * Polarad Meta - 데이터 백필 스크립트
+ * Polarad Meta - 데이터 백필 스크립트 (Supabase 저장)
+ *
+ * ⚠️ 주의: 이 프로젝트는 Airtable을 데이터 소스로 사용!
+ *         이 스크립트 대신 backfill-meta-ads.js 또는 backfill-airtable.js 사용 권장
  *
  * 사용법:
- *   node backfill.js --client "H.E.A 판교" --start 2024-10-01 --end 2024-12-07
- *   node backfill.js --all --days 90
- *   node backfill.js --help
+ *   node backfill.js --client "클라이언트명" --start 2025-10-01 --end 2025-12-07
+ *   node backfill.js --client "클라이언트명" --days 90
  *
  * 기능:
  *   - Meta API에서 video_views, avg_watch_time 포함 데이터 수집
- *   - polarad_meta_data 테이블에 upsert
+ *   - polarad_meta_data 테이블에 upsert (Supabase)
  *   - 텔레그램 알림 (백필 채널)
  */
 
@@ -185,20 +187,31 @@ async function main() {
   // 도움말
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-Polarad Meta 데이터 백필 스크립트
+Polarad Meta 데이터 백필 스크립트 (Supabase 저장)
+
+⚠️ 주의: 이 프로젝트는 Airtable을 데이터 소스로 사용!
+        이 스크립트 대신 backfill-meta-ads.js 또는 backfill-airtable.js 사용 권장
 
 사용법:
-  node backfill.js --client "클라이언트명" --start 2024-10-01 --end 2024-12-07
-  node backfill.js --all --days 90
-  node backfill.js --help
+  node backfill.js --client "클라이언트명" --start 2025-10-01 --end 2025-12-07
+  node backfill.js --client "클라이언트명" --days 90
 
 옵션:
-  --client <name>   특정 클라이언트만 백필
-  --all             모든 활성 클라이언트 백필
+  --client <name>   클라이언트 지정 (필수)
   --start <date>    시작일 (YYYY-MM-DD)
   --end <date>      종료일 (YYYY-MM-DD)
   --days <n>        오늘부터 n일 전까지 백필
     `);
+    return;
+  }
+
+  // --client 필수 체크
+  const clientIndex = args.indexOf('--client');
+  if (clientIndex === -1) {
+    console.error('❌ --client 옵션 필수!');
+    console.error('');
+    console.error('사용법:');
+    console.error('  node backfill.js --client "클라이언트명" --days 30');
     return;
   }
 
@@ -227,16 +240,13 @@ Polarad Meta 데이터 백필 스크립트
   console.log('🚀 Polarad Meta 백필 시작');
   console.log(`📅 기간: ${startDate} ~ ${endDate}`);
 
-  // 클라이언트 조회
-  const clientIndex = args.indexOf('--client');
-  let query = supabase.from(TABLES.CLIENTS).select('*').eq('is_active', true);
-
-  if (clientIndex !== -1) {
-    const clientName = args[clientIndex + 1];
-    query = query.ilike('client_name', `%${clientName}%`);
-  }
-
-  const { data: clients, error } = await query;
+  // 클라이언트 조회 (--client 필수)
+  const clientName = args[clientIndex + 1];
+  const { data: clients, error } = await supabase
+    .from(TABLES.CLIENTS)
+    .select('*')
+    .eq('is_active', true)
+    .ilike('client_name', `%${clientName}%`);
 
   if (error) {
     console.error('❌ 클라이언트 조회 실패:', error.message);

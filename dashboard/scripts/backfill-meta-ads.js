@@ -71,7 +71,35 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
   return allData;
 }
 
-// Airtable에서 기존 레코드 조회 (device 포함)
+// Airtable에서 해당 기간의 기존 레코드 일괄 조회 (성능 최적화)
+async function loadExistingRecords(baseId, tableId, startDate, endDate, source) {
+  const records = [];
+  let offset = '';
+
+  do {
+    const formula = encodeURIComponent(`AND({date}>='${startDate}', {date}<='${endDate}', {source}='${source}')`);
+    let url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${formula}&pageSize=100`;
+    if (offset) url += `&offset=${offset}`;
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    });
+    const data = await response.json();
+    records.push(...(data.records || []));
+    offset = data.offset || '';
+  } while (offset);
+
+  // date+ad_id+device 키로 맵 생성
+  const map = new Map();
+  records.forEach(r => {
+    const key = `${r.fields.date}|${r.fields.ad_id || ''}|${r.fields.device || ''}`;
+    map.set(key, r);
+  });
+
+  return map;
+}
+
+// Airtable에서 기존 레코드 조회 (단건 - 폴백용)
 async function findExistingRecord(baseId, tableId, date, source, adId, device) {
   const formula = `AND({date}='${date}', {source}='${source}', {ad_id}='${adId}', {device}='${device}')`;
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
@@ -136,6 +164,11 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
   process.stdout.write('  Meta API 호출: ');
   const rawData = await fetchMetaData(accessToken, adAccountId, startDate, endDate);
 
+  // 기존 레코드 일괄 로드 (UPSERT 강화)
+  process.stdout.write('  기존 레코드 로드: ');
+  const existingMap = await loadExistingRecords(config.baseId, config.tableId, startDate, endDate, 'meta');
+  console.log(`${existingMap.size}개 로드됨`);
+
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -179,8 +212,14 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
       fields.leads = getActionValue(row.actions, 'lead');
     }
 
-    // 기존 레코드 확인 (device 포함)
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId, device);
+    // 기존 레코드 확인 (일괄 로드된 맵에서 먼저 확인)
+    const key = `${date}|${adId}|${device}`;
+    let existing = existingMap.get(key);
+
+    // 맵에 없으면 API로 직접 확인 (신규 데이터일 수 있음)
+    if (!existing) {
+      existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId, device);
+    }
 
     if (existing) {
       if (existing.fields.is_finalized === true) {
@@ -189,13 +228,17 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
       }
       await updateAirtableRecord(config.baseId, config.tableId, existing.id, fields);
       updated++;
+      // 맵 업데이트 (다음 중복 방지)
+      existingMap.set(key, { id: existing.id, fields });
     } else {
       await createAirtableRecord(config.baseId, config.tableId, fields);
       created++;
+      // 맵에 추가 (다음 중복 방지)
+      existingMap.set(key, { id: 'new', fields });
     }
 
-    // Rate limit 방지 (100ms)
-    await new Promise(r => setTimeout(r, 100));
+    // Rate limit 방지 (50ms로 단축)
+    await new Promise(r => setTimeout(r, 50));
 
     // 진행 상황 표시
     if ((created + updated + skipped) % 50 === 0) {
@@ -209,51 +252,71 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
 
 // 메인 함수
 async function main() {
-  // 날짜 설정 (환경변수 또는 기본값 12월)
-  const startDate = process.env.BACKFILL_START || '2025-12-01';
-  const endDate = process.env.BACKFILL_END || '2025-12-31';
+  // 클라이언트 지정 필수!
+  const targetClient = process.env.CLIENT;
+  if (!targetClient) {
+    console.error('❌ CLIENT 환경변수 필수!');
+    console.error('');
+    console.error('사용법:');
+    console.error('  CLIENT=나라똔 BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js');
+    console.error('  CLIENT="H.E.A 판교" BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js');
+    console.error('');
+    console.error('가능한 클라이언트: 나라똔, H.E.A 판교');
+    process.exit(1);
+  }
+
+  // 날짜 설정 필수!
+  const startDate = process.env.BACKFILL_START;
+  const endDate = process.env.BACKFILL_END;
+  if (!startDate || !endDate) {
+    console.error('❌ BACKFILL_START, BACKFILL_END 환경변수 필수!');
+    console.error('');
+    console.error('사용법:');
+    console.error('  CLIENT=나라똔 BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js');
+    process.exit(1);
+  }
 
   console.log('🔄 Meta 광고 레벨 백필 시작');
   console.log('='.repeat(50));
+  console.log(`  대상 클라이언트: ${targetClient}`);
+  console.log(`  기간: ${startDate} ~ ${endDate}`);
+  console.log('='.repeat(50));
 
-  // 활성 클라이언트 조회
+  // 지정된 클라이언트만 조회
   const clientRes = await fetch(
-    SUPABASE_URL + '/rest/v1/polarad_clients?is_active=eq.true&select=client_name,meta_ad_account_id,meta_access_token',
+    SUPABASE_URL + `/rest/v1/polarad_clients?client_name=eq.${encodeURIComponent(targetClient)}&select=client_name,meta_ad_account_id,meta_access_token`,
     { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
   );
   const clients = await clientRes.json();
 
-  const results = {};
-  let totalCreated = 0;
-  let totalUpdated = 0;
-
-  for (const client of clients) {
-    if (!client.meta_ad_account_id || !client.meta_access_token) {
-      console.log(`⏭️  ${client.client_name}: Meta 계정 정보 없음, 스킵`);
-      continue;
-    }
-
-    try {
-      const result = await backfillClient(
-        client.client_name,
-        client.meta_access_token,
-        client.meta_ad_account_id,
-        startDate,
-        endDate
-      );
-      results[client.client_name] = result;
-      totalCreated += result.created;
-      totalUpdated += result.updated;
-    } catch (e) {
-      console.error(`❌ ${client.client_name}: ${e.message}`);
-      results[client.client_name] = { error: e.message };
-    }
+  if (!clients || clients.length === 0) {
+    console.error(`❌ 클라이언트를 찾을 수 없음: ${targetClient}`);
+    process.exit(1);
   }
 
-  console.log('\n' + '='.repeat(50));
-  console.log('✅ 백필 완료');
-  console.log(`  총 생성: ${totalCreated}개`);
-  console.log(`  총 업데이트: ${totalUpdated}개`);
+  const client = clients[0];
+  if (!client.meta_ad_account_id || !client.meta_access_token) {
+    console.error(`❌ ${client.client_name}: Meta 계정 정보 없음`);
+    process.exit(1);
+  }
+
+  try {
+    const result = await backfillClient(
+      client.client_name,
+      client.meta_access_token,
+      client.meta_ad_account_id,
+      startDate,
+      endDate
+    );
+    console.log('\n' + '='.repeat(50));
+    console.log('✅ 백필 완료');
+    console.log(`  생성: ${result.created}개`);
+    console.log(`  업데이트: ${result.updated}개`);
+    console.log(`  스킵: ${result.skipped}개`);
+  } catch (e) {
+    console.error(`❌ ${client.client_name}: ${e.message}`);
+    process.exit(1);
+  }
 }
 
 main().catch(e => console.error('Error:', e.message));

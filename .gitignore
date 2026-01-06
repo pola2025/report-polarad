@@ -47,3 +47,10 @@ coverage/
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
+
+# 로컬 유틸리티 스크립트 (API 키 포함)
+scripts/check-*.js
+scripts/cleanup-*.js
+scripts/reset-*.js
+scripts/analyze-*.js
+scripts/delete-*.js

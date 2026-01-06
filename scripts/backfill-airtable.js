@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * Polarad Meta - Airtable 백필 스크립트
+ * Polarad Meta - Airtable 백필 스크립트 (캠페인 레벨)
  *
  * Meta API에서 데이터를 수집하여 Airtable에 저장
  * Upsert 로직: date + source + device 조합으로 중복 방지
  *
+ * ⚠️ 주의: HEA 판교는 이 스크립트 사용 금지! (광고 레벨 backfill-meta-ads.js 사용)
+ *
  * 사용법:
- *   node backfill-airtable.js --client "H.E.A 판교" --days 30
- *   node backfill-airtable.js --all --days 7
+ *   node backfill-airtable.js --client "나라똔" --days 30
+ *   node backfill-airtable.js --client "나라똔" --start 2025-01-01 --end 2025-01-05
  */
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../dashboard/.env.local') });
@@ -268,20 +270,30 @@ async function main() {
   // 도움말
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-Polarad Meta → Airtable 백필 스크립트
+Polarad Meta → Airtable 백필 스크립트 (캠페인 레벨)
+
+⚠️ 주의: HEA 판교는 이 스크립트 사용 금지! (광고 레벨 backfill-meta-ads.js 사용)
 
 사용법:
-  node backfill-airtable.js --client "H.E.A 판교" --days 30
-  node backfill-airtable.js --all --days 7
+  node backfill-airtable.js --client "나라똔" --days 30
   node backfill-airtable.js --client "나라똔" --start 2025-01-01 --end 2025-01-05
 
 옵션:
-  --client <name>   특정 클라이언트만 백필
-  --all             모든 활성 클라이언트 백필
+  --client <name>   클라이언트 지정 (필수)
   --start <date>    시작일 (YYYY-MM-DD)
   --end <date>      종료일 (YYYY-MM-DD)
   --days <n>        오늘부터 n일 전까지 백필
     `);
+    return;
+  }
+
+  // --client 필수 체크
+  const clientIndex = args.indexOf('--client');
+  if (clientIndex === -1) {
+    console.error('❌ --client 옵션 필수!');
+    console.error('');
+    console.error('사용법:');
+    console.error('  node backfill-airtable.js --client "나라똔" --days 30');
     return;
   }
 
@@ -310,21 +322,15 @@ Polarad Meta → Airtable 백필 스크립트
   console.log('🚀 Polarad Meta → Airtable 백필 시작');
   console.log(`📅 기간: ${startDate} ~ ${endDate}`);
 
-  // 클라이언트 조회
-  const clientIndex = args.indexOf('--client');
-  let query = supabase
+  // 클라이언트 조회 (--client 필수)
+  const clientName = args[clientIndex + 1];
+  const { data: clients, error } = await supabase
     .from('polarad_clients')
     .select('id, client_name, meta_ad_account_id, meta_access_token')
     .eq('is_active', true)
+    .ilike('client_name', `%${clientName}%`)
     .not('meta_ad_account_id', 'is', null)
     .not('meta_access_token', 'is', null);
-
-  if (clientIndex !== -1) {
-    const clientName = args[clientIndex + 1];
-    query = query.ilike('client_name', `%${clientName}%`);
-  }
-
-  const { data: clients, error } = await query;
 
   if (error) {
     console.error('❌ 클라이언트 조회 실패:', error.message);

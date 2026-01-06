@@ -227,6 +227,7 @@ export function MetaSummaryCards({ current, previous }: MetaSummaryProps) {
   const metrics = [
     { label: '노출수', current: current.impressions, previous: previous.impressions, format: formatNumber },
     { label: '클릭수', current: current.clicks, previous: previous.clicks, format: formatNumber },
+    { label: '리드수', current: current.leads, previous: previous.leads, format: formatNumber },
     { label: 'CTR', current: ctr, previous: previousCtr, format: (v: number) => `${v.toFixed(2)}%` },
     { label: '지출액', current: current.spend, previous: previous.spend, format: (v: number) => formatSpendWithKrw(v) },
     { label: 'CPC', current: cpc, previous: previousCpc, format: formatCurrency },

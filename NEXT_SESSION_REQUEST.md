@@ -2,40 +2,89 @@
 
 ## 복사해서 사용:
 ```
-polarad-meta 프로젝트 이어서 작업. NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
+나라똔 Meta 데이터 백필 및 점검 필요.
+NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
 ```
 
 ---
 
-## 다음 세션 작업 (우선순위)
+## 🚨 필수 주의사항 (반드시 준수)
 
-### 1. Meta 자동 백필 Vercel Cron 설정 확인
-- **목적**: 매일 자동으로 Meta 데이터가 Airtable에 백필되는지 확인
-- **확인 사항**:
-  - Vercel cron 설정 (`vercel.json`)
-  - cron API 라우트 (`/api/cron/backfill`)
-  - Airtable에 저장하도록 되어 있는지 (Supabase 아님!)
-  - 캠페인별 데이터 수집 (`level=campaign`)
-- **중요**: 백필 시 항상 Airtable에 저장되어야 함
+### H.E.A 판교 데이터 보호
+- ❌ HEA 판교 데이터 자동 백필 금지
+- ❌ HEA 판교 데이터 전체 백필 금지
+- ❌ HEA 판교 데이터 일괄 삭제/수정 금지
+- ❌ HEA 판교 Airtable (`appJlOqnadLsMJQYw`) 접근 금지
+
+### 나라똔 작업 시
+- ✅ 나라똔 전용 Airtable만 사용: `appN2KzUoORRrb8X9` / `tblmC9Ft2ioXKXsrL`
+- ✅ CLIENT 환경변수 반드시 "나라똔"으로 설정
+- ✅ 백필 전 기존 데이터 확인
+- ✅ 중복 데이터 발생하지 않도록 주의
 
 ---
 
-## 이전 세션 완료 작업 (2026-01-06)
+## 이번 세션 완료 작업
 
-### 1. 관리자 코멘트 기능 추가
-- ✅ 주간/월간 리포트 페이지에 AdminCommentSection 추가
-- ✅ 코멘트 API를 Supabase → Airtable로 변경
-- ✅ 관리자만 코멘트 작성/수정 가능
+### 1. HEA 판교 Meta 중복 데이터 정리 ✅
+- 정리 전: 234개
+- 정리 후: 92개
+- 삭제: 152개
 
-### 2. 백필 스크립트 캠페인별 데이터 수집으로 변경
-- ✅ `level=account` → `level=campaign` 변경
-- ✅ campaign_name 필드 추가
-- ✅ upsert 키에 campaign_name 추가
-- ✅ 기존 Meta 데이터 삭제 후 전체 재백필 (234개 레코드)
+### 2. 백필 UPSERT 로직 강화 ✅
+- `dashboard/scripts/backfill-meta-ads.js` 개선
+- 기존 레코드 일괄 로드 → 맵 기반 중복 체크
+- 생성/업데이트 후 맵 즉시 갱신
 
-### 3. 영상 데이터 추가
-- ✅ video_views, avg_watch_time 필드 추가
-- ✅ Meta API fields에 video_p100_watched_actions, video_avg_time_watched_actions 추가
+### 3. CLAUDE.md 주의사항 추가 ✅
+- 클라이언트별 작업 시 주의사항
+- H.E.A 판교 데이터 보호 규칙
+
+---
+
+## 다음 세션 작업
+
+### 나라똔 Meta 데이터 점검 및 백필
+1. 나라똔 현재 데이터 현황 확인
+2. 중복 데이터 있는지 점검
+3. 필요 시 백필 진행
+
+---
+
+## 현재 HEA 판교 데이터 현황 (건드리지 말 것!)
+
+```
+총 레코드: 92개
+- 2025-10: 22개 | 노출: 97,556
+- 2025-11: 23개 | 노출: 192,660
+- 2025-12: 31개 | 노출: 127,961
+- 2026-01: 16개 | 노출: 30,099
+```
+
+---
+
+## 클라이언트별 Airtable 정보
+
+| 클라이언트 | Base ID | Table ID | 백필 스크립트 |
+|-----------|---------|----------|--------------|
+| H.E.A 판교 | `appJlOqnadLsMJQYw` | `tbl8ftclEFG5ypohX` | `backfill-meta-ads.js` (광고 레벨) |
+| 나라똔 | `appN2KzUoORRrb8X9` | `tblmC9Ft2ioXKXsrL` | `backfill-airtable.js` (캠페인 레벨) |
+
+---
+
+## 백필 명령어
+
+### 나라똔 Meta 백필 (캠페인 레벨)
+```bash
+cd scripts
+node backfill-airtable.js --client "나라똔" --days 30
+```
+
+### 나라똔 Meta 백필 (광고 레벨) - 필요 시
+```bash
+cd dashboard
+CLIENT="나라똔" BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js
+```
 
 ---
 
@@ -50,47 +99,11 @@ polarad-meta 프로젝트 이어서 작업. NEXT_SESSION_REQUEST.md 파일에 �
 
 ---
 
-## 데이터 소스 (⛔ 중요!)
+## 데이터 소스 (중요!)
 
 | 항목 | 데이터 소스 |
 |------|-------------|
 | Meta 광고 데이터 | **Airtable** |
 | 네이버 광고 데이터 | **Airtable** |
-| 리포트/코멘트 | **Airtable** |
 
-**❌ Supabase 사용 금지** - polarad_meta_data, polarad_naver_data 테이블 사용하지 않음
-
----
-
-## H.E.A 판교 Airtable 설정
-
-| 항목 | 값 |
-|------|-----|
-| Base ID | `appJlOqnadLsMJQYw` |
-| 광고 데이터 Table | `tbl8ftclEFG5ypohX` |
-| Reports Table | `tbl4BAtILQRH7JQaG` |
-| Comments Table | `tbl5u19uUCdPl4TCg` |
-| slug | `hea-pangyo` |
-
----
-
-## 백필 관련
-
-### 수동 백필 명령어
-```bash
-node scripts/backfill-airtable.js --client "H.E.A 판교" --start YYYY-MM-DD --end YYYY-MM-DD
-```
-
-### 자동 백필 (확인 필요)
-- Vercel Cron으로 매일 실행되어야 함
-- **반드시 Airtable에 저장**되어야 함
-
----
-
-## 최근 커밋
-
-```
-8ccc36c fix: backfill-airtable.js 캠페인별 데이터 수집으로 변경
-5dc42a7 fix: backfill-airtable.js에 video_views, avg_watch_time 추가
-798b966 feat: 관리자 코멘트 기능 추가
-```
+**⛔ Supabase 사용 금지** - polarad_meta_data, polarad_naver_data 테이블 사용하지 않음

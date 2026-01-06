@@ -43,7 +43,7 @@ const METRIC_COLORS = {
   spend: '#8B5CF6',       // 보라색
   clicks: '#1877F2',      // 페이스북 파란색
   impressions: '#03C75A', // 녹색
-  leads: '#8B5CF6',       // 보라색
+  leads: '#EF4444',       // 빨간색
 } as const
 
 // 날짜 포맷 (MM/DD)
@@ -248,7 +248,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
         <>
           <div className={showLeads ? "h-96" : "h-80"}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 5, right: showLeads ? 80 : 60, left: 20, bottom: 5 }}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 60, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <XAxis
                   dataKey="day"
@@ -277,18 +277,15 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                   axisLine={{ stroke: '#03C75A' }}
                   tickLine={false}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString()}
-                  label={{ value: '노출수', angle: 90, position: 'insideRight', fill: '#03C75A', fontSize: 11, offset: showLeads ? -20 : 0 }}
+                  label={{ value: '노출수', angle: 90, position: 'insideRight', fill: '#03C75A', fontSize: 11 }}
                 />
-                {/* 오른쪽 Y축 2: 리드수 (보라색) - showLeads가 true일 때만 */}
+                {/* 오른쪽 Y축 2: 리드수 (빨간색) - showLeads가 true일 때만, Y축은 숨김 */}
                 {showLeads && (
                   <YAxis
                     yAxisId="leads"
                     orientation="right"
-                    tick={{ fontSize: 11, fill: '#8B5CF6' }}
-                    axisLine={{ stroke: '#8B5CF6' }}
-                    tickLine={false}
-                    tickFormatter={(v) => v.toString()}
-                    label={{ value: '리드수', angle: 90, position: 'right', fill: '#8B5CF6', fontSize: 11, offset: 15 }}
+                    hide={true}
+                    domain={['dataMin * 0.8', 'dataMax * 1.2']}
                   />
                 )}
                 {/* 클릭수용 Y축 (숨김 - 스케일만 적용) */}
@@ -432,12 +429,12 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
               </div>
             </div>
             {showLeads && (
-              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                 <div>
-                  <p className="text-xs text-purple-600">총 리드수</p>
-                  <p className="text-sm font-semibold text-purple-700">{formatNumber(totalLeads)}</p>
-                  <p className="text-xs text-purple-400">일평균 {(totalLeads / chartData.length).toFixed(1)}</p>
+                  <p className="text-xs text-red-600">총 리드수</p>
+                  <p className="text-sm font-semibold text-red-700">{formatNumber(totalLeads)}</p>
+                  <p className="text-xs text-red-400">일평균 {(totalLeads / chartData.length).toFixed(1)}</p>
                 </div>
               </div>
             )}
