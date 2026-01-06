@@ -190,19 +190,40 @@ async function upsertToAirtable(baseId, tableId, records) {
   return { created, updated };
 }
 
+// 환율 설정 (USD → KRW)
+const USD_TO_KRW = 1490;
+
+// Meta 광고 계정의 currency 조회
+async function getAccountCurrency(accessToken, adAccountId) {
+  const url = `https://graph.facebook.com/v21.0/act_${adAccountId}?fields=currency&access_token=${accessToken}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.currency || 'KRW';
+}
+
 // Meta 데이터를 Airtable 형식으로 변환
-function transformMetaData(rawData, includeLeads = true) {
+function transformMetaData(rawData, includeLeads = true, currency = 'KRW') {
+  // USD인 경우 환율 적용
+  const exchangeRate = currency === 'USD' ? USD_TO_KRW : 1;
+  if (currency === 'USD') {
+    console.log(`   💱 환율 적용: 1 USD = ${USD_TO_KRW} KRW`);
+  }
+
   return rawData.map(row => {
     // 영상 관련 데이터 추출
     const videoViews = row.video_p100_watched_actions?.[0]?.value || 0;
     const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value || 0;
+
+    // spend 환산 (USD → KRW)
+    const spendUsd = parseFloat(row.spend) || 0;
+    const spendKrw = Math.round(spendUsd * exchangeRate);
 
     const record = {
       date: row.date_start,
       device: row.device_platform?.toLowerCase() || 'unknown',
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
-      spend: Math.round(parseFloat(row.spend) || 0),
+      spend: spendKrw,
       source: 'meta',
       campaign_name: row.campaign_name || '',
       keywords: '',
@@ -230,6 +251,13 @@ async function backfillClient(client, startDate, endDate) {
   }
 
   try {
+    // 광고 계정 currency 조회
+    const currency = await getAccountCurrency(
+      client.meta_access_token,
+      client.meta_ad_account_id
+    );
+    console.log(`   광고 계정 통화: ${currency}`);
+
     // Meta API 호출
     const rawData = await fetchMetaData(
       client.meta_access_token,
@@ -245,7 +273,7 @@ async function backfillClient(client, startDate, endDate) {
 
     // 데이터 변환 (H.E.A 판교는 식당이라 leads 제외)
     const includeLeads = client.client_name !== 'H.E.A 판교';
-    const records = transformMetaData(rawData, includeLeads);
+    const records = transformMetaData(rawData, includeLeads, currency);
 
     // Airtable에 upsert
     const result = await upsertToAirtable(

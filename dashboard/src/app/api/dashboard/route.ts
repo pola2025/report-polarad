@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { TABLES } from '@/lib/supabase'
 import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
-import { USD_TO_KRW_RATE, convertUsdToKrw } from '@/lib/constants'
+import { USD_TO_KRW_RATE } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
@@ -226,17 +226,18 @@ export async function GET(request: NextRequest) {
       const metaDay = metaDailyMap.get(dateStr) || { impressions: 0, clicks: 0, spend: 0, leads: 0 }
       const naverDay = naverDailyMap.get(dateStr) || { impressions: 0, clicks: 0, spend: 0 }
 
+      // Note: Airtable에 이미 KRW로 저장되어 있으므로 환율 변환 불필요
       dailyTrend.push({
         date: dateStr,
         meta_impressions: metaDay.impressions,
         meta_clicks: metaDay.clicks,
         meta_spend: metaDay.spend,
-        meta_spend_krw: convertUsdToKrw(metaDay.spend),
+        meta_spend_krw: metaDay.spend, // 이미 KRW로 저장됨
         meta_leads: metaDay.leads,
         naver_impressions: naverDay.impressions,
         naver_clicks: naverDay.clicks,
         naver_spend: naverDay.spend,
-        total_spend_krw: convertUsdToKrw(metaDay.spend) + naverDay.spend,
+        total_spend_krw: metaDay.spend + naverDay.spend, // 이미 KRW
       })
 
       currentDate.setDate(currentDate.getDate() + 1)
@@ -249,9 +250,10 @@ export async function GET(request: NextRequest) {
     const totalClicks = metaCurrentPeriod.clicks + naverCurrentPeriod.clicks
     const previousTotalClicks = metaPreviousPeriod.clicks + naverPreviousPeriod.clicks
 
-    // 총 지출액: Meta(USD→KRW 변환) + 네이버(KRW)
-    const totalSpendKRW = convertUsdToKrw(metaCurrentPeriod.spend) + naverCurrentPeriod.spend
-    const previousTotalSpendKRW = convertUsdToKrw(metaPreviousPeriod.spend) + naverPreviousPeriod.spend
+    // 총 지출액: Meta(이미 KRW) + 네이버(KRW)
+    // Note: Airtable 백필 시 이미 USD→KRW 변환 완료
+    const totalSpendKRW = metaCurrentPeriod.spend + naverCurrentPeriod.spend
+    const previousTotalSpendKRW = metaPreviousPeriod.spend + naverPreviousPeriod.spend
 
     const avgCPL = metaCurrentPeriod.leads > 0
       ? Math.round(metaCurrentPeriod.spend / metaCurrentPeriod.leads)
@@ -311,11 +313,11 @@ export async function GET(request: NextRequest) {
       meta: {
         current: {
           ...metaCurrentPeriod,
-          spend_krw: convertUsdToKrw(metaCurrentPeriod.spend),
+          spend_krw: metaCurrentPeriod.spend, // 이미 KRW로 저장됨
         },
         previous: {
           ...metaPreviousPeriod,
-          spend_krw: convertUsdToKrw(metaPreviousPeriod.spend),
+          spend_krw: metaPreviousPeriod.spend, // 이미 KRW로 저장됨
         },
       },
       exchange_rate: USD_TO_KRW_RATE,
