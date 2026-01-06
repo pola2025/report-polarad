@@ -72,6 +72,8 @@ function getActionValue(actions, actionType) {
 async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
   const fields = [
     'date_start',
+    'campaign_id',
+    'campaign_name',
     'impressions',
     'clicks',
     'spend',
@@ -80,13 +82,13 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
     'video_avg_time_watched_actions',
   ].join(',');
 
-  // 일별 + 디바이스별 집계
+  // 일별 + 캠페인별 + 디바이스별 집계
   const url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
     `fields=${fields}&` +
     `breakdowns=device_platform&` +
     `time_range={"since":"${startDate}","until":"${endDate}"}&` +
     `time_increment=1&` +
-    `level=account&` +
+    `level=campaign&` +
     `limit=1000&` +
     `access_token=${accessToken}`;
 
@@ -100,9 +102,9 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
   return data.data || [];
 }
 
-// Airtable에서 기존 레코드 조회 (date + source + device로 검색)
-async function findExistingRecord(baseId, tableId, date, source, device) {
-  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}')`;
+// Airtable에서 기존 레코드 조회 (date + source + device + campaign_name으로 검색)
+async function findExistingRecord(baseId, tableId, date, source, device, campaignName = '') {
+  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {campaign_name}='${campaignName}')`;
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
 
   const response = await fetch(url, {
@@ -153,21 +155,21 @@ async function updateRecord(baseId, tableId, recordId, fields) {
   return data;
 }
 
-// Airtable Upsert (date + source + device 기준)
+// Airtable Upsert (date + source + device + campaign_name 기준)
 async function upsertToAirtable(baseId, tableId, records) {
   let created = 0;
   let updated = 0;
 
   for (const record of records) {
-    const { date, source, device } = record;
+    const { date, source, device, campaign_name } = record;
 
     // is_finalized가 true인 기존 레코드는 건드리지 않음
-    const existing = await findExistingRecord(baseId, tableId, date, source, device);
+    const existing = await findExistingRecord(baseId, tableId, date, source, device, campaign_name);
 
     if (existing) {
       // 이미 월마감 데이터면 스킵
       if (existing.fields.is_finalized === true) {
-        console.log(`   [스킵] ${date} ${source} ${device} - 월마감 데이터`);
+        console.log(`   [스킵] ${date} ${campaign_name} ${device} - 월마감 데이터`);
         continue;
       }
       // 백필 데이터 업데이트
@@ -200,7 +202,7 @@ function transformMetaData(rawData, includeLeads = true) {
       clicks: parseInt(row.clicks) || 0,
       spend: Math.round(parseFloat(row.spend) || 0),
       source: 'meta',
-      campaign_name: '',
+      campaign_name: row.campaign_name || '',
       keywords: '',
       is_finalized: false,
       video_views: parseInt(videoViews) || 0,
