@@ -5,7 +5,7 @@
  * - date + source + ad_id로 중복 체크
  */
 
-// 환경 변수에서 읽기
+// 환경 변수에서 읽기 (node --env-file=.env.local 로 실행)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY;
@@ -71,9 +71,9 @@ async function fetchMetaData(accessToken, adAccountId, startDate, endDate) {
   return allData;
 }
 
-// Airtable에서 기존 레코드 조회
-async function findExistingRecord(baseId, tableId, date, source, adId) {
-  const formula = `AND({date}='${date}', {source}='${source}', {ad_id}='${adId}')`;
+// Airtable에서 기존 레코드 조회 (device 포함)
+async function findExistingRecord(baseId, tableId, date, source, adId, device) {
+  const formula = `AND({date}='${date}', {source}='${source}', {ad_id}='${adId}', {device}='${device}')`;
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
 
   const response = await fetch(url, {
@@ -179,8 +179,8 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
       fields.leads = getActionValue(row.actions, 'lead');
     }
 
-    // 기존 레코드 확인
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId);
+    // 기존 레코드 확인 (device 포함)
+    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, adId, device);
 
     if (existing) {
       if (existing.fields.is_finalized === true) {

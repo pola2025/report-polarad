@@ -104,6 +104,7 @@ export async function fetchAirtableData(
         campaign_name: record.fields.campaign_name || '',
         video_views: record.fields.video_views || 0,
         video_thruplay: record.fields.video_thruplay || 0,
+        avg_watch_time: record.fields.avg_watch_time || 0,
         keywords: record.fields.keywords || '',
         is_finalized: record.fields.is_finalized || false,
       }));
