@@ -187,7 +187,11 @@ export default function MonthlyReportPage() {
 
         {/* 일별 추이 차트 - 월간 리포트에서만 표시 */}
         {report.report_type === 'monthly' && meta.daily.length > 0 && (
-          <DailyTrendChart daily={meta.daily} usdToKrw={1} />
+          <DailyTrendChart
+            daily={meta.daily}
+            usdToKrw={1}
+            showLeads={report.client?.slug === 'naratton' || report.client?.client_name === '나라똔'}
+          />
         )}
 
         {/* 요일별 성과 히트맵 - 월간 리포트에서만 표시 */}
