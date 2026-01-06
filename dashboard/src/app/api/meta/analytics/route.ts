@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, TABLES } from '@/lib/supabase'
 import { fetchAirtableData, getClientSlugById } from '@/lib/airtable'
-import { convertUsdToKrw } from '@/lib/constants'
+// Note: Airtable에 이미 KRW로 저장되어 있으므로 환율 변환 불필요
 import type {
   MetaDailyData,
   MetaWeeklyData,
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       dailyMap.set(date, existing)
     }
 
-    // 일별 데이터 생성
+    // 일별 데이터 생성 (spend는 이미 KRW로 저장됨)
     const daily: MetaDailyData[] = Array.from(dailyMap.entries())
       .map(([date, d]) => ({
         date,
@@ -142,10 +142,10 @@ export async function GET(request: NextRequest) {
         clicks: d.clicks,
         ctr: d.impressions > 0 ? Math.round((d.clicks / d.impressions) * 10000) / 100 : 0,
         spend: d.spend,
-        spend_krw: convertUsdToKrw(d.spend),
+        spend_krw: d.spend, // 이미 KRW
         leads: d.leads,
         cpl: d.leads > 0 ? Math.round((d.spend / d.leads) * 100) / 100 : 0,
-        cpl_krw: d.leads > 0 ? convertUsdToKrw(d.spend / d.leads) : 0,
+        cpl_krw: d.leads > 0 ? Math.round(d.spend / d.leads) : 0, // 이미 KRW
         video_views: d.video_views,
         // avg_watch_time: 단순 평균 (avg_watch_time 합계 / 레코드 수)
         avg_watch_time: d.avg_watch_time_count > 0
@@ -194,10 +194,10 @@ export async function GET(request: NextRequest) {
         clicks: w.clicks,
         ctr: w.impressions > 0 ? Math.round((w.clicks / w.impressions) * 10000) / 100 : 0,
         spend: w.spend,
-        spend_krw: convertUsdToKrw(w.spend),
+        spend_krw: w.spend, // 이미 KRW
         leads: w.leads,
         cpl: w.leads > 0 ? Math.round((w.spend / w.leads) * 100) / 100 : 0,
-        cpl_krw: w.leads > 0 ? convertUsdToKrw(w.spend / w.leads) : 0,
+        cpl_krw: w.leads > 0 ? Math.round(w.spend / w.leads) : 0, // 이미 KRW
         video_views: w.video_views,
         avg_watch_time: w.video_views > 0 ? Math.round((w.total_watch_time / w.video_views) * 10) / 10 : 0,
       }))
@@ -242,10 +242,10 @@ export async function GET(request: NextRequest) {
         clicks: m.clicks,
         ctr: m.impressions > 0 ? Math.round((m.clicks / m.impressions) * 10000) / 100 : 0,
         spend: m.spend,
-        spend_krw: convertUsdToKrw(m.spend),
+        spend_krw: m.spend, // 이미 KRW
         leads: m.leads,
         cpl: m.leads > 0 ? Math.round((m.spend / m.leads) * 100) / 100 : 0,
-        cpl_krw: m.leads > 0 ? convertUsdToKrw(m.spend / m.leads) : 0,
+        cpl_krw: m.leads > 0 ? Math.round(m.spend / m.leads) : 0, // 이미 KRW
         video_views: m.video_views,
         avg_watch_time: m.video_views > 0 ? Math.round((m.total_watch_time / m.video_views) * 10) / 10 : 0,
       }))
@@ -311,10 +311,10 @@ export async function GET(request: NextRequest) {
         clicks: data.clicks,
         ctr: data.impressions > 0 ? Math.round((data.clicks / data.impressions) * 10000) / 100 : 0,
         spend: data.spend,
-        spend_krw: convertUsdToKrw(data.spend),
+        spend_krw: data.spend, // 이미 KRW
         leads: data.leads,
         cpl: data.leads > 0 ? Math.round((data.spend / data.leads) * 100) / 100 : 0,
-        cpl_krw: data.leads > 0 ? convertUsdToKrw(data.spend / data.leads) : 0,
+        cpl_krw: data.leads > 0 ? Math.round(data.spend / data.leads) : 0, // 이미 KRW
         video_views: data.video_views,
         video_thruplay: data.video_thruplay,
         // 평균 시청 시간 (초): 총 시청 시간 / 총 조회수
@@ -343,11 +343,11 @@ export async function GET(request: NextRequest) {
       total_impressions: totalImpressions,
       total_clicks: totalClicks,
       total_spend: Math.round(totalSpend * 100) / 100,
-      total_spend_krw: convertUsdToKrw(totalSpend),
+      total_spend_krw: totalSpend, // 이미 KRW
       total_leads: totalLeads,
       avg_ctr: totalImpressions > 0 ? Math.round((totalClicks / totalImpressions) * 10000) / 100 : 0,
       avg_cpl: totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0,
-      avg_cpl_krw: totalLeads > 0 ? convertUsdToKrw(totalSpend / totalLeads) : 0,
+      avg_cpl_krw: totalLeads > 0 ? Math.round(totalSpend / totalLeads) : 0, // 이미 KRW
       total_video_views: totalVideoViews,
       avg_watch_time: avgWatchTime,
       unique_campaigns: ads.length,
