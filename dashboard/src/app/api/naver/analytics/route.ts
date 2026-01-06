@@ -125,15 +125,22 @@ export async function GET(request: NextRequest) {
       'naver_place'
     )
 
-    // Airtable 데이터를 기존 형식으로 변환
-    const rawData = airtableData.map(record => ({
-      date: record.date,
-      keyword: record.keywords || '_unknown_',
-      impressions: record.impressions || 0,
-      clicks: record.clicks || 0,
-      total_cost: record.spend || 0,
-      avg_rank: record.avg_rank || 1,  // 네이버 평균 순위
-    }))
+    // Airtable 데이터를 기존 형식으로 변환 (total/총계 제외)
+    const rawData = airtableData
+      .filter(record => {
+        const kw = (record.keywords || '').toLowerCase()
+        // total, 총계, 합계 키워드 제외 (백필 시 키워드 없이 저장된 중복 데이터)
+        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '') return false
+        return true
+      })
+      .map(record => ({
+        date: record.date,
+        keyword: record.keywords || '_unknown_',
+        impressions: record.impressions || 0,
+        clicks: record.clicks || 0,
+        total_cost: record.spend || 0,
+        avg_rank: record.avg_rank || 1,  // 네이버 평균 순위
+      }))
 
     if (!rawData || rawData.length === 0) {
       return NextResponse.json({
