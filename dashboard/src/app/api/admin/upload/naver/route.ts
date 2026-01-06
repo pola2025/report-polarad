@@ -199,28 +199,16 @@ export async function POST(request: NextRequest) {
       end: dates[dates.length - 1],
     }
 
-    // 일별 집계 (Airtable 스키마에 맞게)
-    const dailyAggregated = records.reduce((acc, r) => {
-      if (!acc[r.date]) {
-        acc[r.date] = { impressions: 0, clicks: 0, spend: 0, keywords: new Set<string>() }
-      }
-      acc[r.date].impressions += r.impressions
-      acc[r.date].clicks += r.clicks
-      acc[r.date].spend += r.total_cost
-      acc[r.date].keywords.add(r.keyword)
-      return acc
-    }, {} as Record<string, { impressions: number; clicks: number; spend: number; keywords: Set<string> }>)
-
-    // Airtable에 저장할 레코드 준비
-    const airtableRecords = Object.entries(dailyAggregated).map(([date, data]) => ({
+    // 키워드별 레코드 생성 (일별 + 키워드별로 각각 저장)
+    const airtableRecords = records.map(r => ({
       fields: {
-        date,
+        date: r.date,
         device: 'all',
-        impressions: data.impressions,
-        clicks: data.clicks,
-        spend: data.spend,
+        impressions: r.impressions,
+        clicks: r.clicks,
+        spend: r.total_cost,
         source: 'naver_place',
-        keywords: Array.from(data.keywords).join(', '),
+        keywords: r.keyword,  // 개별 키워드
         is_finalized: true,
       }
     }))

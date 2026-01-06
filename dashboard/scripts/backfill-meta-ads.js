@@ -209,9 +209,9 @@ async function backfillClient(clientName, accessToken, adAccountId, startDate, e
 
 // 메인 함수
 async function main() {
-  // 날짜 설정 (12월 전체)
-  const startDate = '2025-12-01';
-  const endDate = '2025-12-31';
+  // 날짜 설정 (환경변수 또는 기본값 12월)
+  const startDate = process.env.BACKFILL_START || '2025-12-01';
+  const endDate = process.env.BACKFILL_END || '2025-12-31';
 
   console.log('🔄 Meta 광고 레벨 백필 시작');
   console.log('='.repeat(50));
