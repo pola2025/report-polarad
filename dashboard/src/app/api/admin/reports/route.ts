@@ -1,12 +1,18 @@
 /**
  * 관리자용 리포트 목록 및 생성 API
- * GET/POST /api/admin/reports
+ * GET/POST/PATCH /api/admin/reports
+ * 데이터 소스: Airtable
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { TABLES } from '@/lib/supabase'
-import type { ReportInsert, ReportUpdate } from '@/types/report'
+import {
+  getReports,
+  getReportComment,
+  getAirtableClient,
+  createReport,
+  updateReport,
+} from '@/lib/airtable'
+import type { ReportInsert } from '@/types/report'
 
 // 관리자 키 검증
 function isAdmin(request: NextRequest): boolean {
@@ -23,53 +29,50 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('client_id')
-    const reportType = searchParams.get('type') // monthly | weekly
-    const status = searchParams.get('status') // draft | published | archived
+    const reportType = searchParams.get('type') as 'monthly' | 'weekly' | null
+    const status = searchParams.get('status') as 'draft' | 'published' | 'archived' | null
     const year = searchParams.get('year')
     const month = searchParams.get('month')
 
-    const supabase = getSupabaseAdmin()
+    // Airtable에서 리포트 목록 조회
+    const reports = await getReports({
+      clientId: clientId || undefined,
+      reportType: reportType || undefined,
+      status: status || undefined,
+      year: year ? parseInt(year) : undefined,
+      month: month ? parseInt(month) : undefined,
+    })
 
-    let query = supabase
-      .from(TABLES.REPORTS)
-      .select(`
-        *,
-        polarad_clients (
-          client_name,
-          slug
-        ),
-        polarad_report_comments (
-          id,
-          content,
-          author_name
-        )
-      `)
-      .order('period_start', { ascending: false })
+    // 클라이언트 정보 및 코멘트 조회
+    const formattedReports = await Promise.all(
+      reports.map(async (r) => {
+        const client = await getAirtableClient(r.client_id)
+        const comment = await getReportComment(r.id)
 
-    if (clientId) query = query.eq('client_id', clientId)
-    if (reportType) query = query.eq('report_type', reportType)
-    if (status) query = query.eq('status', status)
-    if (year) query = query.eq('year', parseInt(year))
-    if (month) query = query.eq('month', parseInt(month))
-
-    const { data: reports, error } = await query
-
-    if (error) {
-      console.error('Error fetching reports:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    // 형식 변환
-    const formattedReports = reports?.map((r) => ({
-      ...r,
-      client: r.polarad_clients || null,
-      hasComment: r.polarad_report_comments?.length > 0,
-    }))
+        return {
+          ...r,
+          client: client ? {
+            client_name: client.client_name,
+            slug: client.slug,
+          } : null,
+          hasComment: !!comment,
+          polarad_clients: client ? {
+            client_name: client.client_name,
+            slug: client.slug,
+          } : null,
+          polarad_report_comments: comment ? [{
+            id: comment.id,
+            content: comment.content,
+            author_name: comment.author_name,
+          }] : [],
+        }
+      })
+    )
 
     return NextResponse.json({
       success: true,
       reports: formattedReports,
-      total: formattedReports?.length || 0,
+      total: formattedReports.length,
     })
   } catch (error) {
     console.error('Unexpected error:', error)
@@ -89,49 +92,31 @@ export async function POST(request: NextRequest) {
 
     if (!client_id || !report_type || !period_start || !period_end || !year) {
       return NextResponse.json(
-        { error: 'client_id, report_type, period_start, period_end, year는 필수입니다.' },
+        { error: 'client_id, report_type, period_start, period_end, year are required' },
         { status: 400 }
       )
     }
 
-    const supabase = getSupabaseAdmin()
-
     // 클라이언트 존재 확인
-    const { data: client, error: clientError } = await supabase
-      .from(TABLES.CLIENTS)
-      .select('id, client_id')
-      .eq('client_id', client_id)
-      .single()
-
-    if (clientError || !client) {
-      return NextResponse.json({ error: '클라이언트를 찾을 수 없습니다.' }, { status: 404 })
+    const client = await getAirtableClient(client_id)
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
     // 리포트 생성
-    const { data: report, error: reportError } = await supabase
-      .from(TABLES.REPORTS)
-      .insert({
-        client_id,
-        report_type,
-        period_start,
-        period_end,
-        year,
-        month: month || null,
-        week: week || null,
-        status: 'draft',
-      })
-      .select()
-      .single()
+    const report = await createReport({
+      client_id,
+      report_type,
+      period_start,
+      period_end,
+      year,
+      month: month || null,
+      week: week || null,
+      status: 'draft',
+    })
 
-    if (reportError) {
-      if (reportError.code === '23505') {
-        return NextResponse.json(
-          { error: '해당 기간의 리포트가 이미 존재합니다.' },
-          { status: 409 }
-        )
-      }
-      console.error('Error creating report:', reportError)
-      return NextResponse.json({ error: reportError.message }, { status: 500 })
+    if (!report) {
+      return NextResponse.json({ error: 'Failed to create report' }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -155,12 +140,13 @@ export async function PATCH(request: NextRequest) {
     const { id, status, summary_data, ai_insights, period_start, period_end, year, month, week } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'id는 필수입니다.' }, { status: 400 })
+      return NextResponse.json({ error: 'id is required' }, { status: 400 })
     }
 
-    const supabase = getSupabaseAdmin()
+    // 업데이트 데이터 구성
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = {}
 
-    const updateData: ReportUpdate = {}
     if (status !== undefined) {
       updateData.status = status
       if (status === 'published') {
@@ -172,26 +158,16 @@ export async function PATCH(request: NextRequest) {
       updateData.ai_insights = ai_insights
       updateData.ai_generated_at = new Date().toISOString()
     }
-    // 기간 필드 업데이트 지원
     if (period_start !== undefined) updateData.period_start = period_start
     if (period_end !== undefined) updateData.period_end = period_end
     if (year !== undefined) updateData.year = year
     if (month !== undefined) updateData.month = month
     if (week !== undefined) updateData.week = week
 
-    const { data: report, error } = await supabase
-      .from(TABLES.REPORTS)
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const report = await updateReport(id, updateData)
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: '리포트를 찾을 수 없습니다.' }, { status: 404 })
-      }
-      console.error('Error updating report:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!report) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 })
     }
 
     return NextResponse.json({

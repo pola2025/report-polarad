@@ -1,16 +1,22 @@
 /**
  * 월간 리포트 조회 API
  * GET /api/reports/monthly/[id]
+ * 데이터 소스: Airtable
  */
 
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { TABLES } from '@/lib/supabase'
+import {
+  getReport,
+  getReportComment,
+  getAirtableClient,
+  fetchAirtableData,
+  getClientSlugById,
+} from '@/lib/airtable'
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
 
-// USD → KRW 환율 (고정)
+// USD -> KRW (fixed)
 const USD_TO_KRW = 1500
 
 export async function GET(
@@ -20,76 +26,120 @@ export async function GET(
   const { id } = await params
 
   try {
-    const supabase = getSupabaseAdmin()
+    // 1. Airtable에서 리포트 조회
+    const report = await getReport(id)
 
-    // 리포트 조회 (코멘트, 클라이언트 정보 포함)
-    const { data: report, error: reportError } = await supabase
-      .from(TABLES.REPORTS)
-      .select(`
-        *,
-        polarad_report_comments (
-          id,
-          content,
-          content_html,
-          author_name,
-          author_role,
-          is_visible,
-          created_at,
-          updated_at
-        ),
-        polarad_clients (
-          id,
-          client_name,
-          slug
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (reportError) {
-      if (reportError.code === 'PGRST116') {
-        return NextResponse.json({ error: '리포트를 찾을 수 없습니다.' }, { status: 404 })
-      }
-      console.error('Error fetching report:', reportError)
-      return NextResponse.json({ error: reportError.message }, { status: 500 })
+    if (!report) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 })
     }
 
-    // 공개되지 않은 리포트는 관리자만 접근 가능
+    // 비공개 리포트는 관리자만 접근 가능
     const adminKey = request.headers.get('x-admin-key')
     const isAdmin = adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
 
     if (report.status !== 'published' && !isAdmin) {
-      return NextResponse.json({ error: '접근 권한이 없습니다.' }, { status: 403 })
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // 형식 변환
+    // 2. 코멘트 조회
+    const comment = await getReportComment(id)
+
+    // 3. 클라이언트 정보 조회
+    const client = await getAirtableClient(report.client_id)
+
+    // ReportWithComment 형식으로 변환
     const reportWithComment: ReportWithComment = {
       ...report,
-      comment: report.polarad_report_comments?.[0] || null,
-      client: report.polarad_clients || null,
+      comment: comment || undefined,
+      client: client ? {
+        client_name: client.client_name,
+        slug: client.slug,
+      } : undefined,
     }
 
-    // 클라이언트 UUID 가져오기 (Meta 데이터 조회용)
-    const clientUuid = report.polarad_clients?.id
+    // 4. 클라이언트 slug로 광고 데이터 조회
+    const clientSlug = client?.slug || getClientSlugById(report.client_id)
 
-    // Meta 일별 데이터 조회 (avg_watch_time, video_views 포함)
-    const { data: metaDaily } = await supabase
-      .from(TABLES.META_DATA)
-      .select('date, impressions, clicks, leads, spend, video_views, avg_watch_time')
-      .eq('client_id', clientUuid)
-      .gte('date', report.period_start)
-      .lte('date', report.period_end)
-      .order('date', { ascending: true })
+    if (!clientSlug) {
+      // 광고 데이터 없이 리포트만 반환
+      const responseData: MonthlyReportData = {
+        report: reportWithComment,
+        meta: {
+          daily: [],
+          campaigns: [],
+          videoViews: 0,
+          avgWatchTime: 0,
+        },
+        naver: {
+          keywords: [],
+        },
+      }
 
-    // Meta 캠페인별 데이터 집계
-    const { data: metaCampaigns } = await supabase
-      .from(TABLES.META_DATA)
-      .select('campaign_name, impressions, clicks, leads, spend')
-      .eq('client_id', clientUuid)
-      .gte('date', report.period_start)
-      .lte('date', report.period_end)
+      return NextResponse.json({
+        success: true,
+        data: responseData,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      })
+    }
 
-    // 캠페인별 집계
+    // 5. Airtable에서 광고 데이터 조회
+    const allAdData = await fetchAirtableData(
+      clientSlug,
+      report.period_start,
+      report.period_end
+    )
+
+    // Meta 데이터 필터링
+    const metaData = allAdData.filter(r => r.source === 'meta')
+
+    // Naver 데이터 필터링 (total/aggregate 제외)
+    const naverData = allAdData
+      .filter(r => r.source === 'naver_place')
+      .filter(r => {
+        const kw = (r.keywords || '').toLowerCase()
+        if (kw === 'total' || kw === '' || kw === '_total_') return false
+        return true
+      })
+
+    // 6. Meta 일별 데이터 집계
+    const metaDailyMap = new Map<string, {
+      date: string
+      impressions: number
+      clicks: number
+      leads: number
+      spend: number
+      videoViews: number
+      avgWatchTime: number
+      avgWatchTimeCount: number
+    }>()
+
+    for (const row of metaData) {
+      const existing = metaDailyMap.get(row.date) || {
+        date: row.date,
+        impressions: 0,
+        clicks: 0,
+        leads: 0,
+        spend: 0,
+        videoViews: 0,
+        avgWatchTime: 0,
+        avgWatchTimeCount: 0,
+      }
+      existing.impressions += row.impressions || 0
+      existing.clicks += row.clicks || 0
+      existing.leads += row.leads || 0
+      existing.spend += row.spend || 0
+      existing.videoViews += row.video_views || 0
+      if (row.avg_watch_time && row.avg_watch_time > 0) {
+        existing.avgWatchTime += row.avg_watch_time
+        existing.avgWatchTimeCount += 1
+      }
+      metaDailyMap.set(row.date, existing)
+    }
+
+    // 7. Meta campaign
     const campaignMap = new Map<string, {
       campaign_name: string
       impressions: number
@@ -98,8 +148,8 @@ export async function GET(
       spend: number
     }>()
 
-    metaCampaigns?.forEach((row) => {
-      const name = row.campaign_name || '(이름 없음)'
+    for (const row of metaData) {
+      const name = row.campaign_name || '(no name)'
       const existing = campaignMap.get(name) || {
         campaign_name: name,
         impressions: 0,
@@ -112,34 +162,22 @@ export async function GET(
       existing.leads += row.leads || 0
       existing.spend += row.spend || 0
       campaignMap.set(name, existing)
-    })
+    }
 
     const campaignsWithMetrics = Array.from(campaignMap.values()).map((c) => ({
       ...c,
-      spend: c.spend * USD_TO_KRW, // USD → KRW 변환
+      spend: c.spend * USD_TO_KRW,
       ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-      cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0, // KRW 기준 CPL
+      cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0,
     }))
 
-    // 네이버 일별 데이터 조회 (합산용, _total_ 키워드 제외)
-    const { data: naverDaily } = await supabase
-      .from(TABLES.NAVER_DATA)
-      .select('date, impressions, clicks, total_cost')
-      .eq('client_id', clientUuid)
-      .gte('date', report.period_start)
-      .lte('date', report.period_end)
-      .neq('keyword', '_total_')  // API 합계 데이터 제외
+    // 8. Naver keyword 집계
+    const naverDailyMap = new Map<string, {
+      impressions: number
+      clicks: number
+      totalCost: number
+    }>()
 
-    // 네이버 키워드 데이터 조회 (_total_ 키워드 제외)
-    const { data: naverKeywords } = await supabase
-      .from(TABLES.NAVER_DATA)
-      .select('keyword, impressions, clicks, total_cost, ctr, avg_cpc, avg_rank')
-      .eq('client_id', clientUuid)
-      .gte('date', report.period_start)
-      .lte('date', report.period_end)
-      .neq('keyword', '_total_')  // API 합계 데이터 제외
-
-    // 키워드별 집계
     const keywordMap = new Map<string, {
       keyword: string
       impressions: number
@@ -149,9 +187,21 @@ export async function GET(
       count: number
     }>()
 
-    naverKeywords?.forEach((row) => {
-      const keyword = row.keyword
-      const existing = keywordMap.get(keyword) || {
+    for (const row of naverData) {
+      // daily
+      const dailyExisting = naverDailyMap.get(row.date) || {
+        impressions: 0,
+        clicks: 0,
+        totalCost: 0,
+      }
+      dailyExisting.impressions += row.impressions || 0
+      dailyExisting.clicks += row.clicks || 0
+      dailyExisting.totalCost += row.spend || 0
+      naverDailyMap.set(row.date, dailyExisting)
+
+      // keyword
+      const keyword = row.keywords || '_unknown_'
+      const kwExisting = keywordMap.get(keyword) || {
         keyword,
         impressions: 0,
         clicks: 0,
@@ -159,13 +209,13 @@ export async function GET(
         avgRank: 0,
         count: 0,
       }
-      existing.impressions += row.impressions || 0
-      existing.clicks += row.clicks || 0
-      existing.totalCost += row.total_cost || 0
-      existing.avgRank += row.avg_rank || 0
-      existing.count += 1
-      keywordMap.set(keyword, existing)
-    })
+      kwExisting.impressions += row.impressions || 0
+      kwExisting.clicks += row.clicks || 0
+      kwExisting.totalCost += row.spend || 0
+      kwExisting.avgRank += row.avg_rank || 0
+      kwExisting.count += 1
+      keywordMap.set(keyword, kwExisting)
+    }
 
     const keywordsWithMetrics = Array.from(keywordMap.values()).map((k) => ({
       keyword: k.keyword,
@@ -177,93 +227,38 @@ export async function GET(
       avgRank: k.count > 0 ? k.avgRank / k.count : 0,
     }))
 
-    // 일별 데이터 집계 (Meta + 네이버 합산)
-    const dailyMap = new Map<string, {
-      date: string
-      impressions: number
-      clicks: number
-      leads: number
-      spend: number
-      videoViews: number
-      avgWatchTime: number
-      avgWatchTimeCount: number
-      // 네이버 데이터
-      naverImpressions: number
-      naverClicks: number
-      naverSpend: number
-    }>()
+    // 9. daily data
+    const allDates = new Set<string>()
+    metaDailyMap.forEach((_, date) => allDates.add(date))
+    naverDailyMap.forEach((_, date) => allDates.add(date))
 
-    // Meta 데이터 집계
-    metaDaily?.forEach((row) => {
-      const date = row.date
-      const existing = dailyMap.get(date) || {
-        date,
-        impressions: 0,
-        clicks: 0,
-        leads: 0,
-        spend: 0,
-        videoViews: 0,
-        avgWatchTime: 0,
-        avgWatchTimeCount: 0,
-        naverImpressions: 0,
-        naverClicks: 0,
-        naverSpend: 0,
-      }
-      existing.impressions += row.impressions || 0
-      existing.clicks += row.clicks || 0
-      existing.leads += row.leads || 0
-      existing.spend += row.spend || 0
-      existing.videoViews += row.video_views || 0
-      if (row.avg_watch_time && row.avg_watch_time > 0) {
-        existing.avgWatchTime += row.avg_watch_time
-        existing.avgWatchTimeCount += 1
-      }
-      dailyMap.set(date, existing)
-    })
+    const dailyData = Array.from(allDates)
+      .sort()
+      .map(date => {
+        const meta = metaDailyMap.get(date)
+        const naver = naverDailyMap.get(date)
 
-    // 네이버 데이터 집계 (일별로 합산)
-    naverDaily?.forEach((row) => {
-      const date = row.date
-      const existing = dailyMap.get(date) || {
-        date,
-        impressions: 0,
-        clicks: 0,
-        leads: 0,
-        spend: 0,
-        videoViews: 0,
-        avgWatchTime: 0,
-        avgWatchTimeCount: 0,
-        naverImpressions: 0,
-        naverClicks: 0,
-        naverSpend: 0,
-      }
-      existing.naverImpressions += row.impressions || 0
-      existing.naverClicks += row.clicks || 0
-      existing.naverSpend += row.total_cost || 0
-      dailyMap.set(date, existing)
-    })
+        return {
+          date,
+          impressions: (meta?.impressions || 0) + (naver?.impressions || 0),
+          clicks: (meta?.clicks || 0) + (naver?.clicks || 0),
+          leads: meta?.leads || 0,
+          spend: ((meta?.spend || 0) * USD_TO_KRW) + (naver?.totalCost || 0),
+          videoViews: meta?.videoViews || 0,
+          avgWatchTime: meta?.avgWatchTimeCount && meta.avgWatchTimeCount > 0
+            ? meta.avgWatchTime / meta.avgWatchTimeCount
+            : 0,
+          // channel detail
+          metaImpressions: meta?.impressions || 0,
+          metaClicks: meta?.clicks || 0,
+          metaSpend: (meta?.spend || 0) * USD_TO_KRW,
+          naverImpressions: naver?.impressions || 0,
+          naverClicks: naver?.clicks || 0,
+          naverSpend: naver?.totalCost || 0,
+        }
+      })
 
-    const dailyData = Array.from(dailyMap.values())
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(d => ({
-        date: d.date,
-        // 합산 값 (Meta + 네이버)
-        impressions: d.impressions + d.naverImpressions,
-        clicks: d.clicks + d.naverClicks,
-        leads: d.leads, // 리드는 Meta만
-        spend: (d.spend * USD_TO_KRW) + d.naverSpend, // Meta USD→KRW 변환 후 네이버와 합산
-        videoViews: d.videoViews,
-        avgWatchTime: d.avgWatchTimeCount > 0 ? d.avgWatchTime / d.avgWatchTimeCount : 0,
-        // 채널별 분리 (선택적 사용)
-        metaImpressions: d.impressions,
-        metaClicks: d.clicks,
-        metaSpend: d.spend * USD_TO_KRW, // USD → KRW 변환
-        naverImpressions: d.naverImpressions,
-        naverClicks: d.naverClicks,
-        naverSpend: d.naverSpend, // 이미 KRW
-      }))
-
-    // 전체 평균 시청 시간 계산
+    // total video stats
     const totalVideoViews = dailyData.reduce((sum, d) => sum + d.videoViews, 0)
     const validAvgWatchTimeEntries = dailyData.filter(d => d.avgWatchTime > 0)
     const overallAvgWatchTime = validAvgWatchTimeEntries.length > 0

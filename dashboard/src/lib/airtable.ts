@@ -1,10 +1,21 @@
 /**
  * Airtable 클라이언트 라이브러리
  *
- * 광고 데이터 캐시 조회용
+ * 광고 데이터 및 리포트 데이터 조회용
  */
 
+import type { Report, ReportComment, ReportInsert, ReportUpdate, ReportCommentInsert, ReportCommentUpdate } from '@/types/report';
+
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!;
+
+// 리포트 테이블 설정
+const REPORTS_BASE_ID = process.env.AIRTABLE_REPORTS_BASE_ID || 'appJlOqnadLsMJQYw';
+const REPORTS_TABLE_ID = process.env.AIRTABLE_REPORTS_TABLE_ID || 'tbl4BAtILQRH7JQaG';
+const COMMENTS_TABLE_ID = process.env.AIRTABLE_COMMENTS_TABLE_ID || 'tbl5u19uUCdPl4TCg';
+
+// 클라이언트 테이블 설정
+const CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn';
+const CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F';
 
 // 클라이언트별 Airtable 설정
 export const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }> = {
@@ -130,14 +141,20 @@ export async function fetchAirtableData(
  * - slug 입력 시: 그대로 반환 (AIRTABLE_CONFIG에 있는 경우)
  */
 export function getClientSlugById(clientId: string): string | null {
-  const UUID_TO_SLUG: Record<string, string> = {
+  // UUID, 한글 이름, slug → slug 매핑
+  const CLIENT_ID_TO_SLUG: Record<string, string> = {
+    // UUID
     '3ff2896e-6786-4936-9c57-311f69f43c63': 'hea-pangyo',
     'c2f60730-f8c1-4361-b9fc-3b44725c3955': 'naratton',
+    // 한글 클라이언트 ID (Airtable Reports에서 사용)
+    'h-e-a-판교': 'hea-pangyo',
+    'H.E.A 판교': 'hea-pangyo',
+    '나라똔': 'naratton',
   };
 
-  // 1. UUID로 매핑 시도
-  if (UUID_TO_SLUG[clientId]) {
-    return UUID_TO_SLUG[clientId];
+  // 1. 매핑 테이블에서 찾기
+  if (CLIENT_ID_TO_SLUG[clientId]) {
+    return CLIENT_ID_TO_SLUG[clientId];
   }
 
   // 2. slug로 직접 사용 가능한지 확인
@@ -269,4 +286,389 @@ export function createDailyTrend(
   }
 
   return trend;
+}
+
+// ============================================================
+// 리포트 관련 함수
+// ============================================================
+
+/**
+ * 클라이언트 정보 조회 (UUID 또는 slug로)
+ */
+export async function getAirtableClient(clientIdOrSlug: string) {
+  const url = `https://api.airtable.com/v0/${CLIENTS_BASE_ID}/${CLIENTS_TABLE_ID}`;
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (data.error) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = data.records.find((r: any) =>
+    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+  );
+
+  if (!record) return null;
+
+  return {
+    id: record.fields.id || record.id,
+    client_name: record.fields.Name,
+    slug: record.fields.slug,
+  };
+}
+
+/**
+ * 리포트 조회 (ID로)
+ */
+export async function getReport(reportId: string): Promise<Report | null> {
+  const formula = `{id}='${reportId}'`;
+  const url = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (data.error || !data.records?.length) return null;
+
+  const record = data.records[0];
+  return mapAirtableToReport(record);
+}
+
+/**
+ * 리포트 목록 조회
+ */
+export async function getReports(options?: {
+  clientId?: string;
+  clientSlug?: string;
+  reportType?: 'monthly' | 'weekly';
+  status?: 'draft' | 'published' | 'archived';
+  year?: number;
+  month?: number;
+}): Promise<Report[]> {
+  const conditions: string[] = [];
+
+  if (options?.clientId) {
+    conditions.push(`{client_id}='${options.clientId}'`);
+  }
+  if (options?.clientSlug) {
+    conditions.push(`{client_slug}='${options.clientSlug}'`);
+  }
+  if (options?.reportType) {
+    conditions.push(`{report_type}='${options.reportType}'`);
+  }
+  if (options?.status) {
+    conditions.push(`{status}='${options.status}'`);
+  }
+  if (options?.year) {
+    conditions.push(`{year}=${options.year}`);
+  }
+  if (options?.month) {
+    conditions.push(`{month}=${options.month}`);
+  }
+
+  const formula = conditions.length > 0 ? `AND(${conditions.join(', ')})` : '';
+  let url = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}?sort[0][field]=created_at&sort[0][direction]=desc`;
+
+  if (formula) {
+    url += `&filterByFormula=${encodeURIComponent(formula)}`;
+  }
+
+  const allRecords: Report[] = [];
+  let offset: string | undefined;
+
+  do {
+    const fetchUrl = offset ? `${url}&offset=${offset}` : url;
+    const response = await fetch(fetchUrl, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      cache: 'no-store',
+    });
+
+    const data = await response.json();
+    if (data.error) break;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const records = (data.records || []).map((r: any) => mapAirtableToReport(r));
+    allRecords.push(...records);
+    offset = data.offset;
+  } while (offset);
+
+  return allRecords;
+}
+
+/**
+ * 리포트 생성
+ */
+export async function createReport(report: ReportInsert): Promise<Report | null> {
+  const id = report.id || crypto.randomUUID();
+
+  const fields = {
+    id,
+    client_id: report.client_id,
+    client_slug: getClientSlugById(report.client_id) || '',
+    report_type: report.report_type,
+    period_start: report.period_start,
+    period_end: report.period_end,
+    year: report.year,
+    month: report.month || null,
+    week: report.week || null,
+    status: report.status || 'draft',
+    published_at: report.published_at || null,
+    summary_data: report.summary_data ? JSON.stringify(report.summary_data) : null,
+    ai_insights: report.ai_insights ? JSON.stringify(report.ai_insights) : null,
+    ai_generated_at: report.ai_generated_at || null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    created_by: report.created_by || null,
+  };
+
+  const response = await fetch(`https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ records: [{ fields }] }),
+  });
+
+  const data = await response.json();
+  if (data.error || !data.records?.length) {
+    console.error('Create report error:', data.error);
+    return null;
+  }
+
+  return mapAirtableToReport(data.records[0]);
+}
+
+/**
+ * 리포트 업데이트
+ */
+export async function updateReport(reportId: string, update: ReportUpdate): Promise<Report | null> {
+  // 먼저 Airtable 레코드 ID 조회
+  const formula = `{id}='${reportId}'`;
+  const searchUrl = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const searchResponse = await fetch(searchUrl, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const searchData = await searchResponse.json();
+  if (searchData.error || !searchData.records?.length) return null;
+
+  const airtableRecordId = searchData.records[0].id;
+
+  // 업데이트할 필드 구성
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fields: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (update.status !== undefined) fields.status = update.status;
+  if (update.published_at !== undefined) fields.published_at = update.published_at;
+  if (update.summary_data !== undefined) fields.summary_data = update.summary_data ? JSON.stringify(update.summary_data) : null;
+  if (update.ai_insights !== undefined) fields.ai_insights = update.ai_insights ? JSON.stringify(update.ai_insights) : null;
+  if (update.ai_generated_at !== undefined) fields.ai_generated_at = update.ai_generated_at;
+  if (update.period_start !== undefined) fields.period_start = update.period_start;
+  if (update.period_end !== undefined) fields.period_end = update.period_end;
+  if (update.year !== undefined) fields.year = update.year;
+  if (update.month !== undefined) fields.month = update.month;
+  if (update.week !== undefined) fields.week = update.week;
+
+  const response = await fetch(`https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}/${airtableRecordId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fields }),
+  });
+
+  const data = await response.json();
+  if (data.error) {
+    console.error('Update report error:', data.error);
+    return null;
+  }
+
+  return mapAirtableToReport(data);
+}
+
+/**
+ * 리포트 삭제
+ */
+export async function deleteReport(reportId: string): Promise<boolean> {
+  // 먼저 Airtable 레코드 ID 조회
+  const formula = `{id}='${reportId}'`;
+  const searchUrl = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const searchResponse = await fetch(searchUrl, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const searchData = await searchResponse.json();
+  if (searchData.error || !searchData.records?.length) return false;
+
+  const airtableRecordId = searchData.records[0].id;
+
+  const response = await fetch(`https://api.airtable.com/v0/${REPORTS_BASE_ID}/${REPORTS_TABLE_ID}/${airtableRecordId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+  });
+
+  const data = await response.json();
+  return !data.error && data.deleted;
+}
+
+// ============================================================
+// 코멘트 관련 함수
+// ============================================================
+
+/**
+ * 리포트 코멘트 조회
+ */
+export async function getReportComment(reportId: string): Promise<ReportComment | null> {
+  const formula = `{report_id}='${reportId}'`;
+  const url = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${COMMENTS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (data.error || !data.records?.length) return null;
+
+  const record = data.records[0];
+  return mapAirtableToComment(record);
+}
+
+/**
+ * 코멘트 생성
+ */
+export async function createReportComment(comment: ReportCommentInsert): Promise<ReportComment | null> {
+  const id = comment.id || crypto.randomUUID();
+
+  const fields = {
+    id,
+    report_id: comment.report_id,
+    content: comment.content,
+    content_html: comment.content_html || null,
+    author_name: comment.author_name || 'Admin',
+    author_role: comment.author_role || null,
+    is_visible: comment.is_visible ?? true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const response = await fetch(`https://api.airtable.com/v0/${REPORTS_BASE_ID}/${COMMENTS_TABLE_ID}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ records: [{ fields }] }),
+  });
+
+  const data = await response.json();
+  if (data.error || !data.records?.length) {
+    console.error('Create comment error:', data.error);
+    return null;
+  }
+
+  return mapAirtableToComment(data.records[0]);
+}
+
+/**
+ * 코멘트 업데이트
+ */
+export async function updateReportComment(commentId: string, update: ReportCommentUpdate): Promise<ReportComment | null> {
+  // 먼저 Airtable 레코드 ID 조회
+  const formula = `{id}='${commentId}'`;
+  const searchUrl = `https://api.airtable.com/v0/${REPORTS_BASE_ID}/${COMMENTS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const searchResponse = await fetch(searchUrl, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    cache: 'no-store',
+  });
+
+  const searchData = await searchResponse.json();
+  if (searchData.error || !searchData.records?.length) return null;
+
+  const airtableRecordId = searchData.records[0].id;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fields: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (update.content !== undefined) fields.content = update.content;
+  if (update.content_html !== undefined) fields.content_html = update.content_html;
+  if (update.author_name !== undefined) fields.author_name = update.author_name;
+  if (update.author_role !== undefined) fields.author_role = update.author_role;
+  if (update.is_visible !== undefined) fields.is_visible = update.is_visible;
+
+  const response = await fetch(`https://api.airtable.com/v0/${REPORTS_BASE_ID}/${COMMENTS_TABLE_ID}/${airtableRecordId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fields }),
+  });
+
+  const data = await response.json();
+  if (data.error) {
+    console.error('Update comment error:', data.error);
+    return null;
+  }
+
+  return mapAirtableToComment(data);
+}
+
+// ============================================================
+// 매핑 헬퍼 함수
+// ============================================================
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapAirtableToReport(record: any): Report {
+  const f = record.fields;
+  return {
+    id: f.id,
+    client_id: f.client_id,
+    report_type: f.report_type,
+    period_start: f.period_start,
+    period_end: f.period_end,
+    year: f.year,
+    month: f.month || null,
+    week: f.week || null,
+    status: f.status || 'draft',
+    published_at: f.published_at || null,
+    summary_data: f.summary_data ? JSON.parse(f.summary_data) : null,
+    ai_insights: f.ai_insights ? JSON.parse(f.ai_insights) : null,
+    ai_generated_at: f.ai_generated_at || null,
+    created_at: f.created_at,
+    updated_at: f.updated_at,
+    created_by: f.created_by || null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapAirtableToComment(record: any): ReportComment {
+  const f = record.fields;
+  return {
+    id: f.id,
+    report_id: f.report_id,
+    content: f.content,
+    content_html: f.content_html || null,
+    author_name: f.author_name || 'Unknown',
+    author_role: f.author_role || null,
+    is_visible: f.is_visible || false,
+    created_at: f.created_at,
+    updated_at: f.updated_at,
+  };
 }
