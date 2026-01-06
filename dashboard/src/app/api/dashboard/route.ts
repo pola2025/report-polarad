@@ -68,8 +68,8 @@ export async function GET(request: NextRequest) {
     const resolvedSlug = clientSlug && AIRTABLE_CONFIG[clientSlug] ? clientSlug : null
 
     // ===== 전체 광고 데이터 집계 (Airtable - Meta + Naver 통합) =====
-    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string}> = []
-    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number}> = []
+    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string; video_views?: number}> = []
+    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number; video_views?: number}> = []
     let naverCurrentData: Array<{impressions: number; clicks: number; spend: number; date: string}> = []
     let naverPreviousData: Array<{impressions: number; clicks: number; spend: number}> = []
 
@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
           leads: r.leads,
           spend: r.spend,
           date: r.date,
+          video_views: r.video_views,
         }))
 
       // Naver 데이터 필터링 (source = 'naver_place' 또는 'naver_brand_search')
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
           clicks: r.clicks,
           leads: r.leads,
           spend: r.spend,
+          video_views: r.video_views,
         }))
 
       // 이전 기간 Naver 데이터
@@ -135,6 +137,7 @@ export async function GET(request: NextRequest) {
       metaCurrentPeriod.clicks += row.clicks || 0
       metaCurrentPeriod.leads += row.leads || 0
       metaCurrentPeriod.spend += row.spend || 0
+      metaCurrentPeriod.video_views += row.video_views || 0
     })
 
     // 이전 기간 Meta 집계
@@ -151,6 +154,7 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.clicks += row.clicks || 0
       metaPreviousPeriod.leads += row.leads || 0
       metaPreviousPeriod.spend += row.spend || 0
+      metaPreviousPeriod.video_views += row.video_views || 0
     })
 
     // ===== 네이버 데이터 집계 (Airtable - 위에서 이미 naverCurrentData, naverPreviousData 설정됨) =====
