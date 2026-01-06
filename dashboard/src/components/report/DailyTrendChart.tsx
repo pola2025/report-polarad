@@ -64,11 +64,12 @@ interface CustomTooltipProps {
   label?: string | number
   usdToKrw: number
   showLeads: boolean
+  showClicksLine: boolean  // 클릭수 선 표시 여부
   barMetric: 'spend' | 'clicks'
   chartData: Array<{ day: number; label: string }>
 }
 
-function CustomTooltip({ active, payload, label, usdToKrw, showLeads, barMetric, chartData }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicksLine, barMetric, chartData }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
   const dateLabel = chartData.find(d => d.day === label)?.label || ''
@@ -90,7 +91,8 @@ function CustomTooltip({ active, payload, label, usdToKrw, showLeads, barMetric,
             color = METRIC_COLORS.spend
             break
           case 'clicks':
-            if (barMetric !== 'clicks') return null
+            // 막대가 클릭수이거나, 클릭수 선이 표시될 때
+            if (barMetric !== 'clicks' && !showClicksLine) return null
             displayName = '클릭수'
             displayValue = formatNumber(value as number)
             color = METRIC_COLORS.clicks
@@ -129,6 +131,9 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
 
   // 채널명 표시
   const channelName = channel === 'meta' ? 'Meta' : channel === 'naver' ? 'Naver' : ''
+
+  // Meta 채널이고 막대가 지출액일 때 클릭수 선 표시
+  const showClicksLine = channel === 'meta' && barMetric === 'spend'
 
   // 막대 그래프 설정 (지출액 또는 클릭수)
   const barConfig = barMetric === 'clicks'
@@ -279,8 +284,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                     label={{ value: '리드수', angle: 90, position: 'right', fill: '#8B5CF6', fontSize: 11, offset: 15 }}
                   />
                 )}
+                {/* 클릭수용 Y축 (숨김 - 스케일만 적용) */}
+                {showClicksLine && (
+                  <YAxis
+                    yAxisId="clicks"
+                    orientation="right"
+                    hide={true}
+                    domain={['dataMin * 0.8', 'dataMax * 1.2']}
+                  />
+                )}
                 <Tooltip
-                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} barMetric={barMetric} chartData={chartData} />}
+                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} showClicksLine={showClicksLine} barMetric={barMetric} chartData={chartData} />}
                 />
                 <Legend
                   formatter={(value) => {
@@ -322,12 +336,24 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                     activeDot={{ r: 7 }}
                   />
                 )}
+                {/* 클릭수: 선 그래프 (파란색) - Meta 채널에서만, 별도 Y축 (숨김) */}
+                {showClicksLine && (
+                  <Line
+                    yAxisId="clicks"
+                    type="monotone"
+                    dataKey="clicks"
+                    stroke={METRIC_COLORS.clicks}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: METRIC_COLORS.clicks }}
+                    activeDot={{ r: 6 }}
+                  />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
           {/* 통합 차트 요약 */}
-          <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-4' : showClicksLine ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {/* 첫 번째 카드: 지출액 또는 클릭수 */}
             <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
               <div className="w-3 h-3 bg-blue-500 rounded"></div>
@@ -347,6 +373,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, cha
                 )}
               </div>
             </div>
+            {/* 클릭수 카드 - Meta 채널에서만 */}
+            {showClicksLine && (
+              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg">
+                <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                <div>
+                  <p className="text-xs text-indigo-600">총 클릭수</p>
+                  <p className="text-sm font-semibold text-indigo-700">{formatNumber(totalClicks)}</p>
+                  <p className="text-xs text-indigo-400">일평균 {formatNumber(Math.round(avgClicks))}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <div>
