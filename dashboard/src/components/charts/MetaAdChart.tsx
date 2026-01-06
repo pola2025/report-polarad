@@ -12,8 +12,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts'
-import { formatNumber, formatCurrency } from '@/lib/utils'
-import { formatSpendWithKrw } from '@/lib/constants'
+import { formatNumber } from '@/lib/utils'
 
 interface DailyData {
   date: string
@@ -31,10 +30,13 @@ interface MetaTrendChartProps {
   metric?: 'impressions' | 'clicks' | 'spend' | 'leads'
 }
 
+// 원화 포맷 (spend는 이미 KRW로 저장됨)
+const formatKrw = (v: number) => `₩${Math.round(v).toLocaleString()}`
+
 const metricConfig = {
   impressions: { label: '노출수', color: '#3B82F6', format: formatNumber },
   clicks: { label: '클릭수', color: '#10B981', format: formatNumber },
-  spend: { label: '지출액', color: '#F59E0B', format: formatCurrency },
+  spend: { label: '지출액', color: '#F59E0B', format: formatKrw },
   leads: { label: '리드수', color: '#8B5CF6', format: formatNumber },
 }
 
@@ -229,8 +231,9 @@ export function MetaSummaryCards({ current, previous }: MetaSummaryProps) {
     { label: '클릭수', current: current.clicks, previous: previous.clicks, format: formatNumber },
     { label: '리드수', current: current.leads, previous: previous.leads, format: formatNumber },
     { label: 'CTR', current: ctr, previous: previousCtr, format: (v: number) => `${v.toFixed(2)}%` },
-    { label: '지출액', current: current.spend, previous: previous.spend, format: (v: number) => formatSpendWithKrw(v) },
-    { label: 'CPC', current: cpc, previous: previousCpc, format: formatCurrency },
+    // Note: spend는 이미 KRW로 저장되어 있음 (백필 시 변환 완료)
+    { label: '지출액', current: current.spend, previous: previous.spend, format: (v: number) => `₩${Math.round(v).toLocaleString()}` },
+    { label: 'CPC', current: cpc, previous: previousCpc, format: (v: number) => `₩${Math.round(v).toLocaleString()}` },
   ]
 
   return (
