@@ -6,6 +6,16 @@ import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug } from '@/lib/air
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE } from '@/lib/constants'
 
+// 클라이언트별 환율 설정
+// - HEA 판교: USD 데이터 → KRW 환산 필요 (×1500)
+// - 나라똔: 이미 KRW 데이터 → 환산 불필요 (×1)
+function getExchangeRate(clientSlug: string | null): number {
+  if (clientSlug === 'naratton') {
+    return 1 // 이미 KRW
+  }
+  return USD_TO_KRW_RATE // USD → KRW (1500)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -220,24 +230,29 @@ export async function GET(request: NextRequest) {
       total_spend_krw: number
     }> = []
 
+    // 클라이언트별 환율 적용
+    const exchangeRate = getExchangeRate(resolvedSlug)
+
     const currentDate = new Date(startDate)
     while (currentDate <= endDate) {
       const dateStr = format(currentDate, 'yyyy-MM-dd')
       const metaDay = metaDailyMap.get(dateStr) || { impressions: 0, clicks: 0, spend: 0, leads: 0 }
       const naverDay = naverDailyMap.get(dateStr) || { impressions: 0, clicks: 0, spend: 0 }
 
-      // Note: Airtable에 이미 KRW로 저장되어 있으므로 환율 변환 불필요
+      // Meta spend에 환율 적용 (HEA: ×1500, 나라똔: ×1)
+      const metaSpendKrw = metaDay.spend * exchangeRate
+
       dailyTrend.push({
         date: dateStr,
         meta_impressions: metaDay.impressions,
         meta_clicks: metaDay.clicks,
         meta_spend: metaDay.spend,
-        meta_spend_krw: metaDay.spend, // 이미 KRW로 저장됨
+        meta_spend_krw: metaSpendKrw,
         meta_leads: metaDay.leads,
         naver_impressions: naverDay.impressions,
         naver_clicks: naverDay.clicks,
         naver_spend: naverDay.spend,
-        total_spend_krw: metaDay.spend + naverDay.spend, // 이미 KRW
+        total_spend_krw: metaSpendKrw + naverDay.spend,
       })
 
       currentDate.setDate(currentDate.getDate() + 1)
@@ -250,16 +265,15 @@ export async function GET(request: NextRequest) {
     const totalClicks = metaCurrentPeriod.clicks + naverCurrentPeriod.clicks
     const previousTotalClicks = metaPreviousPeriod.clicks + naverPreviousPeriod.clicks
 
-    // 총 지출액: Meta(이미 KRW) + 네이버(KRW)
-    // Note: Airtable 백필 시 이미 USD→KRW 변환 완료
-    const totalSpendKRW = metaCurrentPeriod.spend + naverCurrentPeriod.spend
-    const previousTotalSpendKRW = metaPreviousPeriod.spend + naverPreviousPeriod.spend
+    // 총 지출액: Meta(환율 적용) + 네이버(KRW)
+    const totalSpendKRW = (metaCurrentPeriod.spend * exchangeRate) + naverCurrentPeriod.spend
+    const previousTotalSpendKRW = (metaPreviousPeriod.spend * exchangeRate) + naverPreviousPeriod.spend
 
     const avgCPL = metaCurrentPeriod.leads > 0
-      ? Math.round(metaCurrentPeriod.spend / metaCurrentPeriod.leads)
+      ? Math.round((metaCurrentPeriod.spend * exchangeRate) / metaCurrentPeriod.leads)
       : 0
     const previousAvgCPL = metaPreviousPeriod.leads > 0
-      ? Math.round(metaPreviousPeriod.spend / metaPreviousPeriod.leads)
+      ? Math.round((metaPreviousPeriod.spend * exchangeRate) / metaPreviousPeriod.leads)
       : 0
 
     // ===== 키워드 통계 데이터 (직접 fetch로 캐시 우회) =====
@@ -313,11 +327,11 @@ export async function GET(request: NextRequest) {
       meta: {
         current: {
           ...metaCurrentPeriod,
-          spend_krw: metaCurrentPeriod.spend, // 이미 KRW로 저장됨
+          spend_krw: metaCurrentPeriod.spend * exchangeRate,
         },
         previous: {
           ...metaPreviousPeriod,
-          spend_krw: metaPreviousPeriod.spend, // 이미 KRW로 저장됨
+          spend_krw: metaPreviousPeriod.spend * exchangeRate,
         },
       },
       exchange_rate: USD_TO_KRW_RATE,
