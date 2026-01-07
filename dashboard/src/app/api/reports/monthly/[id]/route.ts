@@ -16,8 +16,15 @@ import {
 } from '@/lib/airtable'
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
 
-// USD -> KRW (fixed)
-const USD_TO_KRW = 1500
+// 클라이언트별 환율 설정
+// - H.E.A 판교: USD 데이터 → KRW 환산 필요 (×1500)
+// - 나라똔: 이미 KRW 데이터 → 환산 불필요 (×1)
+function getExchangeRate(clientSlug: string): number {
+  if (clientSlug === 'naratton') {
+    return 1 // 이미 KRW
+  }
+  return 1500 // USD → KRW
+}
 
 export async function GET(
   request: NextRequest,
@@ -175,11 +182,13 @@ export async function GET(
       campaignMap.set(name, existing)
     }
 
+    const exchangeRate = getExchangeRate(clientSlug)
+
     const campaignsWithMetrics = Array.from(campaignMap.values()).map((c) => ({
       ...c,
-      spend: c.spend * USD_TO_KRW,
+      spend: c.spend * exchangeRate,
       ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-      cpl: c.leads > 0 ? (c.spend * USD_TO_KRW) / c.leads : 0,
+      cpl: c.leads > 0 ? (c.spend * exchangeRate) / c.leads : 0,
       video_views: c.video_views,
       avg_watch_time: c.avg_watch_time_count > 0 ? c.avg_watch_time / c.avg_watch_time_count : 0,
     }))
@@ -256,7 +265,7 @@ export async function GET(
           impressions: (meta?.impressions || 0) + (naver?.impressions || 0),
           clicks: (meta?.clicks || 0) + (naver?.clicks || 0),
           leads: meta?.leads || 0,
-          spend: ((meta?.spend || 0) * USD_TO_KRW) + (naver?.totalCost || 0),
+          spend: ((meta?.spend || 0) * exchangeRate) + (naver?.totalCost || 0),
           videoViews: meta?.videoViews || 0,
           avgWatchTime: meta?.avgWatchTimeCount && meta.avgWatchTimeCount > 0
             ? meta.avgWatchTime / meta.avgWatchTimeCount
@@ -264,7 +273,7 @@ export async function GET(
           // channel detail
           metaImpressions: meta?.impressions || 0,
           metaClicks: meta?.clicks || 0,
-          metaSpend: (meta?.spend || 0) * USD_TO_KRW,
+          metaSpend: (meta?.spend || 0) * exchangeRate,
           naverImpressions: naver?.impressions || 0,
           naverClicks: naver?.clicks || 0,
           naverSpend: naver?.totalCost || 0,

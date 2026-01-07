@@ -2,78 +2,96 @@
 
 ## 복사해서 사용:
 ```
-나라똔 12월 Meta 데이터 재백필 필요.
+나라똔 월간 리포트 지출액 이중 환산 버그 수정해줘.
 NEXT_SESSION_REQUEST.md 파일에 상세 컨텍스트 있음.
 ```
 
 ---
 
-## 🚨 긴급 작업: 나라똔 12월 Meta 재백필
+## 🚨 긴급 버그: 지출액 이중 환산
 
-### 문제 상황
-| 항목 | Meta API 실제 | Airtable 저장 | 차이 |
-|------|---------------|---------------|------|
-| 지출 | **$798 USD** (119만원) | 386원 | ❌ 심각 |
-| 노출 | 5,288 | 2,501 | ❌ 누락 |
+### 문제 현상
+| 항목 | 리포트 표시 | 실제 값 | 원인 |
+|------|------------|---------|------|
+| 총 지출 | ₩1,784,625,000 (17억) | ₩1,189,750 (119만) | 이중 환산 |
+| CPC | ₩9,914,583 | ~₩6,600 | 이중 환산 |
 
 ### 원인
-- 백필 시 데이터가 불완전하게 저장됨
-- spend 값이 USD → 원화 환산 없이 잘못 저장
+- 나라똔 Airtable 데이터: **이미 KRW로 저장됨** (spend: 1,189,750)
+- API route에서 **다시 USD_TO_KRW(1500) 곱함**
+- 결과: 1,189,750 × 1500 = 1,784,625,000
 
-### 해결 방법
-1. 나라똔 Airtable에서 12월 Meta 데이터 삭제
-2. 12월 전체 재백필 실행
+### 문제 파일
+`dashboard/src/app/api/reports/monthly/[id]/route.ts`
 
-### 백필 명령어
-```bash
-cd scripts
-node backfill-airtable.js --client "나라똔" --start 2025-12-01 --end 2025-12-31
+```typescript
+// 문제 코드 (180행)
+spend: c.spend * USD_TO_KRW,  // campaigns
+
+// 문제 코드 (259행)
+spend: ((meta?.spend || 0) * USD_TO_KRW) + (naver?.totalCost || 0),  // daily
+
+// 문제 코드 (267행)
+metaSpend: (meta?.spend || 0) * USD_TO_KRW,
+```
+
+### 해결 방안
+1. **클라이언트별 분기**: 나라똔(naratton)인 경우 USD_TO_KRW 곱하지 않기
+2. **또는** Airtable에 currency 필드 추가하여 동적 처리
+
+### 수정 예시
+```typescript
+const clientSlug = client?.slug || getClientSlugById(report.client_id)
+const isKrwClient = clientSlug === 'naratton'  // 나라똔은 KRW로 저장됨
+const exchangeRate = isKrwClient ? 1 : USD_TO_KRW
+
+// 사용
+spend: c.spend * exchangeRate,
 ```
 
 ---
 
-## 🚨 필수 주의사항
+## ✅ 이번 세션 완료 작업
 
-### H.E.A 판교 데이터 보호
-- ❌ HEA 판교 데이터 절대 건드리지 않음
-- ❌ HEA 판교 Airtable (`appJlOqnadLsMJQYw`) 접근 금지
+### 커밋: `253c12c`
 
-### 나라똔 작업 시
-- ✅ 나라똔 전용 Airtable만 사용: `appN2KzUoORRrb8X9` / `tblmC9Ft2ioXKXsrL`
-- ✅ CLIENT 환경변수 반드시 "나라똔"으로 설정
-
----
-
-## 이번 세션 완료 작업
-
-### 1. 리드수 차트 색상 수정 ✅
-- 리드수 색상: 보라색 → 빨간색 (#EF4444)
-- 리드수 Y축: 숨김 처리
-- 그래프 선 + 요약 카드 모두 빨간색 통일
-
-### 2. Meta 광고 성과에 리드수 추가 ✅
-- MetaSummaryCards에 리드수 메트릭 추가
-- 6개 메트릭: 노출수, 클릭수, 리드수, CTR, 지출액, CPC
-
-### 3. 브랜드검색 CSV 파서 개선 ✅
-- 4열 형식 지원 추가 (광고그룹,일별,노출수,클릭수)
-- 네이버 광고그룹 보고서 형식 호환
-
-### 4. 나라똔 12월 브랜드검색 업로드 ✅
-- 57개 레코드 업로드 완료
-- 노출: 1,395 / 클릭: 876
-
-### 5. 나라똔 1월 1일 Meta 백필 ✅
-- 2개 레코드 추가
+1. **API route 수정** - 네이버 필터링 `naver_place` → `naver_*` (나라똔 브랜드검색 포함)
+2. **일별 성과 추이** - 클릭수 선 그래프 추가
+3. **채널별 성과 분석** - 영상조회수, 평균시청시간 추가
+4. **요일별 성과 패턴** - 클릭→조회→리드 순서, 리드 중심 인사이트
+5. **날짜별 성과 패턴** - 리드 행 추가 (히트맵)
+6. **Meta Top5** - 리드 컬럼 추가
 
 ---
 
-## 다음 세션 작업
+## 🔧 다음 세션 작업
 
-### 1. [긴급] 나라똔 12월 Meta 재백필
-- 기존 12월 Meta 데이터 삭제
-- 12월 전체 재백필 실행
-- 데이터 검증 (API vs Airtable 비교)
+### 1. [긴급] 지출액 이중 환산 버그 수정
+- `route.ts`에서 나라똔 클라이언트 분기 처리
+- 나라똔: exchangeRate = 1
+- H.E.A 판교: exchangeRate = 1500 (USD_TO_KRW)
+
+### 2. Playwright 검증 재실행
+- 수정 후 리포트 데이터 정합성 확인
+- 나라똔 월간 리포트 ID: `0f2e1dba-c87f-43ce-b27f-bb463db51759`
+- URL: https://report.polarad.co.kr/report/monthly/0f2e1dba-c87f-43ce-b27f-bb463db51759
+
+### 3. 데이터 검증 기준
+| 항목 | 기대값 |
+|------|--------|
+| 총 노출 | 5,343 + 1,395 = 6,738 |
+| 총 클릭 | 180 + 876 = 1,056 |
+| 총 지출 | ~₩1,189,750 (Meta만) |
+| 리드수 | 23건 |
+
+---
+
+## 클라이언트별 데이터 형식 (중요!)
+
+| 클라이언트 | spend 저장 형식 | API 처리 |
+|-----------|----------------|----------|
+| H.E.A 판교 | USD | × 1500 필요 |
+| 나라똔 | KRW | × 1 (그대로) |
 
 ---
 
@@ -91,17 +109,18 @@ node backfill-airtable.js --client "나라똔" --start 2025-12-01 --end 2025-12-
 | 항목 | 값 |
 |------|-----|
 | 로컬 경로 | `F:\polarad-meta` |
-| GitHub | `pola2025/report-polarad` |
+| 대시보드 | `F:\polarad-meta\dashboard` |
+| GitHub | `github-pola2025:pola2025/report-polarad.git` |
 | 프로덕션 URL | https://report.polarad.co.kr |
 | 환경변수 | `dashboard/.env.local` |
 
 ---
 
-## 데이터 소스 (중요!)
+## 🚨 필수 주의사항
 
-| 항목 | 데이터 소스 |
-|------|-------------|
-| Meta 광고 데이터 | **Airtable** |
-| 네이버 광고 데이터 | **Airtable** |
+### H.E.A 판교 데이터 보호
+- ❌ HEA 판교 데이터 절대 건드리지 않음
+- ❌ HEA 판교 환산 로직 변경 금지 (USD → KRW 유지)
 
-**⛔ Supabase 사용 금지** - polarad_meta_data, polarad_naver_data 테이블 사용하지 않음
+### 데이터 소스
+- **Airtable 전용** - Supabase 사용 금지
