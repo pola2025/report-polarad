@@ -116,6 +116,7 @@ async function sendTelegram(message) {
         chat_id: BACKFILL_CHAT_ID,
         text: message,
         parse_mode: 'HTML',
+        disable_web_page_preview: true,
       }),
     });
   } catch (error) {

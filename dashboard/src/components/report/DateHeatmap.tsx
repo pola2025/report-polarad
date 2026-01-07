@@ -65,11 +65,14 @@ export function DateHeatmap({ daily }: DateHeatmapProps) {
   const values = Array.from(dataMap.values())
   const impressionValues = values.map(d => d.impressions)
   const clickValues = values.map(d => d.clicks)
+  const leadValues = values.map(d => d.leads)
 
   const impressionMax = Math.max(...impressionValues, 1)
   const impressionMin = Math.min(...impressionValues)
   const clickMax = Math.max(...clickValues, 1)
   const clickMin = Math.min(...clickValues)
+  const leadMax = Math.max(...leadValues, 1)
+  const leadMin = Math.min(...leadValues)
 
   // 상위/하위 날짜 찾기
   const sortedByClicks = [...values].sort((a, b) => b.clicks - a.clicks)
@@ -223,6 +226,34 @@ export function DateHeatmap({ daily }: DateHeatmapProps) {
                       title={`${day}일: CTR ${ctr.toFixed(2)}%`}
                     >
                       {ctr.toFixed(1)}
+                    </div>
+                  </td>
+                )
+              })}
+            </tr>
+            {/* 리드 행 */}
+            <tr>
+              <td className="py-2 px-2 text-sm font-medium text-gray-600">리드</td>
+              {days.map(day => {
+                const data = dataMap.get(day)
+                if (!data) {
+                  return (
+                    <td key={day} className="py-1 px-0.5">
+                      <div className="w-full h-8 rounded flex items-center justify-center text-[10px] bg-gray-50 text-gray-300">
+                        -
+                      </div>
+                    </td>
+                  )
+                }
+                return (
+                  <td key={day} className="py-1 px-0.5">
+                    <div
+                      className={`w-full h-8 rounded flex items-center justify-center text-[10px] font-medium ${getHeatClass(
+                        getHeatLevel(data.leads, leadMax, leadMin)
+                      )}`}
+                      title={`${day}일: ${data.leads}건 리드`}
+                    >
+                      {data.leads}
                     </div>
                   </td>
                 )

@@ -61,47 +61,46 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
   const weekdayData = weekDayIndexMap.map((dayIndex) => {
     const dayData = daily.filter(d => getDayIndex(d.date) === dayIndex)
     if (dayData.length === 0) {
-      return { impressions: 0, clicks: 0, ctr: 0, spend: 0 }
+      return { impressions: 0, clicks: 0, leads: 0, spend: 0 }
     }
     const impressions = dayData.reduce((sum, d) => sum + d.impressions, 0)
     const clicks = dayData.reduce((sum, d) => sum + d.clicks, 0)
+    const leads = dayData.reduce((sum, d) => sum + d.leads, 0)
     const spend = dayData.reduce((sum, d) => sum + d.spend, 0)
-    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0
-    return { impressions, clicks, ctr, spend: spend * usdToKrw }
+    return { impressions, clicks, leads, spend: spend * usdToKrw }
   })
 
   // min/max 계산
   const impressionValues = weekdayData.map(d => d.impressions)
   const clickValues = weekdayData.map(d => d.clicks)
-  const ctrValues = weekdayData.map(d => d.ctr)
+  const leadValues = weekdayData.map(d => d.leads)
 
   const impressionMax = Math.max(...impressionValues)
   const impressionMin = Math.min(...impressionValues)
   const clickMax = Math.max(...clickValues)
   const clickMin = Math.min(...clickValues)
-  const ctrMax = Math.max(...ctrValues)
-  const ctrMin = Math.min(...ctrValues)
+  const leadMax = Math.max(...leadValues)
+  const leadMin = Math.min(...leadValues)
 
-  // 최고/최저 성과 요일 찾기
-  const bestCtrIndex = ctrValues.indexOf(ctrMax)
-  const worstCtrIndex = ctrValues.indexOf(ctrMin)
-  const avgCtr = ctrValues.reduce((sum, v) => sum + v, 0) / ctrValues.length
+  // 최고/최저 성과 요일 찾기 (리드 기준)
+  const bestLeadIndex = leadValues.indexOf(leadMax)
+  const worstLeadIndex = leadValues.indexOf(leadMin)
+  const avgLeads = leadValues.reduce((sum, v) => sum + v, 0) / leadValues.length
 
   // 평일 vs 주말 비교
   const weekdayAvg = {
     impressions: weekdayData.slice(0, 5).reduce((sum, d) => sum + d.impressions, 0) / 5,
     clicks: weekdayData.slice(0, 5).reduce((sum, d) => sum + d.clicks, 0) / 5,
-    ctr: weekdayData.slice(0, 5).reduce((sum, d) => sum + d.ctr, 0) / 5,
+    leads: weekdayData.slice(0, 5).reduce((sum, d) => sum + d.leads, 0) / 5,
   }
   const weekendAvg = {
     impressions: weekdayData.slice(5, 7).reduce((sum, d) => sum + d.impressions, 0) / 2,
     clicks: weekdayData.slice(5, 7).reduce((sum, d) => sum + d.clicks, 0) / 2,
-    ctr: weekdayData.slice(5, 7).reduce((sum, d) => sum + d.ctr, 0) / 2,
+    leads: weekdayData.slice(5, 7).reduce((sum, d) => sum + d.leads, 0) / 2,
   }
 
   // 값 포맷팅
-  function formatValue(value: number, type: 'impressions' | 'clicks' | 'ctr'): string {
-    if (type === 'ctr') return `${value.toFixed(2)}%`
+  function formatValue(value: number): string {
     if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
     return formatNumber(value)
   }
@@ -149,21 +148,6 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
             </tr>
           </thead>
           <tbody>
-            {/* 노출 행 */}
-            <tr>
-              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">노출</td>
-              {weekdayData.map((data, i) => (
-                <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
-                  <div
-                    className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
-                      getHeatLevel(data.impressions, impressionMax, impressionMin)
-                    )}`}
-                  >
-                    {formatValue(data.impressions, 'impressions')}
-                  </div>
-                </td>
-              ))}
-            </tr>
             {/* 클릭 행 */}
             <tr>
               <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">클릭</td>
@@ -174,22 +158,37 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
                       getHeatLevel(data.clicks, clickMax, clickMin)
                     )}`}
                   >
-                    {formatValue(data.clicks, 'clicks')}
+                    {formatValue(data.clicks)}
                   </div>
                 </td>
               ))}
             </tr>
-            {/* CTR 행 */}
+            {/* 조회(노출) 행 */}
             <tr>
-              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">CTR</td>
+              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">조회</td>
               {weekdayData.map((data, i) => (
                 <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
                   <div
                     className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
-                      getHeatLevel(data.ctr, ctrMax, ctrMin)
+                      getHeatLevel(data.impressions, impressionMax, impressionMin)
                     )}`}
                   >
-                    {formatValue(data.ctr, 'ctr')}
+                    {formatValue(data.impressions)}
+                  </div>
+                </td>
+              ))}
+            </tr>
+            {/* 리드 행 */}
+            <tr>
+              <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">리드</td>
+              {weekdayData.map((data, i) => (
+                <td key={i} className="py-1.5 md:py-2 px-1 md:px-2">
+                  <div
+                    className={`w-full h-8 md:h-10 rounded-md flex items-center justify-center text-[10px] md:text-xs font-medium ${getHeatClass(
+                      getHeatLevel(data.leads, leadMax, leadMin)
+                    )}`}
+                  >
+                    {formatValue(data.leads)}
                   </div>
                 </td>
               ))}
@@ -223,30 +222,30 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
         <p className="text-gray-700 text-xs md:text-sm font-medium mb-2">💡 인사이트:</p>
         <ul className="text-xs md:text-sm text-gray-600 mt-2 space-y-2 pl-4 md:pl-6 list-disc">
           <li>
-            <span>최고 성과 요일: <strong>{weekDays[bestCtrIndex].name}</strong></span>
+            <span>최고 리드 요일: <strong>{weekDays[bestLeadIndex].name}</strong></span>
             <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
-              CTR {ctrValues[bestCtrIndex].toFixed(2)}%, 평균 대비 +{((ctrValues[bestCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%
+              리드 {leadValues[bestLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 +${(((leadValues[bestLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
             </span>
           </li>
           <li>
-            <span>최저 성과 요일: <strong>{weekDays[worstCtrIndex].name}</strong></span>
+            <span>최저 리드 요일: <strong>{weekDays[worstLeadIndex].name}</strong></span>
             <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
-              CTR {ctrValues[worstCtrIndex].toFixed(2)}%, 평균 대비 {((ctrValues[worstCtrIndex] - avgCtr) / avgCtr * 100).toFixed(0)}%
+              리드 {leadValues[worstLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 ${(((leadValues[worstLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
             </span>
           </li>
           <li>
-            <span>평일 평균 CTR: <strong>{weekdayAvg.ctr.toFixed(2)}%</strong> / 주말: <strong>{weekendAvg.ctr.toFixed(2)}%</strong></span>
-            {weekendAvg.ctr > weekdayAvg.ctr ? (
-              <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {((weekendAvg.ctr - weekdayAvg.ctr) / weekdayAvg.ctr * 100).toFixed(0)}% 높음</span>
+            <span>평일 평균 리드: <strong>{weekdayAvg.leads.toFixed(1)}건</strong> / 주말: <strong>{weekendAvg.leads.toFixed(1)}건</strong></span>
+            {weekendAvg.leads > weekdayAvg.leads ? (
+              <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {weekdayAvg.leads > 0 ? ((weekendAvg.leads - weekdayAvg.leads) / weekdayAvg.leads * 100).toFixed(0) : 0}% 높음</span>
             ) : (
-              <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {((weekdayAvg.ctr - weekendAvg.ctr) / weekendAvg.ctr * 100).toFixed(0)}% 높음</span>
+              <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {weekendAvg.leads > 0 ? ((weekdayAvg.leads - weekendAvg.leads) / weekendAvg.leads * 100).toFixed(0) : 0}% 높음</span>
             )}
           </li>
-          {ctrMax / ctrMin > 1.5 && (
+          {leadMax > 0 && leadMin < leadMax && (
             <li>
               <span><strong>권장:</strong> 저성과 → 고성과 요일 예산 재배분</span>
               <span className="block text-[11px] text-gray-500 mt-0.5">
-                {weekDays[worstCtrIndex].name}요일 예산을 {weekDays[bestCtrIndex].name}요일로 이동
+                {weekDays[worstLeadIndex].name}요일 예산을 {weekDays[bestLeadIndex].name}요일로 이동
               </span>
             </li>
           )}

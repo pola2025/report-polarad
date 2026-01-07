@@ -182,6 +182,8 @@ export default function MonthlyReportPage() {
             metaCampaigns={meta.campaigns}
             naverKeywords={naver.keywords}
             usdToKrw={1}
+            videoViews={meta.videoViews}
+            avgWatchTime={meta.avgWatchTime}
           />
         )}
 
@@ -191,6 +193,8 @@ export default function MonthlyReportPage() {
             daily={meta.daily}
             usdToKrw={1}
             showLeads={report.client?.slug === 'naratton' || report.client?.client_name === '나라똔'}
+            showClicks={true}
+            channel="meta"
           />
         )}
 

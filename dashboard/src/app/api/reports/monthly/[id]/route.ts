@@ -95,9 +95,9 @@ export async function GET(
     // Meta 데이터 필터링
     const metaData = allAdData.filter(r => r.source === 'meta')
 
-    // Naver 데이터 필터링 (total/aggregate 제외)
+    // Naver 데이터 필터링 (naver_로 시작하는 모든 source, total/aggregate 제외)
     const naverData = allAdData
-      .filter(r => r.source === 'naver_place')
+      .filter(r => r.source && r.source.startsWith('naver_'))
       .filter(r => {
         const kw = (r.keywords || '').toLowerCase()
         if (kw === 'total' || kw === '' || kw === '_total_') return false

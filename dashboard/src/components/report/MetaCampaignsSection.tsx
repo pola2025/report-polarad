@@ -131,6 +131,7 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">노출</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">클릭</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">CTR</th>
+              <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">리드</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">영상조회</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">평균시청</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">지출</th>
@@ -150,6 +151,7 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
                 <td className={`py-3 px-3 text-right text-sm ${campaign.ctr > 2 ? 'text-green-600' : campaign.ctr < 1.5 ? 'text-red-600' : ''}`}>
                   {formatPercent(campaign.ctr)}
                 </td>
+                <td className="py-3 px-3 text-right text-sm text-green-600 font-medium">{formatNumber(campaign.leads)}</td>
                 <td className="py-3 px-3 text-right text-sm text-purple-600">{formatNumber(campaign.video_views || 0)}</td>
                 <td className="py-3 px-3 text-right text-sm text-purple-600">{formatTime(campaign.avg_watch_time || 0)}</td>
                 <td className="py-3 px-3 text-right text-sm font-medium">{formatCurrency(campaign.spend, 'KRW')}</td>

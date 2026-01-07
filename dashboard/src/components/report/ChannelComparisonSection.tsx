@@ -34,6 +34,8 @@ interface ChannelComparisonSectionProps {
   metaCampaigns: MetaCampaign[]
   naverKeywords: NaverKeyword[]
   usdToKrw?: number
+  videoViews?: number
+  avgWatchTime?: number
 }
 
 const COLORS = {
@@ -45,6 +47,8 @@ export function ChannelComparisonSection({
   metaCampaigns,
   naverKeywords,
   usdToKrw = 1500,
+  videoViews = 0,
+  avgWatchTime = 0,
 }: ChannelComparisonSectionProps) {
   // Meta 합계 계산
   const metaTotal = {
@@ -150,6 +154,18 @@ export function ChannelComparisonSection({
                 <span className="text-gray-500">CPC</span>
                 <span className="font-medium">{formatNumber(metaTotal.cpc)}원</span>
               </div>
+              {videoViews > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">영상조회</span>
+                  <span className="font-medium">{formatNumber(videoViews)}</span>
+                </div>
+              )}
+              {avgWatchTime > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">평균시청</span>
+                  <span className="font-medium">{avgWatchTime.toFixed(1)}초</span>
+                </div>
+              )}
             </div>
           </div>
           {/* 네이버 카드 */}
@@ -237,6 +253,12 @@ export function ChannelComparisonSection({
                 <th className="py-3 px-4 text-right font-semibold text-gray-600">클릭수</th>
                 <th className="py-3 px-4 text-right font-semibold text-gray-600">CTR</th>
                 <th className="py-3 px-4 text-right font-semibold text-gray-600">CPC</th>
+                {videoViews > 0 && (
+                  <th className="py-3 px-4 text-right font-semibold text-gray-600">영상조회</th>
+                )}
+                {avgWatchTime > 0 && (
+                  <th className="py-3 px-4 text-right font-semibold text-gray-600">평균시청</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -261,6 +283,16 @@ export function ChannelComparisonSection({
                     {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(metaTotal.cpc)}
                   </div>
                 </td>
+                {videoViews > 0 && (
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-medium">{formatNumber(videoViews)}</div>
+                  </td>
+                )}
+                {avgWatchTime > 0 && (
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-medium">{avgWatchTime.toFixed(1)}초</div>
+                  </td>
+                )}
               </tr>
               {/* 네이버 */}
               <tr className="hover:bg-gray-50">
@@ -283,6 +315,16 @@ export function ChannelComparisonSection({
                     {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(naverTotal.cpc)}
                   </div>
                 </td>
+                {videoViews > 0 && (
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-medium text-gray-400">-</div>
+                  </td>
+                )}
+                {avgWatchTime > 0 && (
+                  <td className="py-3 px-4 text-right">
+                    <div className="font-medium text-gray-400">-</div>
+                  </td>
+                )}
               </tr>
             </tbody>
           </table>
