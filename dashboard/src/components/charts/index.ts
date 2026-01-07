@@ -18,3 +18,6 @@ export {
   MetaSummaryCards,
   MetaDayOfWeekChart,
 } from './MetaAdChart'
+
+export { BulletChart, BulletChartWithSummary } from './BulletChart'
+export { TrafficTreemap, TrafficSourceList } from './TrafficTreemap'

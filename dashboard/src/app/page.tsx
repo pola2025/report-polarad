@@ -18,6 +18,9 @@ import { ReportList } from '@/components/report/ReportList'
 import type { NaverPeriodDataResponse } from '@/types/naver-analytics'
 import type { MetaPeriodDataResponse } from '@/types/meta-analytics'
 import type { BrandSearchAPIResponse } from '@/types/brand-search'
+import type { GA4AnalyticsResponse } from '@/types/ga4-analytics'
+import { GA4Section } from '@/components/ga4'
+import { FunnelSection } from '@/components/funnel'
 
 interface DashboardData {
   kpi: {
@@ -77,7 +80,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const clientSlugFromUrl = searchParams.get('client')
-  const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'reports' | null
+  const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | null
 
   // 관리자 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -112,8 +115,8 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
-  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'reports'>(() => {
-    const validTabs = ['summary', 'meta', 'naver', 'reports'] as const
+  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'ga4' | 'reports'>(() => {
+    const validTabs = ['summary', 'meta', 'naver', 'ga4', 'reports'] as const
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       return tabFromUrl
     }
@@ -121,7 +124,7 @@ function DashboardContent() {
   })
 
   // 탭 변경 시 URL 업데이트
-  const handleTabChange = useCallback((tab: 'summary' | 'meta' | 'naver' | 'reports') => {
+  const handleTabChange = useCallback((tab: 'summary' | 'meta' | 'naver' | 'ga4' | 'reports') => {
     setActiveTab(tab)
 
     // URL 파라미터 업데이트
@@ -141,6 +144,8 @@ function DashboardContent() {
   const [brandSearchLoading, setBrandSearchLoading] = useState(false)
   const [metaData, setMetaData] = useState<MetaPeriodDataResponse | null>(null)
   const [metaLoading, setMetaLoading] = useState(false)
+  const [ga4Data, setGa4Data] = useState<GA4AnalyticsResponse | null>(null)
+  const [ga4Loading, setGa4Loading] = useState(false)
 
   // 날짜 범위 상태
   const [dateRange, setDateRange] = useState(() => {
@@ -380,6 +385,33 @@ function DashboardContent() {
     fetchMetaData()
   }, [activeTab, clientSlug, data])
 
+  // GA4 데이터 조회 (탭 전환 시)
+  useEffect(() => {
+    async function fetchGa4Data() {
+      if (activeTab !== 'ga4' || !clientSlug || !clientInfo?.ga?.enabled) return
+
+      setGa4Loading(true)
+      try {
+        const params = new URLSearchParams({
+          clientSlug,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        })
+        const res = await fetch(`/api/ga4/analytics?${params}`)
+        const json = await res.json()
+        if (json.success) {
+          setGa4Data(json)
+        }
+      } catch (err) {
+        console.error('GA4 데이터 조회 실패:', err)
+      } finally {
+        setGa4Loading(false)
+      }
+    }
+
+    fetchGa4Data()
+  }, [activeTab, clientSlug, clientInfo?.ga?.enabled, dateRange])
+
   // 관리자 로그인 화면 (URL에 클라이언트 슬러그 없고, 인증 안 됨)
   if (!clientSlugFromUrl && !isAuthenticated) {
     return (
@@ -581,7 +613,9 @@ function DashboardContent() {
           <>
             {/* 탭 네비게이션 */}
             {showTabs && (
-              <div className="grid grid-cols-4 gap-1 border-b border-gray-200 mb-6">
+              <div className={`grid gap-1 border-b border-gray-200 mb-6 ${
+                clientInfo?.ga?.enabled ? 'grid-cols-5' : 'grid-cols-4'
+              }`}>
                 <button
                   onClick={() => handleTabChange('summary')}
                   className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
@@ -613,6 +647,19 @@ function DashboardContent() {
                     }`}
                   >
                     네이버 상세
+                  </button>
+                )}
+                {/* GA4 탭 - ga.enabled가 true일 때만 표시 */}
+                {clientInfo?.ga?.enabled && (
+                  <button
+                    onClick={() => handleTabChange('ga4')}
+                    className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                      activeTab === 'ga4'
+                        ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    GA4 분석
                   </button>
                 )}
                 <button
@@ -1665,6 +1712,44 @@ function DashboardContent() {
                     <CardContent className="py-12 text-center">
                       <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                       <p className="text-gray-500">네이버 광고 데이터가 없습니다.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* GA4 탭 */}
+            {activeTab === 'ga4' && clientInfo?.ga?.enabled && (
+              <div className="space-y-8">
+                {ga4Loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+                    <span className="ml-2 text-gray-600">GA4 데이터를 불러오는 중...</span>
+                  </div>
+                ) : ga4Data ? (
+                  <>
+                    <GA4Section data={ga4Data} />
+
+                    {/* 퍼널 분석 (나라똔만) */}
+                    {clientSlug === 'naratton' && (
+                      <div className="mt-8">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                          마케팅 퍼널 분석
+                        </h2>
+                        <FunnelSection
+                          clientSlug={clientSlug}
+                          startDate={dateRange.start}
+                          endDate={dateRange.end}
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Card className="p-6">
+                    <CardContent>
+                      <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 text-center">GA4 데이터가 없습니다.</p>
                     </CardContent>
                   </Card>
                 )}

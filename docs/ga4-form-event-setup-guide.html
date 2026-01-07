@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GA4 폼 제출 이벤트 설정 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .copy-btn:active { transform: scale(0.95); }
+        .step-check:checked + label { text-decoration: line-through; opacity: 0.6; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto py-8 px-4">
+        <!-- 헤더 -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">GA4 폼 제출 이벤트 설정 가이드</h1>
+            <p class="text-gray-600">나라똔 웹사이트에 폼 제출 추적 이벤트를 설정하는 방법</p>
+            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-blue-800 text-sm">
+                    <strong>목적:</strong> 웹사이트 문의 폼 제출을 GA4에서 추적하여 마케팅 퍼널 분석에 활용
+                </p>
+            </div>
+        </header>
+
+        <!-- 체크리스트 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">진행 체크리스트</h2>
+            <div class="space-y-3">
+                <div class="flex items-center">
+                    <input type="checkbox" id="check1" class="step-check w-5 h-5 mr-3 accent-green-500">
+                    <label for="check1" class="text-gray-700">Step 1: 이벤트 코드 복사</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="check2" class="step-check w-5 h-5 mr-3 accent-green-500">
+                    <label for="check2" class="text-gray-700">Step 2: 웹사이트에 코드 추가</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="check3" class="step-check w-5 h-5 mr-3 accent-green-500">
+                    <label for="check3" class="text-gray-700">Step 3: GA4 실시간 테스트</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="check4" class="step-check w-5 h-5 mr-3 accent-green-500">
+                    <label for="check4" class="text-gray-700">Step 4: GA4에서 전환 설정</label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 1 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">1</span>
+                <h2 class="text-xl font-semibold">이벤트 코드 복사</h2>
+            </div>
+
+            <p class="text-gray-600 mb-4">아래 코드를 나라똔 웹사이트에 추가합니다. 기존 gtag 설정 아래에 추가하세요.</p>
+
+            <!-- 옵션 A -->
+            <div class="mb-6">
+                <h3 class="font-medium text-gray-800 mb-2">옵션 A: 모든 폼 자동 추적 (권장)</h3>
+                <p class="text-sm text-gray-500 mb-2">페이지 내 모든 &lt;form&gt; 태그의 제출을 자동으로 추적합니다.</p>
+                <div class="relative">
+                    <pre class="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto"><code id="code-a">&lt;script&gt;
+// GA4 폼 제출 이벤트 추적 (자동)
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      var formName = this.getAttribute('name') || this.getAttribute('id') || 'contact_form';
+
+      // GA4 이벤트 전송
+      gtag('event', 'generate_lead', {
+        'event_category': 'form',
+        'event_label': formName,
+        'form_name': formName,
+        'page_path': window.location.pathname,
+        'page_title': document.title
+      });
+
+      console.log('GA4 폼 제출 이벤트 전송:', formName);
+    });
+  });
+});
+&lt;/script&gt;</code></pre>
+                    <button onclick="copyCode('code-a')" class="copy-btn absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition">
+                        복사
+                    </button>
+                </div>
+            </div>
+
+            <!-- 옵션 B -->
+            <div class="mb-6">
+                <h3 class="font-medium text-gray-800 mb-2">옵션 B: 특정 폼만 추적</h3>
+                <p class="text-sm text-gray-500 mb-2">특정 ID를 가진 폼만 추적합니다. 폼의 ID를 확인 후 수정하세요.</p>
+                <div class="relative">
+                    <pre class="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto"><code id="code-b">&lt;script&gt;
+// GA4 폼 제출 이벤트 추적 (특정 폼)
+document.addEventListener('DOMContentLoaded', function() {
+  // TODO: 아래 폼 ID를 실제 폼 ID로 변경하세요
+  var formIds = ['contact-form', 'inquiry-form', 'consultation-form'];
+
+  formIds.forEach(function(formId) {
+    var form = document.getElementById(formId);
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        gtag('event', 'generate_lead', {
+          'event_category': 'form',
+          'event_label': formId,
+          'form_name': formId,
+          'page_path': window.location.pathname
+        });
+        console.log('GA4 폼 제출 이벤트 전송:', formId);
+      });
+    }
+  });
+});
+&lt;/script&gt;</code></pre>
+                    <button onclick="copyCode('code-b')" class="copy-btn absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition">
+                        복사
+                    </button>
+                </div>
+            </div>
+
+            <!-- 옵션 C: AJAX 폼 -->
+            <div>
+                <h3 class="font-medium text-gray-800 mb-2">옵션 C: AJAX 폼용 (페이지 새로고침 없는 폼)</h3>
+                <p class="text-sm text-gray-500 mb-2">폼 제출 시 페이지가 새로고침되지 않는 경우 사용합니다.</p>
+                <div class="relative">
+                    <pre class="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto"><code id="code-c">&lt;script&gt;
+// GA4 AJAX 폼 제출 이벤트
+function trackFormSubmit(formName) {
+  gtag('event', 'generate_lead', {
+    'event_category': 'form',
+    'event_label': formName || 'ajax_form',
+    'form_name': formName || 'ajax_form',
+    'page_path': window.location.pathname
+  });
+  console.log('GA4 폼 제출 이벤트 전송:', formName);
+}
+
+// 사용 예시: 폼 제출 성공 콜백에서 호출
+// trackFormSubmit('consultation_form');
+&lt;/script&gt;</code></pre>
+                    <button onclick="copyCode('code-c')" class="copy-btn absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition">
+                        복사
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">2</span>
+                <h2 class="text-xl font-semibold">웹사이트에 코드 추가</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-yellow-800 text-sm">
+                        <strong>중요:</strong> 기존 gtag 코드(Google Analytics 스크립트) 아래에 추가하세요.
+                    </p>
+                </div>
+
+                <div class="text-gray-700">
+                    <p class="mb-2"><strong>코드 위치:</strong></p>
+                    <ol class="list-decimal list-inside space-y-2 ml-4">
+                        <li>&lt;head&gt; 태그 내 기존 gtag 코드 찾기</li>
+                        <li>기존 gtag 코드 바로 아래에 새 코드 추가</li>
+                        <li>저장 후 배포</li>
+                    </ol>
+                </div>
+
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <p class="font-mono text-sm text-gray-700">
+                        &lt;!-- 기존 Google Analytics 코드 --&gt;<br>
+                        &lt;script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"&gt;&lt;/script&gt;<br>
+                        &lt;script&gt;<br>
+                        &nbsp;&nbsp;window.dataLayer = window.dataLayer || [];<br>
+                        &nbsp;&nbsp;function gtag(){dataLayer.push(arguments);}<br>
+                        &nbsp;&nbsp;gtag('js', new Date());<br>
+                        &nbsp;&nbsp;gtag('config', 'G-XXXXXXXXXX');<br>
+                        &lt;/script&gt;<br><br>
+                        <span class="text-green-600">&lt;!-- 여기에 폼 추적 코드 추가 --&gt;</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 3 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">3</span>
+                <h2 class="text-xl font-semibold">GA4 실시간 테스트</h2>
+            </div>
+
+            <div class="space-y-4">
+                <p class="text-gray-600">코드 추가 후 이벤트가 제대로 전송되는지 확인합니다.</p>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">테스트 방법:</h3>
+                    <ol class="list-decimal list-inside space-y-3 text-gray-700">
+                        <li>
+                            <a href="https://analytics.google.com" target="_blank" class="text-blue-500 hover:underline">GA4 콘솔</a> 접속
+                        </li>
+                        <li>
+                            <strong>보고서 → 실시간</strong> 클릭
+                        </li>
+                        <li>
+                            나라똔 웹사이트에서 테스트 폼 제출
+                        </li>
+                        <li>
+                            GA4 실시간에서 <code class="bg-gray-200 px-1 rounded">generate_lead</code> 이벤트 확인
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-green-800 text-sm">
+                        <strong>확인 포인트:</strong> 브라우저 개발자 도구(F12) → Console에서 "GA4 폼 제출 이벤트 전송" 메시지 확인
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 4 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <div class="flex items-center mb-4">
+                <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">4</span>
+                <h2 class="text-xl font-semibold">GA4에서 전환 설정</h2>
+            </div>
+
+            <div class="space-y-4">
+                <p class="text-gray-600">이벤트를 "전환"으로 설정하여 GA4 보고서에서 전환율을 확인할 수 있습니다.</p>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">설정 경로:</h3>
+                    <div class="flex items-center flex-wrap gap-2 text-gray-700">
+                        <span class="bg-blue-100 px-3 py-1 rounded">GA4 관리</span>
+                        <span class="text-gray-400">→</span>
+                        <span class="bg-blue-100 px-3 py-1 rounded">속성 설정</span>
+                        <span class="text-gray-400">→</span>
+                        <span class="bg-blue-100 px-3 py-1 rounded">데이터 표시</span>
+                        <span class="text-gray-400">→</span>
+                        <span class="bg-blue-100 px-3 py-1 rounded">이벤트</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">전환 설정:</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                        <li>이벤트 목록에서 <code class="bg-gray-200 px-1 rounded">generate_lead</code> 찾기</li>
+                        <li>해당 이벤트 행의 오른쪽 "전환으로 표시" 토글 활성화</li>
+                        <li>설정 완료!</li>
+                    </ol>
+                </div>
+
+                <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-yellow-800 text-sm">
+                        <strong>참고:</strong> 이벤트가 목록에 나타나려면 최소 1회 이상 발생해야 합니다. Step 3에서 테스트 후 24시간 내 표시됩니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 완료 섹션 -->
+        <section class="mb-8 bg-green-50 border border-green-200 rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-green-800 mb-4">설정 완료 후</h2>
+            <ul class="space-y-2 text-green-700">
+                <li>• GA4에서 폼 제출 이벤트가 추적됩니다</li>
+                <li>• 대시보드에서 "홈페이지 접수" 데이터로 활용됩니다</li>
+                <li>• 마케팅 퍼널 분석에서 전환율 계산이 가능해집니다</li>
+                <li>• 데이터가 쌓이면 (최소 7일) 상관관계 분석이 가능합니다</li>
+            </ul>
+        </section>
+
+        <!-- 문제 해결 -->
+        <section class="mb-8 bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">문제 해결</h2>
+            <div class="space-y-4">
+                <div class="border-l-4 border-red-400 pl-4">
+                    <p class="font-medium text-gray-800">이벤트가 전송되지 않는 경우</p>
+                    <ul class="text-sm text-gray-600 mt-1 list-disc list-inside">
+                        <li>기존 gtag 코드가 있는지 확인</li>
+                        <li>코드가 gtag 뒤에 위치하는지 확인</li>
+                        <li>브라우저 콘솔에서 에러 확인</li>
+                    </ul>
+                </div>
+                <div class="border-l-4 border-yellow-400 pl-4">
+                    <p class="font-medium text-gray-800">AJAX 폼인 경우</p>
+                    <ul class="text-sm text-gray-600 mt-1 list-disc list-inside">
+                        <li>옵션 C 코드 사용</li>
+                        <li>폼 제출 성공 콜백에서 trackFormSubmit() 호출</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 푸터 -->
+        <footer class="text-center text-gray-500 text-sm">
+            <p>Polarad Meta Dashboard - GA4 설정 가이드</p>
+            <p class="mt-1">문의: 설정 완료 후 대시보드에서 데이터 확인</p>
+        </footer>
+    </div>
+
+    <script>
+        function copyCode(elementId) {
+            const code = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('코드가 복사되었습니다!');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google-analytics/data": "^5.2.1",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.86.2",
     "clsx": "^2.1.1",
@@ -25,6 +26,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.22",
+    "dotenv": "^17.2.3",
     "eslint": "^8",
     "eslint-config-next": "14.2.25",
     "postcss": "^8",
