@@ -31,6 +31,8 @@ Thumbs.db
 
 # Vercel
 .vercel
+.env.vercel
+.env.check
 
 # TypeScript
 *.tsbuildinfo
@@ -54,3 +56,6 @@ scripts/cleanup-*.js
 scripts/reset-*.js
 scripts/analyze-*.js
 scripts/delete-*.js
+
+# 세션 핸드오프 (민감 정보 포함 가능)
+NEXT_SESSION_REQUEST.md
