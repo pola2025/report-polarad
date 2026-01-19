@@ -193,17 +193,17 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
 
   return (
     <Card className="p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-lg font-bold text-gray-800 whitespace-nowrap">
           <span>📈</span>
           <span>{channelName ? `${channelName} ` : ''}일별 성과 추이</span>
         </div>
 
         {/* 뷰 모드 전환 */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-shrink-0">
           <button
             onClick={() => setViewMode('combined')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${
               viewMode === 'combined'
                 ? 'bg-white text-blue-700 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
@@ -213,7 +213,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
           </button>
           <button
             onClick={() => setViewMode('single')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors ${
               viewMode === 'single'
                 ? 'bg-white text-blue-700 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
