@@ -246,9 +246,11 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
       {/* 통합 차트 (지출액/클릭수 + 노출수 + 리드수) */}
       {viewMode === 'combined' && (
         <>
-          <div className={showLeads ? "h-96" : "h-80"}>
+          {/* 모바일에서 가로 스크롤 가능 */}
+          <div className={`${showLeads ? "h-96" : "h-80"} overflow-x-auto`}>
+            <div className="min-w-[600px] h-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 5, right: 60, left: 20, bottom: 5 }}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <XAxis
                   dataKey="day"
@@ -375,10 +377,11 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* 통합 차트 요약 */}
-          <div className={`grid gap-4 mt-4 ${showLeads ? 'grid-cols-4' : (showClicksLine || showSpendLine) ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {/* 통합 차트 요약 - 모바일 반응형 */}
+          <div className={`grid gap-3 mt-4 grid-cols-2 ${showLeads ? 'md:grid-cols-4' : (showClicksLine || showSpendLine) ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             {/* 첫 번째 카드: 지출액 또는 클릭수 */}
             <div className={`flex items-center gap-3 p-3 rounded-lg ${barMetric === 'spend' ? 'bg-purple-50' : 'bg-blue-50'}`}>
               <div className={`w-3 h-3 rounded ${barMetric === 'spend' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
@@ -445,9 +448,11 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
       {/* 개별 차트 (기존 방식) */}
       {viewMode === 'single' && (
         <>
-          <div className="h-72">
+          {/* 모바일에서 가로 스크롤 가능 */}
+          <div className="h-72 overflow-x-auto">
+            <div className="min-w-[500px] h-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                 <XAxis
                   dataKey="day"
@@ -491,6 +496,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                 />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           {/* 범례 및 통계 */}
