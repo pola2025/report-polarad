@@ -240,15 +240,17 @@ export async function GET(
       keywordMap.set(keyword, kwExisting)
     }
 
-    const keywordsWithMetrics = Array.from(keywordMap.values()).map((k) => ({
-      keyword: k.keyword,
-      impressions: k.impressions,
-      clicks: k.clicks,
-      totalCost: k.totalCost,
-      ctr: k.impressions > 0 ? (k.clicks / k.impressions) * 100 : 0,
-      avgCpc: k.clicks > 0 ? k.totalCost / k.clicks : 0,
-      avgRank: k.count > 0 ? k.avgRank / k.count : 0,
-    }))
+    const keywordsWithMetrics = Array.from(keywordMap.values())
+      .filter((k) => k.keyword !== '_unknown_') // 브랜드검색 데이터는 키워드 분석에서 제외
+      .map((k) => ({
+        keyword: k.keyword,
+        impressions: k.impressions,
+        clicks: k.clicks,
+        totalCost: k.totalCost,
+        ctr: k.impressions > 0 ? (k.clicks / k.impressions) * 100 : 0,
+        avgCpc: k.clicks > 0 ? k.totalCost / k.clicks : 0,
+        avgRank: k.count > 0 ? k.avgRank / k.count : 0,
+      }))
 
     // 9. daily data
     const allDates = new Set<string>()
