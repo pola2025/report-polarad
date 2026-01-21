@@ -107,7 +107,8 @@ export async function GET(
       .filter(r => r.source && r.source.startsWith('naver_'))
       .filter(r => {
         const kw = (r.keywords || '').toLowerCase()
-        if (kw === 'total' || kw === '' || kw === '_total_') return false
+        // total, _total_ 키워드만 제외 (빈 문자열은 브랜드검색 데이터이므로 포함)
+        if (kw === 'total' || kw === '_total_') return false
         return true
       })
 
