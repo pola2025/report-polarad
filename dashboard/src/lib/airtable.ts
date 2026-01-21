@@ -439,7 +439,9 @@ export async function getAirtableClient(clientIdOrSlug: string) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const record = data.records.find((r: any) =>
-    r.fields.id === clientIdOrSlug || r.fields.slug === clientIdOrSlug
+    r.fields.id === clientIdOrSlug ||
+    r.fields.slug === clientIdOrSlug ||
+    r.fields.Name === clientIdOrSlug  // 한글 이름으로도 조회 가능
   );
 
   if (!record) return null;
