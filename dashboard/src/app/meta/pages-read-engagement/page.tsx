@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { DemoSection, DataCard, DataGrid } from '@/components/demo/DemoSection'
-import { Eye, Users, MousePointer, Heart, TrendingUp } from 'lucide-react'
+import { Eye, Users, MousePointer, Heart } from 'lucide-react'
 
 interface PageDetails {
   id: string

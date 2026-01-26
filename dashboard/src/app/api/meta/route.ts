@@ -11,7 +11,6 @@ import {
   getAdCampaigns,
   getCampaignInsights,
   getUserInfo,
-  validateToken,
 } from '@/lib/meta-oauth'
 
 /**
