@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta 앱 검수 - 스크린캐스트 촬영 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .copy-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Meta 앱 검수 - 스크린캐스트 촬영 가이드</h1>
+        <p class="text-gray-600 mb-8">각 권한별로 30초~1분 영상을 촬영하세요. <code class="bg-gray-200 px-2 py-1 rounded">Win + Alt + R</code>로 녹화</p>
+
+        <!-- 공통 팁 -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded-r">
+            <h3 class="font-bold text-blue-800 mb-2">촬영 공통 팁</h3>
+            <ul class="text-blue-700 text-sm space-y-1">
+                <li>• 천천히 진행 (검수자가 화면을 읽을 시간 필요)</li>
+                <li>• 마우스 커서를 중요한 요소 위에 잠시 멈추기</li>
+                <li>• 스크롤은 부드럽게</li>
+                <li>• 실제 데이터가 화면에 표시되어야 함</li>
+            </ul>
+        </div>
+
+        <!-- 진행 체크리스트 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4">촬영 진행 체크리스트</h2>
+            <div class="space-y-3">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>1. ads_management (광고 켜기/끄기)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>2. Ads Management Standard Access (1번과 동일 영상 사용)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>3. pages_show_list (페이지 목록)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>4. business_management (광고 계정 목록)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>5. ads_read (광고 성과 데이터)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                    <span>6. pages_read_engagement (페이지 인사이트)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 1. ads_management -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-orange-600">1. ads_management</h2>
+                <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">가장 중요</span>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-sm text-gray-500">URL (클릭하여 열기)</label>
+                <a href="https://report.polarad.co.kr/meta/ads-management" target="_blank"
+                   class="block bg-gray-100 p-3 rounded font-mono text-sm text-blue-600 hover:bg-gray-200">
+                    https://report.polarad.co.kr/meta/ads-management
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="font-semibold mb-2">촬영 순서 (약 45초)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>페이지 로드</strong> - 전체 화면 보여주기 (5초)</li>
+                    <li><strong>"Permission Granted" 배지</strong> 영역에 마우스 올리기 (3초)</li>
+                    <li><strong>캠페인 목록</strong> 영역으로 스크롤 (5초)</li>
+                    <li><strong>"Pause" 버튼</strong> 위에 마우스 올리기 (3초)</li>
+                    <li><strong>Pause 버튼 클릭</strong> → 상태가 PAUSED로 변경 확인 (5초)</li>
+                    <li><strong>"Activate" 버튼 클릭</strong> → 상태가 ACTIVE로 복원 (5초)</li>
+                    <li><strong>API 예시 코드</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 전체</strong> 다시 보여주기 (5초)</li>
+                </ol>
+            </div>
+
+            <div class="bg-yellow-50 p-3 rounded">
+                <p class="text-sm text-yellow-800">
+                    <strong>핵심:</strong> 사용자가 대시보드에서 직접 광고 캠페인을 켜고 끌 수 있음을 보여주세요
+                </p>
+            </div>
+        </div>
+
+        <!-- 2. Ads Management Standard Access -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">2. Ads Management Standard Access</h2>
+
+            <div class="bg-green-50 p-4 rounded">
+                <p class="text-green-800">
+                    <strong>1번(ads_management)과 동일한 영상을 사용하세요!</strong><br>
+                    같은 영상 파일을 두 권한에 모두 업로드하면 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 3. pages_show_list -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold text-blue-600 mb-4">3. pages_show_list</h2>
+
+            <div class="mb-4">
+                <label class="text-sm text-gray-500">URL (클릭하여 열기)</label>
+                <a href="https://report.polarad.co.kr/meta/pages-show-list" target="_blank"
+                   class="block bg-gray-100 p-3 rounded font-mono text-sm text-blue-600 hover:bg-gray-200">
+                    https://report.polarad.co.kr/meta/pages-show-list
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="font-semibold mb-2">촬영 순서 (약 30초)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>페이지 로드</strong> - 전체 화면 보여주기 (5초)</li>
+                    <li><strong>Facebook 페이지 목록</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 항목</strong> 위에 마우스 올리기 (3초)</li>
+                    <li><strong>페이지 정보</strong> (이름, ID, 카테고리) 보여주기 (5초)</li>
+                    <li><strong>API 예시</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 전체</strong> 다시 보여주기 (5초)</li>
+                </ol>
+            </div>
+
+            <div class="bg-yellow-50 p-3 rounded">
+                <p class="text-sm text-yellow-800">
+                    <strong>핵심:</strong> 사용자가 관리하는 모든 Facebook 페이지 목록을 한눈에 볼 수 있음
+                </p>
+            </div>
+        </div>
+
+        <!-- 4. business_management -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold text-purple-600 mb-4">4. business_management</h2>
+
+            <div class="mb-4">
+                <label class="text-sm text-gray-500">URL (클릭하여 열기)</label>
+                <a href="https://report.polarad.co.kr/meta/business-management" target="_blank"
+                   class="block bg-gray-100 p-3 rounded font-mono text-sm text-blue-600 hover:bg-gray-200">
+                    https://report.polarad.co.kr/meta/business-management
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="font-semibold mb-2">촬영 순서 (약 30초)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>페이지 로드</strong> - 전체 화면 보여주기 (5초)</li>
+                    <li><strong>광고 계정 목록</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>계정 정보</strong> (이름, ID, 상태) 보여주기 (5초)</li>
+                    <li><strong>여러 계정</strong>이 있다면 스크롤 (5초)</li>
+                    <li><strong>API 예시</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 전체</strong> 다시 보여주기 (5초)</li>
+                </ol>
+            </div>
+
+            <div class="bg-yellow-50 p-3 rounded">
+                <p class="text-sm text-yellow-800">
+                    <strong>핵심:</strong> Business Manager에 연결된 모든 광고 계정을 조회할 수 있음
+                </p>
+            </div>
+        </div>
+
+        <!-- 5. ads_read -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold text-green-600 mb-4">5. ads_read</h2>
+
+            <div class="mb-4">
+                <label class="text-sm text-gray-500">URL (클릭하여 열기)</label>
+                <a href="https://report.polarad.co.kr/meta/ads-read" target="_blank"
+                   class="block bg-gray-100 p-3 rounded font-mono text-sm text-blue-600 hover:bg-gray-200">
+                    https://report.polarad.co.kr/meta/ads-read
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="font-semibold mb-2">촬영 순서 (약 30초)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>페이지 로드</strong> - 전체 화면 보여주기 (5초)</li>
+                    <li><strong>광고 계정 상태</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>성과 데이터</strong> (지출, 노출, 클릭 등) 보여주기 (5초)</li>
+                    <li><strong>데이터 카드</strong> 위에 마우스 올리기 (5초)</li>
+                    <li><strong>API 예시</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 전체</strong> 다시 보여주기 (5초)</li>
+                </ol>
+            </div>
+
+            <div class="bg-yellow-50 p-3 rounded">
+                <p class="text-sm text-yellow-800">
+                    <strong>핵심:</strong> 광고 성과 데이터를 읽어와서 대시보드에 표시
+                </p>
+            </div>
+        </div>
+
+        <!-- 6. pages_read_engagement -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold text-pink-600 mb-4">6. pages_read_engagement</h2>
+
+            <div class="mb-4">
+                <label class="text-sm text-gray-500">URL (클릭하여 열기)</label>
+                <a href="https://report.polarad.co.kr/meta/pages-read-engagement" target="_blank"
+                   class="block bg-gray-100 p-3 rounded font-mono text-sm text-blue-600 hover:bg-gray-200">
+                    https://report.polarad.co.kr/meta/pages-read-engagement
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="font-semibold mb-2">촬영 순서 (약 30초)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>페이지 로드</strong> - 전체 화면 보여주기 (5초)</li>
+                    <li><strong>페이지 인사이트</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>지표</strong> (팔로워, 좋아요, 노출 등) 보여주기 (5초)</li>
+                    <li><strong>데이터 카드</strong> 위에 마우스 올리기 (5초)</li>
+                    <li><strong>API 예시</strong> 영역 보여주기 (5초)</li>
+                    <li><strong>페이지 전체</strong> 다시 보여주기 (5초)</li>
+                </ol>
+            </div>
+
+            <div class="bg-yellow-50 p-3 rounded">
+                <p class="text-sm text-yellow-800">
+                    <strong>핵심:</strong> Facebook 페이지의 참여 지표(engagement metrics)를 조회
+                </p>
+            </div>
+        </div>
+
+        <!-- 녹화 파일 위치 -->
+        <div class="bg-gray-800 text-white rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">녹화 파일 위치</h2>
+            <code class="block bg-gray-900 p-3 rounded">
+                C:\Users\flame\Videos\Captures
+            </code>
+            <p class="text-gray-400 mt-3 text-sm">
+                Xbox Game Bar로 녹화한 파일은 여기에 저장됩니다.
+            </p>
+        </div>
+
+        <!-- 업로드 방법 -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold mb-4">Meta 검수 페이지에 업로드하는 방법</h2>
+            <ol class="list-decimal list-inside space-y-3 text-gray-700">
+                <li>Meta 검수 페이지로 이동</li>
+                <li>해당 권한의 <strong>"시작하기"</strong> 버튼 클릭</li>
+                <li><strong>"파일 업로드"</strong> 버튼 클릭</li>
+                <li>녹화한 MP4 파일 선택</li>
+                <li><strong>"저장"</strong> 클릭</li>
+            </ol>
+
+            <div class="mt-4">
+                <a href="https://developers.facebook.com/apps/2081730902593417/app-review/submissions/"
+                   target="_blank"
+                   class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                    Meta 검수 페이지 열기 →
+                </a>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-500 mt-8">POLA-REPORT Meta 앱 검수 가이드 | 2026-01-26</p>
+    </div>
+</body>
+</html>

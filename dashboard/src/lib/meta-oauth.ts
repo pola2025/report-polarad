@@ -412,6 +412,36 @@ export async function getAdCampaigns(
 }
 
 /**
+ * 캠페인 상태 변경 (ads_management)
+ */
+export async function updateCampaignStatus(
+  campaignId: string,
+  status: 'ACTIVE' | 'PAUSED',
+  accessToken: string
+): Promise<{ success: boolean }> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${campaignId}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        status: status,
+        access_token: accessToken,
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to update campaign status')
+  }
+
+  return { success: true }
+}
+
+/**
  * 광고 캠페인 성과 조회 (ads_read)
  */
 export async function getCampaignInsights(

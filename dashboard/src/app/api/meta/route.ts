@@ -11,6 +11,7 @@ import {
   getAdCampaigns,
   getCampaignInsights,
   getUserInfo,
+  updateCampaignStatus,
 } from '@/lib/meta-oauth'
 
 /**
@@ -172,6 +173,50 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Demo API error:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * 캠페인 상태 변경 (ads_management)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { action, campaignId, status } = body
+    const accessToken = process.env.META_ACCESS_TOKEN
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: 'Access token is required' },
+        { status: 400 }
+      )
+    }
+
+    if (action === 'update_campaign_status') {
+      if (!campaignId || !status) {
+        return NextResponse.json(
+          { success: false, error: 'campaignId and status are required' },
+          { status: 400 }
+        )
+      }
+
+      await updateCampaignStatus(campaignId, status, accessToken)
+      return NextResponse.json({ success: true })
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Unknown action' },
+      { status: 400 }
+    )
+  } catch (error) {
+    console.error('Campaign update error:', error)
     return NextResponse.json(
       {
         success: false,

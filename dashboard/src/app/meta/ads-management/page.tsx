@@ -24,6 +24,37 @@ export default function AdsManagementPage() {
   const [error, setError] = useState<string | null>(null)
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [updating, setUpdating] = useState<string | null>(null)
+
+  const handleToggleStatus = async (campaign: Campaign) => {
+    const newStatus = campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
+    setUpdating(campaign.id)
+
+    try {
+      const res = await fetch('/api/meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_campaign_status',
+          campaignId: campaign.id,
+          status: newStatus,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setCampaigns(campaigns.map(c =>
+          c.id === campaign.id ? { ...c, status: newStatus } : c
+        ))
+      } else {
+        alert('Failed to update: ' + data.error)
+      }
+    } catch {
+      alert('Network error')
+    } finally {
+      setUpdating(null)
+    }
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -137,12 +168,13 @@ export default function AdsManagementPage() {
                         >
                           {campaign.status}
                         </span>
-                        {/* Demo toggle button (non-functional for demo) */}
+                        {/* Toggle button - actually controls campaign status */}
                         <button
-                          className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                          onClick={() => alert('This is a demo. In production, this would toggle the campaign status.')}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          disabled={updating === campaign.id}
+                          onClick={() => handleToggleStatus(campaign)}
                         >
-                          {campaign.status === 'ACTIVE' ? 'Pause' : 'Activate'}
+                          {updating === campaign.id ? 'Updating...' : campaign.status === 'ACTIVE' ? 'Pause' : 'Activate'}
                         </button>
                       </div>
                     </div>
