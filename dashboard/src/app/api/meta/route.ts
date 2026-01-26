@@ -156,15 +156,6 @@ export async function GET(request: NextRequest) {
           ).catch(() => null)
         }
 
-        // 첫 번째 광고 계정의 캠페인 조회 (있는 경우)
-        let campaigns = null
-        if (adAccounts.length > 0) {
-          campaigns = await getAdCampaigns(
-            adAccounts[0].id,
-            accessToken
-          ).catch(() => null)
-        }
-
         return NextResponse.json({
           success: true,
           data: {
@@ -175,7 +166,6 @@ export async function GET(request: NextRequest) {
             businesses,
             businessDetails,
             adAccounts,
-            campaigns,
           },
         })
       }

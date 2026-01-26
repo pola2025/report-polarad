@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { DemoSection, DataCard, DataGrid } from '@/components/demo/DemoSection'
-import { Building2, CreditCard, CheckCircle2, TrendingUp } from 'lucide-react'
+import { Building2, CreditCard, CheckCircle2 } from 'lucide-react'
 
 interface AdAccount {
   id: string
@@ -11,19 +11,10 @@ interface AdAccount {
   account_status: number
 }
 
-interface Campaign {
-  id: string
-  name: string
-  status: string
-  objective: string
-  created_time: string
-}
-
 export default function BusinessManagementDemo() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([])
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -32,7 +23,6 @@ export default function BusinessManagementDemo() {
         const json = await res.json()
         if (json.success) {
           setAdAccounts(json.data.adAccounts || [])
-          setCampaigns(json.data.campaigns || [])
         } else {
           setError(json.error || 'Failed to fetch data')
         }
@@ -136,42 +126,6 @@ export default function BusinessManagementDemo() {
               </div>
             </div>
           ))}
-
-          {/* Active Campaigns (if available) */}
-          {campaigns && campaigns.length > 0 && (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <h4 className="font-medium text-gray-900">
-                  Active Campaigns ({campaigns.length})
-                </h4>
-              </div>
-              <div className="space-y-3">
-                {campaigns.map((campaign) => (
-                  <div
-                    key={campaign.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg border"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{campaign.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {campaign.objective.replace('OUTCOME_', '')} | Created: {new Date(campaign.created_time).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        campaign.status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {campaign.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* How this data is used */}
           <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
