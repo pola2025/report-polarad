@@ -216,3 +216,225 @@ export function isTokenExpired(expiresAt: Date | string | null): boolean {
   const expiry = new Date(expiresAt)
   return new Date() > expiry
 }
+
+/**
+ * 사용자의 Facebook 페이지 목록 조회 (pages_show_list)
+ */
+export async function getPages(accessToken: string): Promise<
+  Array<{
+    id: string
+    name: string
+    category: string
+    access_token?: string
+    tasks?: string[]
+  }>
+> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/me/accounts?fields=id,name,category,access_token,tasks&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch pages')
+  }
+
+  const data = await response.json()
+  return data.data || []
+}
+
+/**
+ * 사용자의 비즈니스 목록 조회 (business_management)
+ */
+export async function getBusinesses(accessToken: string): Promise<
+  Array<{
+    id: string
+    name: string
+    verification_status: string
+    created_time: string
+  }>
+> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/me/businesses?fields=id,name,verification_status,created_time&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch businesses')
+  }
+
+  const data = await response.json()
+  return data.data || []
+}
+
+/**
+ * 비즈니스 상세 정보 조회 (business_management)
+ */
+export async function getBusinessDetails(businessId: string, accessToken: string): Promise<{
+  id: string
+  name: string
+  verification_status: string
+  created_time: string
+  primary_page?: { id: string; name: string }
+  owned_ad_accounts?: { data: Array<{ id: string; name: string; account_status: number }> }
+  owned_pages?: { data: Array<{ id: string; name: string }> }
+}> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${businessId}?fields=id,name,verification_status,created_time,primary_page,owned_ad_accounts{id,name,account_status},owned_pages{id,name}&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch business details')
+  }
+
+  return response.json()
+}
+
+/**
+ * 페이지 인사이트 조회 (pages_read_engagement)
+ *
+ * Note: Some metrics require specific period values:
+ * - page_fans: lifetime only
+ * - page_impressions, page_engaged_users, page_post_engagements: day, week, days_28
+ */
+export async function getPageInsights(
+  pageId: string,
+  pageAccessToken: string,
+  period: 'day' | 'week' | 'days_28' = 'days_28'
+): Promise<{
+  page_impressions?: number
+  page_engaged_users?: number
+  page_fans?: number
+  page_post_engagements?: number
+}> {
+  // 일반 메트릭 (period 필요)
+  const periodMetrics = [
+    'page_impressions',
+    'page_engaged_users',
+    'page_post_engagements',
+  ].join(',')
+
+  // Lifetime 메트릭 (별도 요청)
+  const lifetimeMetrics = ['page_fans']
+
+  const results: Record<string, number> = {}
+
+  try {
+    // Period 메트릭 조회
+    const periodResponse = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${pageId}/insights?metric=${periodMetrics}&period=${period}&access_token=${pageAccessToken}`
+    )
+
+    if (periodResponse.ok) {
+      const periodData = await periodResponse.json()
+      for (const item of periodData.data || []) {
+        if (item.values && item.values.length > 0) {
+          results[item.name] = item.values[item.values.length - 1].value || 0
+        }
+      }
+    }
+
+    // Lifetime 메트릭 조회
+    const lifetimeResponse = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${pageId}/insights?metric=${lifetimeMetrics.join(',')}&period=lifetime&access_token=${pageAccessToken}`
+    )
+
+    if (lifetimeResponse.ok) {
+      const lifetimeData = await lifetimeResponse.json()
+      for (const item of lifetimeData.data || []) {
+        if (item.values && item.values.length > 0) {
+          results[item.name] = item.values[item.values.length - 1].value || 0
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Page insights error:', error)
+  }
+
+  return results
+}
+
+/**
+ * 페이지 기본 정보 조회
+ */
+export async function getPageDetails(
+  pageId: string,
+  accessToken: string
+): Promise<{
+  id: string
+  name: string
+  category: string
+  followers_count?: number
+  fan_count?: number
+  about?: string
+  website?: string
+}> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${pageId}?fields=id,name,category,followers_count,fan_count,about,website&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch page details')
+  }
+
+  return response.json()
+}
+
+/**
+ * 광고 캠페인 목록 조회 (ads_read)
+ */
+export async function getAdCampaigns(
+  adAccountId: string,
+  accessToken: string
+): Promise<
+  Array<{
+    id: string
+    name: string
+    status: string
+    objective: string
+    created_time: string
+    daily_budget?: string
+    lifetime_budget?: string
+  }>
+> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${adAccountId}/campaigns?fields=id,name,status,objective,created_time,daily_budget,lifetime_budget&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch campaigns')
+  }
+
+  const data = await response.json()
+  return data.data || []
+}
+
+/**
+ * 광고 캠페인 성과 조회 (ads_read)
+ */
+export async function getCampaignInsights(
+  campaignId: string,
+  accessToken: string,
+  datePreset: string = 'last_30d'
+): Promise<{
+  impressions?: string
+  clicks?: string
+  spend?: string
+  reach?: string
+  ctr?: string
+  cpc?: string
+}> {
+  const response = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${campaignId}/insights?fields=impressions,clicks,spend,reach,ctr,cpc&date_preset=${datePreset}&access_token=${accessToken}`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error?.message || 'Failed to fetch campaign insights')
+  }
+
+  const data = await response.json()
+  return data.data?.[0] || {}
+}
