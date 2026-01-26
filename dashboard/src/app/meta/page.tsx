@@ -13,6 +13,7 @@ import {
   AlertCircle,
   ArrowRight,
   User,
+  Power,
 } from 'lucide-react'
 
 interface PermissionStatus {
@@ -21,6 +22,7 @@ interface PermissionStatus {
   pageInsights: boolean
   businesses: boolean
   adAccounts: boolean
+  adsManagement: boolean
 }
 
 const permissions = [
@@ -60,6 +62,15 @@ const permissions = [
     key: 'adAccounts' as const,
     color: 'orange',
   },
+  {
+    href: '/meta/ads-management',
+    permission: 'ads_management',
+    title: 'Ad Control',
+    description: 'Turn campaigns on/off',
+    icon: Power,
+    key: 'adsManagement' as const,
+    color: 'rose',
+  },
 ]
 
 const colorClasses = {
@@ -67,6 +78,7 @@ const colorClasses = {
   green: 'bg-green-100 text-green-600 border-green-200',
   purple: 'bg-purple-100 text-purple-600 border-purple-200',
   orange: 'bg-orange-100 text-orange-600 border-orange-200',
+  rose: 'bg-rose-100 text-rose-600 border-rose-200',
 }
 
 export default function DemoIndexPage() {
@@ -77,6 +89,7 @@ export default function DemoIndexPage() {
     pageInsights: false,
     businesses: false,
     adAccounts: false,
+    adsManagement: false,
   })
   const [userName, setUserName] = useState<string | null>(null)
 
@@ -93,6 +106,7 @@ export default function DemoIndexPage() {
             pageInsights: !!data.pageInsights || !!data.pageDetails,
             businesses: data.businesses && data.businesses.length > 0,
             adAccounts: data.adAccounts && data.adAccounts.length > 0,
+            adsManagement: data.adAccounts && data.adAccounts.length > 0,
           })
           if (data.user) {
             setUserName(data.user.name)
