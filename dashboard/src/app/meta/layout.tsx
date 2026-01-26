@@ -9,7 +9,6 @@ const permissions = [
   { href: '/meta/pages-read-engagement', name: 'pages_read_engagement', label: 'Page Insights' },
   { href: '/meta/business-management', name: 'business_management', label: 'Business' },
   { href: '/meta/ads-read', name: 'ads_read', label: 'Ad Accounts' },
-  { href: '/meta/ads-management', name: 'ads_management', label: 'Campaigns' },
 ]
 
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
