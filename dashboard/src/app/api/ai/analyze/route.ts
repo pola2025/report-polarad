@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const data: AnalysisRequest = await request.json()
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' })
 
     // 요일별 성과 분석
     const dailyByWeekday = analyzeDailyByWeekday(data.meta.daily)
