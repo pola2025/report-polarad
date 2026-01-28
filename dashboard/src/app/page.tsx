@@ -1732,7 +1732,7 @@ function DashboardContent() {
                     <GA4Section
                       data={ga4Data}
                       dailyTrend={data?.dailyTrend}
-                      homepageLeads={data?.dailyTrend?.reduce((sum: number, d: { homepage_leads?: number }) => sum + (d.homepage_leads || 0), 0) || 0}
+                      homepageLeads={data?.dailyTrend?.reduce((sum, d) => sum + ((d as { homepage_leads?: number }).homepage_leads || 0), 0) || 0}
                       previousHomepageLeads={data?.previousHomepageLeads}
                     />
 
