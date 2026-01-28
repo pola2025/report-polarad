@@ -137,7 +137,7 @@ function CustomTooltip({ active, payload, label, chartData }: CustomTooltipProps
             color = METRIC_COLORS.bounceRate
             break
           case 'conversions':
-            displayName = '전환'
+            displayName = '총전환'
             displayValue = formatNumber(value)
             color = METRIC_COLORS.conversions
             break
@@ -208,7 +208,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
   // 전환이 있는 경우에만 추가
   if (summary.totalConversions > 0) {
     bulletData.push({
-      label: '전환',
+      label: '총전환',
       current: summary.totalConversions,
       previous: comparison.previous.totalConversions,
       format: 'number',
@@ -221,7 +221,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
     users: { label: '사용자', color: METRIC_COLORS.users, format: formatNumber },
     pageviews: { label: '페이지뷰', color: METRIC_COLORS.pageviews, format: formatNumber },
     bounceRate: { label: '이탈률', color: METRIC_COLORS.bounceRate, format: (v) => formatPercent(v, 1) },
-    conversions: { label: '전환', color: METRIC_COLORS.conversions, format: formatNumber },
+    conversions: { label: '총전환', color: METRIC_COLORS.conversions, format: formatNumber },
   }
 
   // 통계 계산
@@ -839,7 +839,7 @@ export function GA4KPISummary({ data }: GA4KPISummaryProps) {
       <div className="bg-amber-50 rounded-lg p-4">
         <div className="flex items-center gap-2 text-amber-600 text-sm mb-1">
           <Target className="h-4 w-4" />
-          <span>전환</span>
+          <span>총전환</span>
         </div>
         <p className="text-xl font-bold text-amber-700">{formatNumber(summary.totalConversions)}</p>
         {comparison.changes.conversions !== 0 && (
