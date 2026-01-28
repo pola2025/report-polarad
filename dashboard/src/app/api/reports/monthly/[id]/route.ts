@@ -61,6 +61,7 @@ export async function GET(
       client: client ? {
         client_name: client.client_name,
         slug: client.slug,
+        meta_metric_type: client.meta_metric_type,  // video: H.E.A 판교, lead: 나라똔
       } : undefined,
     }
 

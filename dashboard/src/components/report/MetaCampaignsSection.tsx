@@ -17,6 +17,7 @@ interface CampaignData {
 
 interface MetaCampaignsSectionProps {
   campaigns: CampaignData[]
+  metricType?: 'video' | 'lead'  // video: H.E.A 판교 (리드 숨김), lead: 나라똔
 }
 
 // 시간 포맷 (초 -> "Xm Ys" 또는 "Xs")
@@ -27,9 +28,10 @@ function formatTime(seconds: number): string {
   return secs > 0 ? `${mins}분 ${secs}초` : `${mins}분`
 }
 
-export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
+export function MetaCampaignsSection({ campaigns, metricType = 'lead' }: MetaCampaignsSectionProps) {
   const sortedCampaigns = [...campaigns].sort((a, b) => b.spend - a.spend)
   const top5 = sortedCampaigns.slice(0, 5)
+  const showLeads = metricType !== 'video'  // H.E.A 판교(video)는 리드 숨김
 
   const medals = ['🥇', '🥈', '🥉', '4', '5']
 
@@ -83,21 +85,25 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
             <p className="text-[10px] text-gray-500 leading-none mb-1">평균시청</p>
             <p className="text-xs font-bold text-purple-700">{formatTime(totals.avgWatchTime)}</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-gray-500 leading-none mb-1">전환</p>
-            <p className="text-xs font-bold text-green-700">{formatNumber(campaigns.reduce((sum, c) => sum + c.leads, 0))}</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-gray-500 leading-none mb-1">CPL</p>
-            <p className="text-xs font-bold text-green-700">
-              {formatCurrency(
-                campaigns.reduce((sum, c) => sum + c.leads, 0) > 0
-                  ? totals.spend / campaigns.reduce((sum, c) => sum + c.leads, 0)
-                  : 0,
-                'KRW'
-              )}
-            </p>
-          </div>
+          {showLeads && (
+            <>
+              <div className="bg-green-50 rounded-lg p-2 text-center">
+                <p className="text-[10px] text-gray-500 leading-none mb-1">전환</p>
+                <p className="text-xs font-bold text-green-700">{formatNumber(campaigns.reduce((sum, c) => sum + c.leads, 0))}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-2 text-center">
+                <p className="text-[10px] text-gray-500 leading-none mb-1">CPL</p>
+                <p className="text-xs font-bold text-green-700">
+                  {formatCurrency(
+                    campaigns.reduce((sum, c) => sum + c.leads, 0) > 0
+                      ? totals.spend / campaigns.reduce((sum, c) => sum + c.leads, 0)
+                      : 0,
+                    'KRW'
+                  )}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -131,7 +137,7 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">노출</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">클릭</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">CTR</th>
-              <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">리드</th>
+              {showLeads && <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">리드</th>}
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">영상조회</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">평균시청</th>
               <th className="py-3 px-3 text-right font-semibold text-gray-600 text-sm">지출</th>
@@ -151,7 +157,7 @@ export function MetaCampaignsSection({ campaigns }: MetaCampaignsSectionProps) {
                 <td className={`py-3 px-3 text-right text-sm ${campaign.ctr > 2 ? 'text-green-600' : campaign.ctr < 1.5 ? 'text-red-600' : ''}`}>
                   {formatPercent(campaign.ctr)}
                 </td>
-                <td className="py-3 px-3 text-right text-sm text-green-600 font-medium">{formatNumber(campaign.leads)}</td>
+                {showLeads && <td className="py-3 px-3 text-right text-sm text-green-600 font-medium">{formatNumber(campaign.leads)}</td>}
                 <td className="py-3 px-3 text-right text-sm text-purple-600">{formatNumber(campaign.video_views || 0)}</td>
                 <td className="py-3 px-3 text-right text-sm text-purple-600">{formatTime(campaign.avg_watch_time || 0)}</td>
                 <td className="py-3 px-3 text-right text-sm font-medium">{formatCurrency(campaign.spend, 'KRW')}</td>

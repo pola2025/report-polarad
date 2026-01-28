@@ -179,6 +179,7 @@ export interface ReportWithComment extends Report {
   client?: {
     client_name: string
     slug: string | null
+    meta_metric_type?: 'video' | 'lead'  // video: H.E.A 판교 (리드 숨김), lead: 나라똔
   }
 }
 

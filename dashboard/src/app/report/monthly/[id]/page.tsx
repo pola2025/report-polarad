@@ -171,7 +171,8 @@ export default function MonthlyReportPage() {
             <p className="text-gray-700 leading-relaxed">
               {report.report_type === 'weekly' ? '이번 주' : '이번 달'} <strong>총 광고비 {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(totalSpend)}</strong>으로
               <strong> CTR {avgCtr.toFixed(2)}%</strong>를 기록했습니다.
-              {totalLeads > 0 && (
+              {/* H.E.A 판교(video)는 리드 표시 안함 */}
+              {report.client?.meta_metric_type !== 'video' && totalLeads > 0 && (
                 <> 총 <strong>{totalLeads}건</strong>의 리드를 획득했습니다.</>
               )}
             </p>
@@ -179,7 +180,7 @@ export default function MonthlyReportPage() {
         </Card>
 
         {/* KPI 섹션 */}
-        <KPISection data={kpiData} />
+        <KPISection data={kpiData} metricType={report.client?.meta_metric_type} />
 
         {/* 채널별 성과 비교 - 월간 리포트에서만 표시 */}
         {report.report_type === 'monthly' && (meta.campaigns.length > 0 || naver.keywords.length > 0) && (
@@ -220,7 +221,7 @@ export default function MonthlyReportPage() {
 
         {/* Meta 캠페인 섹션 */}
         {meta.campaigns.length > 0 && (
-          <MetaCampaignsSection campaigns={meta.campaigns} />
+          <MetaCampaignsSection campaigns={meta.campaigns} metricType={report.client?.meta_metric_type} />
         )}
 
         {/* 네이버 키워드 섹션 */}

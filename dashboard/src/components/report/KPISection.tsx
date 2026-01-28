@@ -26,6 +26,7 @@ interface KPIData {
 
 interface KPISectionProps {
   data: KPIData
+  metricType?: 'video' | 'lead'  // video: H.E.A 판교 (리드 숨김), lead: 나라똔 (리드 표시)
 }
 
 function TrendBadge({ current, previous, invert = false }: { current: number, previous?: number, invert?: boolean }) {
@@ -150,7 +151,9 @@ function LeadsCard({
   )
 }
 
-export function KPISection({ data }: KPISectionProps) {
+export function KPISection({ data, metricType = 'lead' }: KPISectionProps) {
+  const showLeads = metricType !== 'video'  // H.E.A 판교(video)는 리드 숨김
+
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-6">
@@ -191,28 +194,39 @@ export function KPISection({ data }: KPISectionProps) {
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${showLeads ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
         <KPICard
           title="클릭당 가격"
           value={data.cpc}
           format="currency"
           invert
         />
-        <LeadsCard
-          metaLeads={data.leads || 0}
-          homepageLeads={data.homepageLeads || 0}
-          previousLeads={data.prevPeriod?.leads}
-        />
-        <KPICard
-          title="리드당 비용 (CPL)"
-          value={data.cpl || 0}
-          format="currency"
-          invert
-        />
+        {showLeads && (
+          <>
+            <LeadsCard
+              metaLeads={data.leads || 0}
+              homepageLeads={data.homepageLeads || 0}
+              previousLeads={data.prevPeriod?.leads}
+            />
+            <KPICard
+              title="리드당 비용 (CPL)"
+              value={data.cpl || 0}
+              format="currency"
+              invert
+            />
+          </>
+        )}
         <KPICard
           title="영상 조회수"
           value={data.videoViews || 0}
         />
+        {metricType === 'video' && data.avgWatchTime && (
+          <KPICard
+            title="평균 시청시간"
+            value={data.avgWatchTime}
+            format="time"
+          />
+        )}
       </div>
     </Card>
   )
