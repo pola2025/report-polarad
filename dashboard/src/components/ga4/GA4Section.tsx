@@ -18,6 +18,9 @@ import {
   ScatterChart,
   Scatter,
   ReferenceLine,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts'
 import { BulletChartWithSummary } from '@/components/charts/BulletChart'
 import { TrafficTreemap, TrafficSourceList } from '@/components/charts/TrafficTreemap'
@@ -543,30 +546,115 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
         const avgSpend = spendArr.reduce((a, b) => a + b, 0) / spendArr.length
         const avgAdSessions = adSessionsArr.reduce((a, b) => a + b, 0) / adSessionsArr.length
 
+        // 채널별 데이터 (도넛 차트용)
+        const otherRatio = Math.max(0, 1 - adRatio - contentRatio)
+        const channelData = [
+          { name: '광고(IG/FB)', value: adSessions, ratio: adRatio, color: '#3B82F6' },
+          { name: '콘텐츠(네이버)', value: contentSessions, ratio: contentRatio, color: '#10B981' },
+          { name: '기타(검색/직접)', value: totalSessions - adSessions - contentSessions, ratio: otherRatio, color: '#9CA3AF' },
+        ].filter(d => d.value > 0)
+
         return (
           <Card className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-              <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
-                <TrendingUp className="h-5 w-5 text-indigo-500" />
-                <span>광고비 vs 세션 상관관계</span>
-              </div>
+            <div className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-6">
+              <TrendingUp className="h-5 w-5 text-indigo-500" />
+              <span>광고비 vs 세션 상관관계 분석</span>
+            </div>
 
-              {/* 채널별 비율 표시 */}
-              <div className="flex flex-wrap gap-3 text-sm">
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-md">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span className="text-gray-600">광고(IG/FB)</span>
-                  <span className="font-semibold text-blue-600">{(adRatio * 100).toFixed(1)}%</span>
+            {/* 채널별 유입 비율 시각화 */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 via-green-50 to-gray-50 rounded-xl border border-gray-100">
+              <h4 className="text-sm font-semibold text-gray-700 mb-4">광고비 지출 대비 유입 채널 분석</h4>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* 도넛 차트 */}
+                <div className="flex justify-center items-center">
+                  <div className="relative w-40 h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={channelData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={70}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {channelData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            `${formatNumber(value)} 세션`,
+                            name
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-xs text-gray-500">총 세션</span>
+                      <span className="text-lg font-bold text-gray-800">{formatNumber(totalSessions)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-md">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  <span className="text-gray-600">콘텐츠(네이버)</span>
-                  <span className="font-semibold text-green-600">{(contentRatio * 100).toFixed(1)}%</span>
+
+                {/* 채널별 상세 - 광고 */}
+                <div className="space-y-3">
+                  <div className="p-3 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">광고 유입 (IG/FB)</span>
+                      <span className="text-lg font-bold text-blue-600">{(adRatio * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${adRatio * 100}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {formatNumber(adSessions)}세션 | 광고비로 발생한 유입
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border-l-4 border-green-500 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">콘텐츠 유입 (네이버)</span>
+                      <span className="text-lg font-bold text-green-600">{(contentRatio * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div className="bg-green-500 h-2 rounded-full" style={{ width: `${contentRatio * 100}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {formatNumber(contentSessions)}세션 | 블로그 마케팅 효과
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md">
-                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                  <span className="text-gray-600">기타</span>
-                  <span className="font-semibold text-gray-600">{((1 - adRatio - contentRatio) * 100).toFixed(1)}%</span>
+
+                {/* 채널별 상세 - 기타 + 인사이트 */}
+                <div className="space-y-3">
+                  <div className="p-3 bg-white rounded-lg border-l-4 border-gray-400 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">기타 유입</span>
+                      <span className="text-lg font-bold text-gray-600">{(otherRatio * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div className="bg-gray-400 h-2 rounded-full" style={{ width: `${otherRatio * 100}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {formatNumber(totalSessions - adSessions - contentSessions)}세션 | 검색/직접 유입
+                    </p>
+                  </div>
+
+                  {/* 핵심 인사이트 */}
+                  <div className="p-3 bg-indigo-50 rounded-lg">
+                    <p className="text-xs font-medium text-indigo-800 mb-1">핵심 인사이트</p>
+                    <p className="text-xs text-indigo-700">
+                      {adRatio > 0.5 ? (
+                        <>광고가 전체 유입의 <strong>절반 이상</strong>을 차지합니다.</>
+                      ) : adRatio > 0.3 ? (
+                        <>광고와 콘텐츠가 <strong>균형있게</strong> 유입을 발생시킵니다.</>
+                      ) : (
+                        <>콘텐츠/기타 채널이 <strong>주요 유입원</strong>입니다.</>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
