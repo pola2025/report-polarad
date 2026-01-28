@@ -428,7 +428,12 @@ export function createDailyTrend(
 /**
  * 클라이언트 정보 조회 (UUID 또는 slug로)
  */
-export async function getAirtableClient(clientIdOrSlug: string) {
+export async function getAirtableClient(clientIdOrSlug: string): Promise<{
+  id: string
+  client_name: string
+  slug: string
+  meta_metric_type: 'video' | 'lead'
+} | null> {
   const url = `https://api.airtable.com/v0/${CLIENTS_BASE_ID}/${CLIENTS_TABLE_ID}`;
 
   const response = await fetch(url, {
