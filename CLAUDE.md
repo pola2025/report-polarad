@@ -123,6 +123,64 @@ await supabase.from('polarad_meta_data').select('*');  // 사용 금지!
 
 ---
 
+## ⛔ 환율 규칙 (CRITICAL - 할루시네이션 방지)
+
+### 핵심 원칙: 환율은 **백필 시점에 1회만** 적용!
+
+```
+Meta API (USD) → 백필 스크립트 (×1500) → Airtable (KRW) → API (×1) → 프론트엔드
+                     ↑                                      ↑
+                여기서 1회 적용                         추가 적용 금지!
+```
+
+### API 설정 (모두 `return 1`)
+
+```javascript
+// ✅ 올바른 설정 - 모든 API에서 동일
+function getExchangeRate(_clientSlug: string): number {
+  return 1  // Airtable에 이미 KRW로 저장됨
+}
+```
+
+| API | 파일 | 환율 |
+|-----|------|------|
+| 대시보드 | `api/dashboard/route.ts` | `return 1` |
+| 리포트 | `api/reports/monthly/[id]/route.ts` | `return 1` |
+| AI 분석 | `api/ai/analyze/route.ts` | 환율 곱셈 없음 |
+
+### ⚠️ 절대 금지
+
+```javascript
+// ❌ 금지! 환율 중복 적용
+spend * 1500           // API에서 금지
+spend * exchangeRate   // exchangeRate !== 1인 경우 금지
+spend * 1350           // 프론트엔드에서 금지 (spend_krw 사용)
+```
+
+### 데이터 검증 방법
+
+**하루 예산 $17~19 기준:**
+- ✅ 올바른 값: 25,000 ~ 30,000원
+- ❌ 잘못된 값: 17~19 (USD 그대로) 또는 3천만원+ (중복 적용)
+
+```bash
+# 데이터 확인 명령어
+curl "http://localhost:3003/api/dashboard?client=hea-pangyo&period=7d" | grep meta_spend
+```
+
+### 주의: 과거 데이터
+
+- **2025년 11월 이전**: 일부 데이터가 USD로 저장되어 있을 수 있음
+- **2026년 1월 이후**: 모두 KRW로 저장됨
+- 과거 데이터 수정 시 별도 확인 필요
+
+### 히스토리
+- 2026-01-29: 환율 중복 적용 문제 발견 및 수정
+  - 리포트 API `return 1500` → `return 1`
+  - AI 분석 API `* 1500` 제거
+
+---
+
 ## ⛔ 과거 연도 데이터 절대 금지 (CRITICAL)
 
 **이 프로젝트는 2024년 이전 데이터를 사용하지 않습니다.**

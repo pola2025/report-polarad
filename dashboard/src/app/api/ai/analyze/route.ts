@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 - 노출수: ${data.meta.impressions.toLocaleString()}회
 - 클릭수: ${data.meta.clicks.toLocaleString()}회
 - ${metricLabel}: ${(metricValue || 0).toLocaleString()}${data.metricType === 'video' ? '회' : '건'}
-- 광고비: ${Math.round(data.meta.spend * 1500).toLocaleString()}원 (USD ${data.meta.spend.toFixed(2)})
+- 광고비: ${Math.round(data.meta.spend).toLocaleString()}원
 - CTR: ${data.meta.ctr.toFixed(2)}%
 - CPC: ${Math.round(data.meta.cpc).toLocaleString()}원
 ${data.metricType !== 'video' && data.meta.cpl > 0 ? `- CPL: ${Math.round(data.meta.cpl).toLocaleString()}원` : ''}
@@ -241,7 +241,7 @@ function analyzeCampaigns(campaigns: AnalysisRequest['meta']['campaigns']): stri
   return campaigns
     .sort((a, b) => b.spend - a.spend)
     .slice(0, 5)
-    .map(c => `- ${c.campaign_name}: 노출 ${c.impressions.toLocaleString()}, 클릭 ${c.clicks}, CTR ${c.ctr.toFixed(2)}%, 광고비 ${Math.round(c.spend * 1500).toLocaleString()}원`)
+    .map(c => `- ${c.campaign_name}: 노출 ${c.impressions.toLocaleString()}, 클릭 ${c.clicks}, CTR ${c.ctr.toFixed(2)}%, 광고비 ${Math.round(c.spend).toLocaleString()}원`)
     .join('\n')
 }
 

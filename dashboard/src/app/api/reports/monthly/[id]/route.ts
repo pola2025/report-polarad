@@ -18,13 +18,12 @@ import {
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
 
 // 클라이언트별 환율 설정
-// - H.E.A 판교: USD 데이터 → KRW 환산 필요 (×1500)
-// - 나라똔: 이미 KRW 데이터 → 환산 불필요 (×1)
-function getExchangeRate(clientSlug: string): number {
-  if (clientSlug === 'naratton') {
-    return 1 // 이미 KRW
-  }
-  return 1500 // USD → KRW
+// ⚠️ CRITICAL: Airtable에 이미 KRW로 저장되어 있음!
+// 환율 중복 적용 절대 금지!
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getExchangeRate(_clientSlug: string): number {
+  // 모든 클라이언트: Airtable에 KRW로 저장됨 (환율 적용 불필요)
+  return 1
 }
 
 export async function GET(
