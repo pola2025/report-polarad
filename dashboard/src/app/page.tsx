@@ -1732,8 +1732,8 @@ function DashboardContent() {
                     <GA4Section
                       data={ga4Data}
                       dailyTrend={data?.dailyTrend}
-                      homepageLeads={data?.meta?.current?.leads}
-                      previousHomepageLeads={data?.meta?.previous?.leads}
+                      homepageLeads={data?.dailyTrend?.reduce((sum: number, d: { homepage_leads?: number }) => sum + (d.homepage_leads || 0), 0) || 0}
+                      previousHomepageLeads={data?.previousHomepageLeads}
                     />
 
                     {/* 퍼널 분석 (나라똔만) */}

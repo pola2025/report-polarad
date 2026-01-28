@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { TABLES } from '@/lib/supabase'
-import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug, countNarattonLeads } from '@/lib/airtable'
+import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug, countNarattonLeads, fetchNarattonLeads } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE } from '@/lib/constants'
 
@@ -165,20 +165,16 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.video_views += row.video_views || 0
     })
 
-    // ===== 나라똔 리드: 2채널 합산 =====
-    // 1. 잠재고객 광고 → Meta 접수 리드 (광고 데이터 leads 필드) - 이미 위에서 집계됨
-    // 2. 트래픽 광고 → 홈페이지 접수 리드 (별도 리드 테이블) - 추가 조회
+    // ===== 나라똔 홈페이지 리드 (트래픽 광고 → 홈페이지 접수) =====
+    // Meta 잠재고객 광고 접수(metaCurrentPeriod.leads)와 별도로 관리
+    // GA4 섹션에서는 홈페이지 접수만 표시
+    let previousHomepageLeadsCount = 0
     if (resolvedSlug === 'naratton') {
       try {
-        // 현재 기간: Meta 리드 + 홈페이지 리드
-        const currentHomepageLeads = await countNarattonLeads(startDateStr, endDateStr)
-        metaCurrentPeriod.leads += currentHomepageLeads  // 기존 Meta 리드에 합산
-
-        // 이전 기간: Meta 리드 + 홈페이지 리드
+        // 이전 기간 홈페이지 리드 (GA4 비교용)
         const previousStartStr = format(previousStartDate, 'yyyy-MM-dd')
         const previousEndStr = format(previousEndDate, 'yyyy-MM-dd')
-        const previousHomepageLeads = await countNarattonLeads(previousStartStr, previousEndStr)
-        metaPreviousPeriod.leads += previousHomepageLeads  // 기존 Meta 리드에 합산
+        previousHomepageLeadsCount = await countNarattonLeads(previousStartStr, previousEndStr)
       } catch (e) {
         console.error('나라똔 홈페이지 리드 조회 실패:', e)
       }
@@ -241,11 +237,29 @@ export async function GET(request: NextRequest) {
       meta_spend: number
       meta_spend_krw: number
       meta_leads: number
+      homepage_leads: number  // 홈페이지 접수 (GA4 분석용)
       naver_impressions: number
       naver_clicks: number
       naver_spend: number
       total_spend_krw: number
     }> = []
+
+    // 나라똔 홈페이지 리드 일별 집계 (GA4 분석용 - Meta 리드 제외)
+    const homepageLeadsDailyMap = new Map<string, number>()
+    if (resolvedSlug === 'naratton') {
+      try {
+        const homepageLeads = await fetchNarattonLeads(startDateStr, endDateStr)
+        // 신청일 기준으로 일별 그룹핑
+        for (const lead of homepageLeads) {
+          const date = lead.신청일?.split('T')[0] || ''
+          if (date) {
+            homepageLeadsDailyMap.set(date, (homepageLeadsDailyMap.get(date) || 0) + 1)
+          }
+        }
+      } catch (e) {
+        console.error('나라똔 홈페이지 리드 일별 조회 실패:', e)
+      }
+    }
 
     // 클라이언트별 환율 적용
     const exchangeRate = getExchangeRate(resolvedSlug)
@@ -266,6 +280,7 @@ export async function GET(request: NextRequest) {
         meta_spend: metaDay.spend,
         meta_spend_krw: metaSpendKrw,
         meta_leads: metaDay.leads,
+        homepage_leads: homepageLeadsDailyMap.get(dateStr) || 0,  // 홈페이지 접수
         naver_impressions: naverDay.impressions,
         naver_clicks: naverDay.clicks,
         naver_spend: naverDay.spend,
@@ -358,6 +373,7 @@ export async function GET(request: NextRequest) {
       },
       dailyTrend,
       keywordStats,
+      previousHomepageLeads: previousHomepageLeadsCount,  // 이전 기간 홈페이지 접수 (GA4 비교용)
     })
   } catch (error) {
     console.error('Dashboard API error:', error)

@@ -32,7 +32,8 @@ interface DailyTrendData {
   date: string
   meta_spend: number
   meta_spend_krw?: number
-  meta_leads: number  // 홈페이지 접수
+  meta_leads: number  // Meta 광고 접수 (잠재고객 광고)
+  homepage_leads?: number  // 홈페이지 접수 (트래픽 광고 → 나라똔 홈페이지)
   naver_spend: number
   total_spend_krw?: number
 }
@@ -173,8 +174,8 @@ export function GA4Section({ data, dailyTrend, homepageLeads, previousHomepageLe
 
   const { daily, sources, summary, comparison } = data.data
 
-  // 일별 데이터 가공 (dailyTrend에서 리드 데이터 병합)
-  const leadsMap = new Map(dailyTrend?.map(d => [d.date, d.meta_leads]) || [])
+  // 일별 데이터 가공 (dailyTrend에서 홈페이지 리드 데이터 병합 - Meta 리드 제외)
+  const leadsMap = new Map(dailyTrend?.map(d => [d.date, d.homepage_leads ?? 0]) || [])
   const chartData = daily.map(d => ({
     ...d,
     label: `${formatDate(d.date)} (${getDayOfWeek(d.date)})`,
