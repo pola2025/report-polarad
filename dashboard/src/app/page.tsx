@@ -51,11 +51,13 @@ interface DashboardData {
     meta_spend: number
     meta_spend_krw?: number
     meta_leads: number
+    homepage_leads?: number  // 홈페이지 접수 (트래픽 광고)
     naver_impressions: number
     naver_clicks: number
     naver_spend: number
     total_spend_krw?: number
   }>
+  previousHomepageLeads?: number  // 이전 기간 홈페이지 접수
   period: {
     start: string
     end: string
@@ -1732,7 +1734,7 @@ function DashboardContent() {
                     <GA4Section
                       data={ga4Data}
                       dailyTrend={data?.dailyTrend}
-                      homepageLeads={data?.dailyTrend?.reduce((sum, d) => sum + ((d as { homepage_leads?: number }).homepage_leads || 0), 0) || 0}
+                      homepageLeads={data?.dailyTrend?.reduce((sum, d) => sum + (d.homepage_leads || 0), 0) || 0}
                       previousHomepageLeads={data?.previousHomepageLeads}
                     />
 
