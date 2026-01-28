@@ -7,13 +7,10 @@ import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE } from '@/lib/constants'
 
 // 클라이언트별 환율 설정
-// - HEA 판교: USD 데이터 → KRW 환산 필요 (×1500)
-// - 나라똔: 이미 KRW 데이터 → 환산 불필요 (×1)
+// - 모든 클라이언트: Airtable에 이미 KRW로 저장됨
 function getExchangeRate(clientSlug: string | null): number {
-  if (clientSlug === 'naratton') {
-    return 1 // 이미 KRW
-  }
-  return USD_TO_KRW_RATE // USD → KRW (1500)
+  // 모든 클라이언트 KRW 저장 (환율 적용 불필요)
+  return 1
 }
 
 export async function GET(request: NextRequest) {

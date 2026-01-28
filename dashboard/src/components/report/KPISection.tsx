@@ -10,7 +10,8 @@ interface KPIData {
   spend: number
   ctr: number
   cpc: number
-  leads: number
+  leads: number  // 잠재고객 리드 (Meta)
+  homepageLeads?: number  // 트래픽 리드 (홈페이지)
   cpl: number
   videoViews?: number
   avgWatchTime?: number
@@ -63,6 +64,7 @@ function KPICard({
   invert = false,
   showProgress = false,
   progressValue = 0,
+  valueColor,
 }: {
   title: string
   value: number
@@ -71,6 +73,7 @@ function KPICard({
   invert?: boolean
   showProgress?: boolean
   progressValue?: number
+  valueColor?: 'red' | 'green' | 'default'
 }) {
   const formattedValue = format === 'currency'
     ? formatCurrency(value, 'KRW')
@@ -80,10 +83,16 @@ function KPICard({
     ? formatTime(value)
     : formatNumber(value)
 
+  const valueColorClass = valueColor === 'red'
+    ? 'text-red-600'
+    : valueColor === 'green'
+    ? 'text-green-600'
+    : 'text-gray-900'
+
   return (
     <div className="rounded-lg border bg-white p-3 md:p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="text-xs md:text-sm text-gray-500 mb-1">{title}</div>
-      <div className="text-base md:text-2xl font-bold text-gray-900 truncate">{formattedValue}</div>
+      <div className={cn("text-base md:text-2xl font-bold truncate", valueColorClass)}>{formattedValue}</div>
       <div className="flex items-center gap-1 mt-1 md:mt-2">
         <TrendBadge current={value} previous={previousValue} invert={invert} />
       </div>
@@ -95,6 +104,48 @@ function KPICard({
           />
         </div>
       )}
+    </div>
+  )
+}
+
+// 리드 복합 카드 (잠재고객 + 트래픽)
+function LeadsCard({
+  metaLeads,
+  homepageLeads,
+  previousLeads,
+}: {
+  metaLeads: number
+  homepageLeads: number
+  previousLeads?: number
+}) {
+  const totalLeads = metaLeads + homepageLeads
+
+  return (
+    <div className="rounded-lg border bg-white p-3 md:p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="text-xs md:text-sm text-gray-500 mb-1">리드 (상담신청)</div>
+      <div className="text-base md:text-2xl font-bold text-gray-900">
+        {formatNumber(totalLeads)}
+      </div>
+      <div className="flex items-center gap-1 mt-1 md:mt-2">
+        <TrendBadge current={totalLeads} previous={previousLeads} />
+      </div>
+      {/* 리드 유형별 분류 */}
+      <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+        <div className="flex items-center justify-between text-xs md:text-sm">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span className="text-gray-600">잠재고객</span>
+          </span>
+          <span className="font-semibold text-red-600">{formatNumber(metaLeads)}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs md:text-sm">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            <span className="text-gray-600">트래픽</span>
+          </span>
+          <span className="font-semibold text-green-600">{formatNumber(homepageLeads)}</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -147,19 +198,20 @@ export function KPISection({ data }: KPISectionProps) {
           format="currency"
           invert
         />
+        <LeadsCard
+          metaLeads={data.leads || 0}
+          homepageLeads={data.homepageLeads || 0}
+          previousLeads={data.prevPeriod?.leads}
+        />
+        <KPICard
+          title="리드당 비용 (CPL)"
+          value={data.cpl || 0}
+          format="currency"
+          invert
+        />
         <KPICard
           title="영상 조회수"
           value={data.videoViews || 0}
-        />
-        <KPICard
-          title="평균 시청시간"
-          value={data.avgWatchTime || 0}
-          format="time"
-        />
-        <KPICard
-          title="예산 소진율"
-          value={data.budgetUsage || 92}
-          format="percent"
         />
       </div>
     </Card>

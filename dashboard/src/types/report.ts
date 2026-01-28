@@ -190,7 +190,7 @@ export interface MonthlyReportData {
       date: string
       impressions: number
       clicks: number
-      leads: number
+      leads: number  // 잠재고객 리드 (Meta API)
       spend: number
       videoViews?: number
       avgWatchTime?: number
@@ -206,6 +206,8 @@ export interface MonthlyReportData {
     }>
     videoViews?: number
     avgWatchTime?: number
+    actualLeads?: number  // 잠재고객 리드 (Meta API - 빨간색)
+    homepageLeads?: number  // 트래픽 리드 (홈페이지 - 녹색)
   }
   naver: {
     keywords: Array<{

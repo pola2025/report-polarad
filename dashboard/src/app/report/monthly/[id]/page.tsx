@@ -114,7 +114,11 @@ export default function MonthlyReportPage() {
   const totalImpressions = meta.daily.reduce((sum, d) => sum + d.impressions, 0)
   const totalClicks = meta.daily.reduce((sum, d) => sum + d.clicks, 0)
   const totalSpend = meta.daily.reduce((sum, d) => sum + d.spend, 0) // 이미 KRW
-  const totalLeads = meta.daily.reduce((sum, d) => sum + d.leads, 0)
+  // 잠재고객 리드 (Meta API) - 빨간색
+  const totalMetaLeads = meta.actualLeads ?? meta.daily.reduce((sum, d) => sum + d.leads, 0)
+  // 트래픽 리드 (홈페이지) - 녹색
+  const totalHomepageLeads = meta.homepageLeads ?? 0
+  const totalLeads = totalMetaLeads + totalHomepageLeads
   const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
   const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0
@@ -125,7 +129,8 @@ export default function MonthlyReportPage() {
     spend: totalSpend,
     ctr: avgCtr,
     cpc: avgCpc,
-    leads: totalLeads,
+    leads: totalMetaLeads,  // 잠재고객 리드 (빨간색)
+    homepageLeads: totalHomepageLeads,  // 트래픽 리드 (녹색)
     cpl: avgCpl,
     videoViews: meta.videoViews || 0,
     avgWatchTime: meta.avgWatchTime || 0,
