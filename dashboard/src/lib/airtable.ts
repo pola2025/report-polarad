@@ -156,7 +156,8 @@ export interface AirtableAdRecord {
   device: 'pc' | 'mobile' | 'all' | 'other';
   impressions: number;
   clicks: number;
-  leads?: number;  // 나라똔만 (H.E.A 판교는 식당이라 없음)
+  leads?: number;  // 잠재고객 리드 (Meta API - 빨간색)
+  homepage_leads?: number;  // 트래픽 리드 (나라똔 홈페이지 - 녹색)
   spend: number;
   source: 'meta' | 'naver_place' | 'naver_brand_search';
   ad_id?: string;  // Meta 광고 고유 ID (중복 체크용)
@@ -242,6 +243,7 @@ export async function fetchAirtableData(
         impressions: record.fields.impressions || 0,
         clicks: record.fields.clicks || 0,
         leads: record.fields.leads || 0,
+        homepage_leads: record.fields.homepage_leads || 0,
         spend: record.fields.spend || 0,
         source: record.fields.source || 'meta',
         ad_id: record.fields.ad_id || '',
@@ -804,4 +806,95 @@ function mapAirtableToComment(record: any): ReportComment {
     created_at: f.created_at,
     updated_at: f.updated_at,
   };
+}
+
+// ============================================================
+// 나라똔 리드 데이터 조회
+// ============================================================
+
+const NARATTON_LEADS_TABLE_ID = process.env.AIRTABLE_NARATTON_LEADS_TABLE_ID || 'tblmOcJ5eRYJdrAzT';
+const NARATTON_BASE_ID = process.env.AIRTABLE_NARATTON_BASE_ID || 'appN2KzUoORRrb8X9';
+
+export interface NarattonLead {
+  id: string;
+  신청일: string;
+  이름: string;
+  연락처: string;
+  이메일: string;
+  회사명: string;
+  상담유형: string;
+  상담분야: string;
+  지역: string;
+  연매출: string;
+  직원수: string;
+  메시지: string;
+  mongodb_id: string;
+  동기화일시: string;
+}
+
+/**
+ * 나라똔 리드 데이터 조회 (기간별)
+ */
+export async function fetchNarattonLeads(
+  startDate: string,
+  endDate: string
+): Promise<NarattonLead[]> {
+  const allRecords: NarattonLead[] = [];
+  let offset = '';
+
+  // endDate + 1일 (inclusive)
+  const endDateObj = new Date(endDate);
+  endDateObj.setDate(endDateObj.getDate() + 1);
+  const endDatePlusOne = endDateObj.toISOString().split('T')[0];
+
+  do {
+    const formula = encodeURIComponent(
+      `AND({신청일}>='${startDate}', {신청일}<'${endDatePlusOne}')`
+    );
+    let url = `https://api.airtable.com/v0/${NARATTON_BASE_ID}/${NARATTON_LEADS_TABLE_ID}?filterByFormula=${formula}&sort[0][field]=신청일&sort[0][direction]=desc`;
+    if (offset) url += `&offset=${offset}`;
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      cache: 'no-store',
+    });
+
+    const data = await response.json();
+    if (data.error) break;
+
+    for (const record of data.records || []) {
+      const f = record.fields;
+      allRecords.push({
+        id: record.id,
+        신청일: f.신청일 || '',
+        이름: f.이름 || '',
+        연락처: f.연락처 || '',
+        이메일: f.이메일 || '',
+        회사명: f.회사명 || '',
+        상담유형: f.상담유형 || '',
+        상담분야: f.상담분야 || '',
+        지역: f.지역 || '',
+        연매출: f.연매출 || '',
+        직원수: f.직원수 || '',
+        메시지: f.메시지 || '',
+        mongodb_id: f.mongodb_id || '',
+        동기화일시: f.동기화일시 || '',
+      });
+    }
+
+    offset = data.offset || '';
+  } while (offset);
+
+  return allRecords;
+}
+
+/**
+ * 나라똔 리드 수 집계 (기간별)
+ */
+export async function countNarattonLeads(
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const leads = await fetchNarattonLeads(startDate, endDate);
+  return leads.length;
 }

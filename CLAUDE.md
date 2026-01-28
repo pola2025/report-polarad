@@ -1,27 +1,98 @@
 # Polarad Meta 프로젝트
 
-## ⛔⛔⛔ 데이터 소스: Airtable 전용 (CRITICAL) ⛔⛔⛔
+## 🏗️ 서비스 스택 (CRITICAL - 반드시 숙지)
 
-**이 프로젝트는 Supabase를 데이터 소스로 사용하지 않습니다!**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Polarad Meta 서비스 스택                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
+│  │  Frontend   │    │   Backend   │    │    CI/CD    │             │
+│  │  Next.js    │    │  Next.js    │    │   GitHub    │             │
+│  │  (Vercel)   │    │  API Routes │    │   Actions   │             │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘             │
+│         │                  │                  │                     │
+│         └────────┬─────────┴──────────────────┘                     │
+│                  │                                                   │
+│                  ▼                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                      데이터 저장소                           │    │
+│  ├──────────────────────┬──────────────────────────────────────┤    │
+│  │      Airtable        │           Supabase                   │    │
+│  │   (메인 데이터)       │        (민감 정보만)                  │    │
+│  ├──────────────────────┼──────────────────────────────────────┤    │
+│  │ ✅ Meta 광고 데이터   │ ✅ Meta access_token                │    │
+│  │ ✅ 네이버 광고 데이터  │ ✅ Meta ad_account_id               │    │
+│  │ ✅ 리포트 데이터      │ ✅ 클라이언트 인증 정보              │    │
+│  │ ✅ 클라이언트 설정    │                                      │    │
+│  │ ✅ 코멘트 데이터      │                                      │    │
+│  └──────────────────────┴──────────────────────────────────────┘    │
+│                  │                                                   │
+│                  ▼                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                        알림                                  │    │
+│  │                     Telegram                                │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-| 항목 | 데이터 소스 |
-|------|-------------|
-| Meta 광고 데이터 | **Airtable** |
-| 네이버 광고 데이터 | **Airtable** |
-| 클라이언트 정보 | **Airtable** |
+### 📦 역할별 저장소
 
-### Airtable 설정
-- **H.E.A 판교**: `appJlOqnadLsMJQYw` / `tbl8ftclEFG5ypohX`
-- **나라똔**: `appN2KzUoORRrb8X9` / `tblmC9Ft2ioXKXsrL`
+| 저장소 | 용도 | 비고 |
+|--------|------|------|
+| **Airtable** | 광고 데이터, 리포트, 클라이언트 설정 | 메인 데이터 소스 |
+| **Supabase** | Meta 토큰, 계정 ID (민감 정보) | 인증 정보만 저장 |
+| **Vercel** | 프론트엔드 배포 | report.polarad.co.kr |
+| **GitHub Actions** | 자동 백필, 파이프라인 | 새벽 3시 실행 |
+| **Telegram** | 알림 | 백필 채널: -1003394139746 |
+
+### 🔑 환경변수 (GitHub Secrets)
+
+| Secret | 용도 |
+|--------|------|
+| `AIRTABLE_API_KEY` | Airtable 데이터 읽기/쓰기 |
+| `SUPABASE_URL` | 클라이언트 토큰 조회 |
+| `SUPABASE_SERVICE_KEY` | 클라이언트 토큰 조회 |
+| `TELEGRAM_BOT_TOKEN` | 알림 발송 |
+
+---
+
+## ⛔ 데이터 조회 규칙 (CRITICAL)
+
+### ✅ 올바른 사용
+
+```javascript
+// 광고 데이터 조회 → Airtable
+const data = await fetchAirtableData('hea-pangyo', startDate, endDate, 'meta');
+
+// 클라이언트 토큰 조회 → Supabase
+const { data: client } = await supabase
+  .from('polarad_clients')
+  .select('meta_access_token, meta_ad_account_id')
+  .eq('client_name', '나라똔');
+```
 
 ### ❌ 금지 사항
-- Supabase에서 광고 데이터 조회 금지
-- `polarad_meta_data`, `polarad_naver_data` 테이블 사용 금지
-- Supabase 클라이언트로 데이터 조회 금지
 
-### ✅ 필수 사항
-- 모든 광고 데이터는 `fetchAirtableData()` 함수 사용
-- `AIRTABLE_CONFIG`에 정의된 설정 사용
+```javascript
+// ❌ Supabase에서 광고 데이터 조회 금지!
+await supabase.from('polarad_meta_data').select('*');  // 사용 금지!
+
+// ❌ Airtable에서 토큰 조회 금지!
+// (토큰은 Supabase에만 저장)
+```
+
+### Airtable 테이블 설정
+
+| 클라이언트 | Base ID | Table ID (광고 데이터) |
+|-----------|---------|------------------------|
+| H.E.A 판교 | `appJlOqnadLsMJQYw` | `tbl8ftclEFG5ypohX` |
+| 나라똔 | `appN2KzUoORRrb8X9` | `tblmC9Ft2ioXKXsrL` |
+| 클라이언트 설정 | `appC3XKBcYgZBTETn` | `tblwQBbsMyg00qi8F` |
+| 리포트 | `appJlOqnadLsMJQYw` | `tbl4BAtILQRH7JQaG` |
+| 코멘트 | `appJlOqnadLsMJQYw` | `tbl5u19uUCdPl4TCg` |
 
 ### ⚠️ 클라이언트별 작업 시 주의 (CRITICAL)
 

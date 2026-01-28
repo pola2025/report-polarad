@@ -13,6 +13,7 @@ import {
   getAirtableClient,
   fetchAirtableData,
   getClientSlugById,
+  countNarattonLeads,
 } from '@/lib/airtable'
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
 
@@ -117,7 +118,7 @@ export async function GET(
       date: string
       impressions: number
       clicks: number
-      leads: number
+      leads: number  // 잠재고객 리드 (Meta API)
       spend: number
       videoViews: number
       avgWatchTime: number
@@ -267,7 +268,7 @@ export async function GET(
           date,
           impressions: (meta?.impressions || 0) + (naver?.impressions || 0),
           clicks: (meta?.clicks || 0) + (naver?.clicks || 0),
-          leads: meta?.leads || 0,
+          leads: meta?.leads || 0,  // 잠재고객 리드 (Meta API)
           spend: ((meta?.spend || 0) * exchangeRate) + (naver?.totalCost || 0),
           videoViews: meta?.videoViews || 0,
           avgWatchTime: meta?.avgWatchTimeCount && meta.avgWatchTimeCount > 0
@@ -290,6 +291,19 @@ export async function GET(
       ? validAvgWatchTimeEntries.reduce((sum, d) => sum + d.avgWatchTime, 0) / validAvgWatchTimeEntries.length
       : 0
 
+    // 리드 집계
+    // - 잠재고객 리드 (Meta API leads) - 빨간색
+    const totalMetaLeads = dailyData.reduce((sum, d) => sum + d.leads, 0)
+    // - 트래픽 리드 (홈페이지 리드상세 테이블에서 집계) - 녹색
+    let totalHomepageLeads = 0
+    if (clientSlug === 'naratton') {
+      try {
+        totalHomepageLeads = await countNarattonLeads(report.period_start, report.period_end)
+      } catch (e) {
+        console.error('나라똔 홈페이지 리드 조회 실패:', e)
+      }
+    }
+
     const responseData: MonthlyReportData = {
       report: reportWithComment,
       meta: {
@@ -297,6 +311,8 @@ export async function GET(
         campaigns: campaignsWithMetrics,
         videoViews: totalVideoViews,
         avgWatchTime: overallAvgWatchTime,
+        actualLeads: totalMetaLeads,  // 잠재고객 리드 (Meta API - 빨간색)
+        homepageLeads: totalHomepageLeads,  // 트래픽 리드 (홈페이지 - 녹색)
       },
       naver: {
         keywords: keywordsWithMetrics,

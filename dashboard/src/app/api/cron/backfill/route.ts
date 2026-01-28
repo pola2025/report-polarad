@@ -227,7 +227,9 @@ async function backfillClient(
     const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value
       ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
 
-    // 캠페인별 데이터 저장 (수동 백필과 동일한 구조)
+    // 클라이언트별 필드 구조 (테이블 스키마에 맞춤)
+    // - HEA 판교: date, device, impressions, clicks, spend, source
+    // - 나라똔: date, device, impressions, clicks, spend, source, campaign_name, leads, video_views, avg_watch_time
     const fields: Record<string, unknown> = {
       date,
       device,
@@ -235,19 +237,21 @@ async function backfillClient(
       clicks: parseInt(row.clicks) || 0,
       spend: Math.round(parseFloat(row.spend) || 0),
       source,
-      campaign_name: campaignName,
-      video_views: videoViews,
-      avg_watch_time: avgWatchTime,
-      keywords: '',
-      is_finalized: false,
-    }
-    // 나라똔은 리드 수집
-    if (clientName !== 'H.E.A 판교') {
-      fields.leads = getActionValue(row.actions, 'lead')
     }
 
-    // 기존 레코드 확인 (date + source + device + campaign_name으로 정합성 체크)
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, campaignName)
+    // 나라똔만 추가 필드 저장
+    if (clientName === '나라똔') {
+      fields.campaign_name = campaignName
+      fields.leads = getActionValue(row.actions, 'lead')
+      fields.video_views = videoViews
+      fields.avg_watch_time = avgWatchTime
+    }
+
+    // 기존 레코드 확인
+    // - HEA 판교: date + source + device (캠페인명 필드 없음)
+    // - 나라똔: date + source + device + campaign_name
+    const searchCampaign = clientName === 'H.E.A 판교' ? '' : campaignName
+    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, searchCampaign)
 
     if (existing) {
       if (existing.fields.is_finalized === true) {

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { TABLES } from '@/lib/supabase'
-import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug } from '@/lib/airtable'
+import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug, countNarattonLeads } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE } from '@/lib/constants'
 
@@ -164,6 +164,25 @@ export async function GET(request: NextRequest) {
       metaPreviousPeriod.spend += row.spend || 0
       metaPreviousPeriod.video_views += row.video_views || 0
     })
+
+    // ===== 나라똔 리드: 2채널 합산 =====
+    // 1. 잠재고객 광고 → Meta 접수 리드 (광고 데이터 leads 필드) - 이미 위에서 집계됨
+    // 2. 트래픽 광고 → 홈페이지 접수 리드 (별도 리드 테이블) - 추가 조회
+    if (resolvedSlug === 'naratton') {
+      try {
+        // 현재 기간: Meta 리드 + 홈페이지 리드
+        const currentHomepageLeads = await countNarattonLeads(startDateStr, endDateStr)
+        metaCurrentPeriod.leads += currentHomepageLeads  // 기존 Meta 리드에 합산
+
+        // 이전 기간: Meta 리드 + 홈페이지 리드
+        const previousStartStr = format(previousStartDate, 'yyyy-MM-dd')
+        const previousEndStr = format(previousEndDate, 'yyyy-MM-dd')
+        const previousHomepageLeads = await countNarattonLeads(previousStartStr, previousEndStr)
+        metaPreviousPeriod.leads += previousHomepageLeads  // 기존 Meta 리드에 합산
+      } catch (e) {
+        console.error('나라똔 홈페이지 리드 조회 실패:', e)
+      }
+    }
 
     // ===== 네이버 데이터 집계 (Airtable - 위에서 이미 naverCurrentData, naverPreviousData 설정됨) =====
     const naverCurrentPeriod = {
