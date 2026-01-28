@@ -488,47 +488,114 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
 
       {/* 광고비 vs 세션 상관관계 분석 */}
       {dailyTrend && dailyTrend.length > 0 && daily.length > 0 && (() => {
+        // 소스별 세션 비율 계산
+        const sources = data?.data?.sources || []
+        const totalSessions = sources.reduce((sum, s) => sum + s.sessions, 0)
+
+        // 광고 채널: Instagram, Facebook (ig, fb, instagram, facebook, meta)
+        const adSources = sources.filter(s => {
+          const src = s.source.toLowerCase()
+          return src.includes('instagram') || src.includes('ig') ||
+                 src.includes('facebook') || src.includes('fb') ||
+                 src.includes('meta') || src === 'l.instagram.com' || src === 'l.facebook.com'
+        })
+        const adSessions = adSources.reduce((sum, s) => sum + s.sessions, 0)
+        const adRatio = totalSessions > 0 ? adSessions / totalSessions : 0
+
+        // 콘텐츠 채널: 네이버 블로그 (naver, blog.naver)
+        const contentSources = sources.filter(s => {
+          const src = s.source.toLowerCase()
+          return src.includes('naver') || src.includes('blog')
+        })
+        const contentSessions = contentSources.reduce((sum, s) => sum + s.sessions, 0)
+        const contentRatio = totalSessions > 0 ? contentSessions / totalSessions : 0
+
         // 날짜 매칭하여 광고비-세션 데이터 병합
         const ga4Map = new Map(daily.map(d => [d.date, d.sessions]))
         const correlationData = dailyTrend
           .filter(d => ga4Map.has(d.date) && (d.total_spend_krw || 0) > 0)
-          .map(d => ({
-            date: d.date,
-            spend: Math.round((d.total_spend_krw || 0) / 1000), // 천원 단위
-            sessions: ga4Map.get(d.date) || 0,
-          }))
+          .map(d => {
+            const totalSess = ga4Map.get(d.date) || 0
+            return {
+              date: d.date,
+              spend: Math.round((d.total_spend_krw || 0) / 1000), // 천원 단위
+              sessions: totalSess,
+              adSessions: Math.round(totalSess * adRatio), // 광고 추정 세션
+              contentSessions: Math.round(totalSess * contentRatio), // 콘텐츠 추정 세션
+            }
+          })
 
         if (correlationData.length < 3) return null
 
         const spendArr = correlationData.map(d => d.spend)
         const sessionsArr = correlationData.map(d => d.sessions)
-        const correlation = calculateCorrelation(spendArr, sessionsArr)
-        const interpretation = interpretCorrelation(correlation)
+        const adSessionsArr = correlationData.map(d => d.adSessions)
+
+        // 전체 세션 상관관계
+        const correlationTotal = calculateCorrelation(spendArr, sessionsArr)
+        const interpretationTotal = interpretCorrelation(correlationTotal)
+
+        // 광고 유입 세션 상관관계 (IG/FB)
+        const correlationAd = calculateCorrelation(spendArr, adSessionsArr)
+        const interpretationAd = interpretCorrelation(correlationAd)
 
         // 평균값 계산 (참조선용)
         const avgSpend = spendArr.reduce((a, b) => a + b, 0) / spendArr.length
-        const avgSessions = sessionsArr.reduce((a, b) => a + b, 0) / sessionsArr.length
+        const avgAdSessions = adSessionsArr.reduce((a, b) => a + b, 0) / adSessionsArr.length
 
         return (
           <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
                 <TrendingUp className="h-5 w-5 text-indigo-500" />
                 <span>광고비 vs 세션 상관관계</span>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">상관계수 (r)</p>
-                <p className={`text-2xl font-bold ${interpretation.color}`}>
-                  {correlation.toFixed(3)}
+
+              {/* 채널별 비율 표시 */}
+              <div className="flex flex-wrap gap-3 text-sm">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-md">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span className="text-gray-600">광고(IG/FB)</span>
+                  <span className="font-semibold text-blue-600">{(adRatio * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-md">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  <span className="text-gray-600">콘텐츠(네이버)</span>
+                  <span className="font-semibold text-green-600">{(contentRatio * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md">
+                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                  <span className="text-gray-600">기타</span>
+                  <span className="font-semibold text-gray-600">{((1 - adRatio - contentRatio) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 상관계수 비교 */}
+            <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-1">광고 세션 상관계수</p>
+                <p className={`text-xl font-bold ${interpretationAd.color}`}>
+                  {correlationAd.toFixed(3)}
                 </p>
-                <p className={`text-sm ${interpretation.color}`}>{interpretation.text}</p>
+                <p className={`text-xs ${interpretationAd.color}`}>{interpretationAd.text}</p>
+              </div>
+              <div className="text-center border-l border-gray-200">
+                <p className="text-xs text-gray-500 mb-1">전체 세션 상관계수</p>
+                <p className={`text-xl font-bold ${interpretationTotal.color}`}>
+                  {correlationTotal.toFixed(3)}
+                </p>
+                <p className={`text-xs ${interpretationTotal.color}`}>{interpretationTotal.text}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 산점도 */}
+              {/* 산점도 - 광고 유입 세션 기준 */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">광고비(천원) vs 세션 산점도</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                  광고비(천원) vs 광고 유입 세션
+                  <span className="text-xs text-gray-400 ml-2">(IG/FB 비율 적용)</span>
+                </h4>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -543,8 +610,8 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                       />
                       <YAxis
                         type="number"
-                        dataKey="sessions"
-                        name="세션"
+                        dataKey="adSessions"
+                        name="광고 세션"
                         tick={{ fontSize: 11 }}
                         axisLine={{ stroke: '#E5E7EB' }}
                       />
@@ -552,7 +619,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                         cursor={{ strokeDasharray: '3 3' }}
                         formatter={(value: number, name: string) => {
                           if (name === '광고비') return [`${formatNumber(value)}천원`, '광고비']
-                          return [formatNumber(value), '세션']
+                          return [formatNumber(value), '광고 세션']
                         }}
                         contentStyle={{
                           backgroundColor: 'white',
@@ -561,11 +628,11 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                         }}
                       />
                       <ReferenceLine x={avgSpend} stroke="#9CA3AF" strokeDasharray="3 3" />
-                      <ReferenceLine y={avgSessions} stroke="#9CA3AF" strokeDasharray="3 3" />
+                      <ReferenceLine y={avgAdSessions} stroke="#9CA3AF" strokeDasharray="3 3" />
                       <Scatter
                         name="일별 데이터"
                         data={correlationData}
-                        fill="#6366F1"
+                        fill="#3B82F6"
                         fillOpacity={0.7}
                       />
                     </ScatterChart>
@@ -575,14 +642,14 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
 
               {/* 해석 및 요약 */}
               <div className="space-y-4">
-                <div className="bg-indigo-50 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-indigo-800 mb-2">분석 결과</h4>
-                  <p className="text-sm text-indigo-700">
-                    {correlation > 0.4 ? (
-                      <>광고비 증가 시 세션이 <strong>증가</strong>하는 경향이 있습니다. 광고 효율이 좋습니다.</>
-                    ) : correlation > 0 ? (
-                      <>광고비와 세션 사이에 <strong>약한 양의 상관관계</strong>가 있습니다.</>
-                    ) : correlation > -0.2 ? (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-2">광고 효과 분석</h4>
+                  <p className="text-sm text-blue-700">
+                    {correlationAd > 0.4 ? (
+                      <>광고비 증가 시 IG/FB 유입이 <strong>크게 증가</strong>합니다. 광고 효율이 좋습니다.</>
+                    ) : correlationAd > 0.2 ? (
+                      <>광고비와 IG/FB 유입 사이에 <strong>양의 상관관계</strong>가 있습니다.</>
+                    ) : correlationAd > -0.2 ? (
                       <>광고비와 세션 사이에 <strong>유의미한 상관관계가 없습니다</strong>.</>
                     ) : (
                       <>광고비 증가에도 세션이 <strong>감소</strong>하는 경향이 있습니다. 광고 전략 검토가 필요합니다.</>
@@ -590,23 +657,32 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                   </p>
                 </div>
 
+                {/* 콘텐츠 효과 설명 */}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-green-800 mb-2">콘텐츠(블로그) 유입</h4>
+                  <p className="text-sm text-green-700">
+                    네이버 블로그 유입 <strong>{formatNumber(contentSessions)}세션</strong> ({(contentRatio * 100).toFixed(1)}%)은
+                    광고와 무관한 <strong>블로그 마케팅 효과</strong>입니다.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">분석 데이터</p>
+                    <p className="text-xs text-gray-500">분석 기간</p>
                     <p className="text-lg font-semibold text-gray-800">{correlationData.length}일</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500">평균 광고비</p>
                     <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSpend))}천원</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">평균 세션</p>
-                    <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSessions))}</p>
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs text-blue-600">평균 광고 세션</p>
+                    <p className="text-lg font-semibold text-blue-700">{formatNumber(Math.round(avgAdSessions))}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">상관강도</p>
-                    <p className={`text-lg font-semibold ${interpretation.color}`}>
-                      {Math.abs(correlation * 100).toFixed(0)}%
+                    <p className="text-xs text-gray-500">광고 상관강도</p>
+                    <p className={`text-lg font-semibold ${interpretationAd.color}`}>
+                      {Math.abs(correlationAd * 100).toFixed(0)}%
                     </p>
                   </div>
                 </div>
