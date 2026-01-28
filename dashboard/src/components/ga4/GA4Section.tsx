@@ -521,7 +521,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
             const totalSess = ga4Map.get(d.date) || 0
             return {
               date: d.date,
-              spend: Math.round((d.total_spend_krw || 0) / 1000), // 천원 단위
+              spend: Math.round((d.total_spend_krw || 0) / 10000), // 만원 단위
               sessions: totalSess,
               adSessions: Math.round(totalSess * adRatio), // 광고 추정 세션
               contentSessions: Math.round(totalSess * contentRatio), // 콘텐츠 추정 세션
@@ -681,7 +681,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
               {/* 산점도 - 광고 유입 세션 기준 */}
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-3">
-                  광고비(천원) vs 광고 유입 세션
+                  광고비(만원) vs 광고 유입 세션
                   <span className="text-xs text-gray-400 ml-2">(IG/FB 비율 적용)</span>
                 </h4>
                 <div className="h-72">
@@ -692,7 +692,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                         type="number"
                         dataKey="spend"
                         name="광고비"
-                        unit="천원"
+                        unit="만원"
                         tick={{ fontSize: 11 }}
                         axisLine={{ stroke: '#E5E7EB' }}
                       />
@@ -706,7 +706,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                       <Tooltip
                         cursor={{ strokeDasharray: '3 3' }}
                         formatter={(value: number, name: string) => {
-                          if (name === '광고비') return [`${formatNumber(value)}천원`, '광고비']
+                          if (name === '광고비') return [`${formatNumber(value)}만원`, '광고비']
                           return [formatNumber(value), '광고 세션']
                         }}
                         contentStyle={{
@@ -761,7 +761,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500">평균 광고비</p>
-                    <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSpend))}천원</p>
+                    <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSpend))}만원</p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-3">
                     <p className="text-xs text-blue-600">평균 광고 세션</p>
