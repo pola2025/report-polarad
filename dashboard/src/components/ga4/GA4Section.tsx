@@ -28,9 +28,9 @@ import { Activity, Users, TrendingDown, Target, TrendingUp } from 'lucide-react'
 interface DailyTrendData {
   date: string
   meta_spend: number
-  meta_spend_krw: number
+  meta_spend_krw?: number
   naver_spend: number
-  total_spend_krw: number
+  total_spend_krw?: number
 }
 
 interface GA4SectionProps {
@@ -491,10 +491,10 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
         // 날짜 매칭하여 광고비-세션 데이터 병합
         const ga4Map = new Map(daily.map(d => [d.date, d.sessions]))
         const correlationData = dailyTrend
-          .filter(d => ga4Map.has(d.date) && d.total_spend_krw > 0)
+          .filter(d => ga4Map.has(d.date) && (d.total_spend_krw || 0) > 0)
           .map(d => ({
             date: d.date,
-            spend: Math.round(d.total_spend_krw / 1000), // 천원 단위
+            spend: Math.round((d.total_spend_krw || 0) / 1000), // 천원 단위
             sessions: ga4Map.get(d.date) || 0,
           }))
 
