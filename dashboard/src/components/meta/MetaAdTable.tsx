@@ -121,10 +121,11 @@ export function MetaAdTable({ ads, loading, metricType = 'lead', clientSlug }: M
     }
 
     async function fetchFilteredData() {
+      if (!clientSlug) return
       setFilterLoading(true)
       try {
         const params = new URLSearchParams({
-          clientSlug,
+          clientSlug: clientSlug,
           startDate,
           endDate,
         })
