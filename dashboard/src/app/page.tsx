@@ -1729,7 +1729,12 @@ function DashboardContent() {
                   </div>
                 ) : ga4Data ? (
                   <>
-                    <GA4Section data={ga4Data} dailyTrend={data?.dailyTrend} />
+                    <GA4Section
+                      data={ga4Data}
+                      dailyTrend={data?.dailyTrend}
+                      homepageLeads={data?.meta?.current?.leads}
+                      previousHomepageLeads={data?.meta?.previous?.leads}
+                    />
 
                     {/* 퍼널 분석 (나라똔만) */}
                     {clientSlug === 'naratton' && (

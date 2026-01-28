@@ -32,6 +32,7 @@ interface DailyTrendData {
   date: string
   meta_spend: number
   meta_spend_krw?: number
+  meta_leads: number  // 홈페이지 접수
   naver_spend: number
   total_spend_krw?: number
 }
@@ -39,6 +40,8 @@ interface DailyTrendData {
 interface GA4SectionProps {
   data: GA4AnalyticsResponse
   dailyTrend?: DailyTrendData[]
+  homepageLeads?: number  // 홈페이지 접수 (Meta 리드)
+  previousHomepageLeads?: number  // 이전 기간 홈페이지 접수
 }
 
 // 상관계수 계산 함수
@@ -156,7 +159,7 @@ function CustomTooltip({ active, payload, label, chartData }: CustomTooltipProps
   )
 }
 
-export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
+export function GA4Section({ data, dailyTrend, homepageLeads, previousHomepageLeads }: GA4SectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('combined')
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('sessions')
 
@@ -170,11 +173,13 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
 
   const { daily, sources, summary, comparison } = data.data
 
-  // 일별 데이터 가공
+  // 일별 데이터 가공 (dailyTrend에서 리드 데이터 병합)
+  const leadsMap = new Map(dailyTrend?.map(d => [d.date, d.meta_leads]) || [])
   const chartData = daily.map(d => ({
     ...d,
     label: `${formatDate(d.date)} (${getDayOfWeek(d.date)})`,
     day: parseInt(d.date.split('-')[2]),
+    leads: leadsMap.get(d.date) || 0,  // 홈페이지 접수
   }))
 
   // 불릿 차트용 데이터
@@ -227,8 +232,10 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
   // 통계 계산
   const totalSessions = chartData.reduce((sum, d) => sum + d.sessions, 0)
   const totalUsers = chartData.reduce((sum, d) => sum + d.users, 0)
+  const totalLeads = chartData.reduce((sum, d) => sum + d.leads, 0)
   const avgSessions = totalSessions / chartData.length
   const avgUsers = totalUsers / chartData.length
+  const avgLeads = totalLeads / chartData.length
   const avgBounceRate = chartData.reduce((sum, d) => sum + d.bounceRate, 0) / chartData.length
 
   return (
@@ -262,8 +269,8 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
           />
           <KPICard
             title="홈페이지 접수"
-            value={summary.totalConversions}
-            previousValue={comparison.previous.totalConversions}
+            value={homepageLeads ?? summary.totalConversions}
+            previousValue={previousHomepageLeads ?? comparison.previous.totalConversions}
           />
         </div>
       </section>
@@ -356,6 +363,7 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                     formatter={(value) => {
                       if (value === 'sessions') return '세션'
                       if (value === 'users') return '사용자'
+                      if (value === 'leads') return '홈페이지 접수'
                       return value
                     }}
                   />
@@ -376,12 +384,21 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                     dot={{ r: 3, fill: METRIC_COLORS.users }}
                     activeDot={{ r: 6 }}
                   />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="leads"
+                    stroke={METRIC_COLORS.conversions}
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: METRIC_COLORS.conversions }}
+                    activeDot={{ r: 6 }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
 
             {/* 통합 차트 요약 */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
                 <div className="w-3 h-3 bg-blue-500 rounded"></div>
                 <div>
@@ -396,6 +413,14 @@ export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
                   <p className="text-xs text-green-600">총 사용자</p>
                   <p className="text-sm font-semibold text-green-700">{formatNumber(totalUsers)}</p>
                   <p className="text-xs text-green-400">일평균 {formatNumber(Math.round(avgUsers))}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg">
+                <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                <div>
+                  <p className="text-xs text-amber-600">홈페이지 접수</p>
+                  <p className="text-sm font-semibold text-amber-700">{formatNumber(totalLeads)}</p>
+                  <p className="text-xs text-amber-400">일평균 {avgLeads.toFixed(1)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
