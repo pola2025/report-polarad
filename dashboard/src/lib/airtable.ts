@@ -452,6 +452,7 @@ export async function getAirtableClient(clientIdOrSlug: string) {
     id: record.fields.id || record.id,
     client_name: record.fields.Name,
     slug: record.fields.slug,
+    meta_metric_type: record.fields.meta_metric_type || 'lead',  // video: H.E.A 판교, lead: 나라똔
   };
 }
 
