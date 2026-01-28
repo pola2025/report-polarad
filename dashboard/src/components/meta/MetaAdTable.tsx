@@ -191,6 +191,27 @@ export function MetaAdTable({ ads, loading, metricType = 'lead', clientSlug }: M
     return result
   }, [currentAds, searchTerm, sortField, sortDirection])
 
+  // 합계 계산
+  const totals = useMemo(() => {
+    const totalImpressions = filteredAndSortedAds.reduce((sum, ad) => sum + ad.impressions, 0)
+    const totalClicks = filteredAndSortedAds.reduce((sum, ad) => sum + ad.clicks, 0)
+    const totalSpend = filteredAndSortedAds.reduce((sum, ad) => sum + ad.spend_krw, 0)
+    const totalLeads = filteredAndSortedAds.reduce((sum, ad) => sum + ad.leads, 0)
+    const totalVideoViews = filteredAndSortedAds.reduce((sum, ad) => sum + (ad.video_views || 0), 0)
+    const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+    const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0
+
+    return {
+      impressions: totalImpressions,
+      clicks: totalClicks,
+      spend: totalSpend,
+      leads: totalLeads,
+      videoViews: totalVideoViews,
+      ctr: avgCtr,
+      cpl: avgCpl,
+    }
+  }, [filteredAndSortedAds])
+
   // 정렬 아이콘
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp className="h-3 w-3 opacity-30" />
@@ -481,8 +502,66 @@ export function MetaAdTable({ ads, loading, metricType = 'lead', clientSlug }: M
                 </tr>
               )}
             </tbody>
+            {/* 합계 행 */}
+            {filteredAndSortedAds.length > 0 && (
+              <tfoot className="bg-gray-100 border-t-2 border-gray-300 sticky bottom-0">
+                <tr className="font-semibold">
+                  <td className="px-3 py-3 text-left">
+                    <span className="text-gray-700">합계 ({filteredAndSortedAds.length}개)</span>
+                  </td>
+                  <td className="px-3 py-3 text-right">{formatNumber(totals.impressions)}</td>
+                  <td className="px-3 py-3 text-right">{formatNumber(totals.clicks)}</td>
+                  <td className="px-3 py-3 text-right text-green-600">{totals.ctr.toFixed(2)}%</td>
+                  <td className="px-3 py-3 text-right text-blue-600">{formatNumber(totals.spend)}원</td>
+                  <td className="px-3 py-3 text-right">
+                    {metricType === 'video' ? formatNumber(totals.videoViews) : formatNumber(totals.leads)}
+                  </td>
+                  <td className="px-3 py-3 text-right text-purple-600">
+                    {metricType === 'video' ? '-' : (totals.leads > 0 ? `${formatNumber(Math.round(totals.cpl))}원` : '-')}
+                  </td>
+                  <td className="px-3 py-3 text-right text-gray-500">-</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
+
+        {/* 모바일: 합계 요약 카드 */}
+        {filteredAndSortedAds.length > 0 && (
+          <div className="md:hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="font-semibold text-gray-700 mb-3">합계 ({filteredAndSortedAds.length}개 광고)</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500 text-xs">총 노출수</p>
+                <p className="font-medium">{formatNumber(totals.impressions)}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs">총 클릭수</p>
+                <p className="font-medium">{formatNumber(totals.clicks)}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs">평균 CTR</p>
+                <p className="font-medium text-green-600">{totals.ctr.toFixed(2)}%</p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs">총 {metricType === 'video' ? '영상조회' : '리드'}</p>
+                <p className="font-medium">
+                  {metricType === 'video' ? formatNumber(totals.videoViews) : formatNumber(totals.leads)}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-gray-500 text-xs">총 지출액</p>
+                <p className="text-lg font-bold text-blue-600">{formatNumber(totals.spend)}원</p>
+              </div>
+              {metricType === 'lead' && totals.leads > 0 && (
+                <div className="col-span-2">
+                  <p className="text-gray-500 text-xs">평균 CPL</p>
+                  <p className="font-medium text-purple-600">{formatNumber(Math.round(totals.cpl))}원</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
