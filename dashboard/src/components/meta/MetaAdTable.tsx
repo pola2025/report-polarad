@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { formatNumber } from '@/lib/utils'
 import {
@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Search,
   Megaphone,
+  Calendar,
+  Loader2,
 } from 'lucide-react'
 import type { MetaAdData } from '@/types/meta-analytics'
 
@@ -20,6 +22,7 @@ interface MetaAdTableProps {
   ads: MetaAdData[]
   loading?: boolean
   metricType?: 'lead' | 'video'
+  clientSlug?: string  // 날짜 범위 필터용
 }
 
 // 모바일 광고 카드 컴포넌트
@@ -87,12 +90,61 @@ function MobileAdCard({ ad, index, metricType }: MobileAdCardProps) {
   )
 }
 
-export function MetaAdTable({ ads, loading, metricType = 'lead' }: MetaAdTableProps) {
+export function MetaAdTable({ ads, loading, metricType = 'lead', clientSlug }: MetaAdTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('spend_krw')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [mobileCardIndex, setMobileCardIndex] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // 날짜 범위 필터 상태
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [filteredAds, setFilteredAds] = useState<MetaAdData[]>([])
+  const [filterLoading, setFilterLoading] = useState(false)
+
+  // 기본 날짜 설정 (오늘 기준 30일 전 ~ 오늘)
+  useEffect(() => {
+    const today = new Date()
+    const thirtyDaysAgo = new Date(today)
+    thirtyDaysAgo.setDate(today.getDate() - 30)
+    setEndDate(today.toISOString().split('T')[0])
+    setStartDate(thirtyDaysAgo.toISOString().split('T')[0])
+  }, [])
+
+  // 날짜 범위 변경 시 API 호출
+  useEffect(() => {
+    if (!dateFilterEnabled || !clientSlug || !startDate || !endDate) {
+      setFilteredAds([])
+      return
+    }
+
+    async function fetchFilteredData() {
+      setFilterLoading(true)
+      try {
+        const params = new URLSearchParams({
+          clientSlug,
+          startDate,
+          endDate,
+        })
+        const res = await fetch(`/api/meta/analytics?${params}`)
+        const data = await res.json()
+        if (data.ads) {
+          setFilteredAds(data.ads)
+        }
+      } catch (error) {
+        console.error('Failed to fetch filtered ads:', error)
+      } finally {
+        setFilterLoading(false)
+      }
+    }
+
+    fetchFilteredData()
+  }, [dateFilterEnabled, clientSlug, startDate, endDate])
+
+  // 현재 사용할 광고 데이터 (필터 활성화 시 filteredAds, 아니면 기본 ads)
+  const currentAds = dateFilterEnabled && filteredAds.length > 0 ? filteredAds : ads
 
   // 정렬 처리
   const handleSort = (field: SortField) => {
@@ -106,7 +158,7 @@ export function MetaAdTable({ ads, loading, metricType = 'lead' }: MetaAdTablePr
 
   // 검색 및 정렬 적용
   const filteredAndSortedAds = useMemo(() => {
-    let result = ads
+    let result = currentAds
 
     // 검색 필터
     if (searchTerm) {
@@ -136,7 +188,7 @@ export function MetaAdTable({ ads, loading, metricType = 'lead' }: MetaAdTablePr
     })
 
     return result
-  }, [ads, searchTerm, sortField, sortDirection])
+  }, [currentAds, searchTerm, sortField, sortDirection])
 
   // 정렬 아이콘
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -189,8 +241,56 @@ export function MetaAdTable({ ads, loading, metricType = 'lead' }: MetaAdTablePr
             <Megaphone className="h-5 w-5 flex-shrink-0" />
             <span className="whitespace-nowrap">광고별 성과 분석</span>
           </CardTitle>
-          <span className="text-sm text-gray-500">총 {ads.length}개 광고</span>
+          <span className="text-sm text-gray-500">
+            총 {currentAds.length}개 광고
+            {dateFilterEnabled && filteredAds.length > 0 && (
+              <span className="ml-1 text-blue-500">(필터 적용)</span>
+            )}
+          </span>
         </div>
+
+        {/* 날짜 범위 필터 */}
+        {clientSlug && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              {/* 필터 토글 */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dateFilterEnabled}
+                  onChange={(e) => setDateFilterEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-600 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  기간 필터
+                </span>
+              </label>
+
+              {/* 날짜 선택 */}
+              {dateFilterEnabled && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <span className="text-gray-400">~</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {filterLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {/* 검색 */}

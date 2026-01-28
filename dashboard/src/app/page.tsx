@@ -1501,6 +1501,7 @@ function DashboardContent() {
                       ads={metaData.ads}
                       loading={false}
                       metricType={clientInfo?.metaMetricType || 'lead'}
+                      clientSlug={clientSlug}
                     />
                   </>
                 ) : (
