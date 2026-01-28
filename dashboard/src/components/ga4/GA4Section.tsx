@@ -15,14 +15,54 @@ import {
   Legend,
   Bar,
   ComposedChart,
+  ScatterChart,
+  Scatter,
+  ReferenceLine,
 } from 'recharts'
 import { BulletChartWithSummary } from '@/components/charts/BulletChart'
 import { TrafficTreemap, TrafficSourceList } from '@/components/charts/TrafficTreemap'
 import type { GA4AnalyticsResponse, BulletChartData } from '@/types/ga4-analytics'
-import { Activity, Users, TrendingDown, Target } from 'lucide-react'
+import { Activity, Users, TrendingDown, Target, TrendingUp } from 'lucide-react'
+
+// 일별 광고 데이터 타입
+interface DailyTrendData {
+  date: string
+  meta_spend: number
+  meta_spend_krw: number
+  naver_spend: number
+  total_spend_krw: number
+}
 
 interface GA4SectionProps {
   data: GA4AnalyticsResponse
+  dailyTrend?: DailyTrendData[]
+}
+
+// 상관계수 계산 함수
+function calculateCorrelation(x: number[], y: number[]): number {
+  const n = x.length
+  if (n === 0 || n !== y.length) return 0
+
+  const sumX = x.reduce((a, b) => a + b, 0)
+  const sumY = y.reduce((a, b) => a + b, 0)
+  const sumXY = x.reduce((acc, xi, i) => acc + xi * y[i], 0)
+  const sumX2 = x.reduce((acc, xi) => acc + xi * xi, 0)
+  const sumY2 = y.reduce((acc, yi) => acc + yi * yi, 0)
+
+  const numerator = n * sumXY - sumX * sumY
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
+
+  if (denominator === 0) return 0
+  return numerator / denominator
+}
+
+// 상관계수 해석
+function interpretCorrelation(r: number): { text: string; color: string } {
+  const absR = Math.abs(r)
+  if (absR >= 0.7) return { text: '강한 상관관계', color: 'text-green-600' }
+  if (absR >= 0.4) return { text: '중간 상관관계', color: 'text-yellow-600' }
+  if (absR >= 0.2) return { text: '약한 상관관계', color: 'text-orange-500' }
+  return { text: '상관관계 없음', color: 'text-gray-500' }
 }
 
 // 날짜 포맷 (MM/DD)
@@ -113,7 +153,7 @@ function CustomTooltip({ active, payload, label, chartData }: CustomTooltipProps
   )
 }
 
-export function GA4Section({ data }: GA4SectionProps) {
+export function GA4Section({ data, dailyTrend }: GA4SectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('combined')
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('sessions')
 
@@ -445,6 +485,136 @@ export function GA4Section({ data }: GA4SectionProps) {
           <p className="text-gray-500 text-center py-8">유입 소스 데이터가 없습니다.</p>
         )}
       </Card>
+
+      {/* 광고비 vs 세션 상관관계 분석 */}
+      {dailyTrend && dailyTrend.length > 0 && daily.length > 0 && (() => {
+        // 날짜 매칭하여 광고비-세션 데이터 병합
+        const ga4Map = new Map(daily.map(d => [d.date, d.sessions]))
+        const correlationData = dailyTrend
+          .filter(d => ga4Map.has(d.date) && d.total_spend_krw > 0)
+          .map(d => ({
+            date: d.date,
+            spend: Math.round(d.total_spend_krw / 1000), // 천원 단위
+            sessions: ga4Map.get(d.date) || 0,
+          }))
+
+        if (correlationData.length < 3) return null
+
+        const spendArr = correlationData.map(d => d.spend)
+        const sessionsArr = correlationData.map(d => d.sessions)
+        const correlation = calculateCorrelation(spendArr, sessionsArr)
+        const interpretation = interpretCorrelation(correlation)
+
+        // 평균값 계산 (참조선용)
+        const avgSpend = spendArr.reduce((a, b) => a + b, 0) / spendArr.length
+        const avgSessions = sessionsArr.reduce((a, b) => a + b, 0) / sessionsArr.length
+
+        return (
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
+                <TrendingUp className="h-5 w-5 text-indigo-500" />
+                <span>광고비 vs 세션 상관관계</span>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">상관계수 (r)</p>
+                <p className={`text-2xl font-bold ${interpretation.color}`}>
+                  {correlation.toFixed(3)}
+                </p>
+                <p className={`text-sm ${interpretation.color}`}>{interpretation.text}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 산점도 */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">광고비(천원) vs 세션 산점도</h4>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                      <XAxis
+                        type="number"
+                        dataKey="spend"
+                        name="광고비"
+                        unit="천원"
+                        tick={{ fontSize: 11 }}
+                        axisLine={{ stroke: '#E5E7EB' }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="sessions"
+                        name="세션"
+                        tick={{ fontSize: 11 }}
+                        axisLine={{ stroke: '#E5E7EB' }}
+                      />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        formatter={(value: number, name: string) => {
+                          if (name === '광고비') return [`${formatNumber(value)}천원`, '광고비']
+                          return [formatNumber(value), '세션']
+                        }}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <ReferenceLine x={avgSpend} stroke="#9CA3AF" strokeDasharray="3 3" />
+                      <ReferenceLine y={avgSessions} stroke="#9CA3AF" strokeDasharray="3 3" />
+                      <Scatter
+                        name="일별 데이터"
+                        data={correlationData}
+                        fill="#6366F1"
+                        fillOpacity={0.7}
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 해석 및 요약 */}
+              <div className="space-y-4">
+                <div className="bg-indigo-50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-indigo-800 mb-2">분석 결과</h4>
+                  <p className="text-sm text-indigo-700">
+                    {correlation > 0.4 ? (
+                      <>광고비 증가 시 세션이 <strong>증가</strong>하는 경향이 있습니다. 광고 효율이 좋습니다.</>
+                    ) : correlation > 0 ? (
+                      <>광고비와 세션 사이에 <strong>약한 양의 상관관계</strong>가 있습니다.</>
+                    ) : correlation > -0.2 ? (
+                      <>광고비와 세션 사이에 <strong>유의미한 상관관계가 없습니다</strong>.</>
+                    ) : (
+                      <>광고비 증가에도 세션이 <strong>감소</strong>하는 경향이 있습니다. 광고 전략 검토가 필요합니다.</>
+                    )}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">분석 데이터</p>
+                    <p className="text-lg font-semibold text-gray-800">{correlationData.length}일</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">평균 광고비</p>
+                    <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSpend))}천원</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">평균 세션</p>
+                    <p className="text-lg font-semibold text-gray-800">{formatNumber(Math.round(avgSessions))}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">상관강도</p>
+                    <p className={`text-lg font-semibold ${interpretation.color}`}>
+                      {Math.abs(correlation * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )
+      })()}
     </div>
   )
 }

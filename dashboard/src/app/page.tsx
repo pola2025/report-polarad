@@ -1728,7 +1728,7 @@ function DashboardContent() {
                   </div>
                 ) : ga4Data ? (
                   <>
-                    <GA4Section data={ga4Data} />
+                    <GA4Section data={ga4Data} dailyTrend={data?.dailyTrend} />
 
                     {/* 퍼널 분석 (나라똔만) */}
                     {clientSlug === 'naratton' && (
