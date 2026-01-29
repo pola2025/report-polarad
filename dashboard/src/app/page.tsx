@@ -1214,6 +1214,7 @@ function DashboardContent() {
                       current={data.meta.current}
                       previous={data.meta.previous}
                       currencySymbol={currencySymbol}
+                      metricType={clientInfo?.metaMetricType}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500">

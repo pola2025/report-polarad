@@ -111,6 +111,8 @@ interface MetaSummaryProps {
     leads: number
     spend: number
     spend_krw?: number
+    avg_watch_time?: number
+    video_views?: number
   }
   previous: {
     impressions: number
@@ -118,8 +120,11 @@ interface MetaSummaryProps {
     leads: number
     spend: number
     spend_krw?: number
+    avg_watch_time?: number
+    video_views?: number
   }
   currencySymbol?: string
+  metricType?: 'video' | 'lead'
 }
 
 // 요일별 추이 그래프 (주별 색상 구분)
@@ -221,18 +226,28 @@ export function MetaDayOfWeekChart({ data, metric = 'spend' }: DayOfWeekChartPro
   )
 }
 
-export function MetaSummaryCards({ current, previous, currencySymbol = '₩' }: MetaSummaryProps) {
+export function MetaSummaryCards({ current, previous, currencySymbol = '₩', metricType }: MetaSummaryProps) {
   const ctr = current.impressions > 0 ? (current.clicks / current.impressions) * 100 : 0
   const previousCtr = previous.impressions > 0 ? (previous.clicks / previous.impressions) * 100 : 0
   const cpc = current.clicks > 0 ? current.spend / current.clicks : 0
   const previousCpc = previous.clicks > 0 ? previous.spend / previous.clicks : 0
 
   const fmtCurrency = (v: number) => `${currencySymbol}${Math.round(v).toLocaleString()}`
+  const fmtTime = (v: number) => {
+    if (v < 60) return `${v.toFixed(1)}초`
+    const mins = Math.floor(v / 60)
+    const secs = Math.round(v % 60)
+    return secs > 0 ? `${mins}분 ${secs}초` : `${mins}분`
+  }
+
+  const isVideo = metricType === 'video'
 
   const metrics = [
     { label: '노출수', current: current.impressions, previous: previous.impressions, format: formatNumber },
     { label: '클릭수', current: current.clicks, previous: previous.clicks, format: formatNumber },
-    { label: '리드수', current: current.leads, previous: previous.leads, format: formatNumber },
+    isVideo
+      ? { label: '평균시청시간', current: current.avg_watch_time || 0, previous: previous.avg_watch_time || 0, format: fmtTime }
+      : { label: '리드수', current: current.leads, previous: previous.leads, format: formatNumber },
     { label: 'CTR', current: ctr, previous: previousCtr, format: (v: number) => `${v.toFixed(2)}%` },
     { label: '지출액', current: current.spend, previous: previous.spend, format: fmtCurrency },
     { label: 'CPC', current: cpc, previous: previousCpc, format: fmtCurrency },
