@@ -511,6 +511,13 @@ function DashboardContent() {
   // 탭이 보여야 하는 조건: 클라이언트 뷰 또는 관리자가 클라이언트를 선택한 경우
   const showTabs = isClientView || isAdminView
 
+  // 통화 설정 (BAS는 USD)
+  const isUsdClient = clientSlug === 'bas'
+  const currencySymbol = isUsdClient ? '$' : '₩'
+  const currencySuffix = isUsdClient ? '' : '원'
+  const spendFormat = isUsdClient ? 'currencyUSD' as const : 'currencyKRW' as const
+  const fmtSpend = (v: number) => isUsdClient ? `$${Math.round(v).toLocaleString()}` : `${Math.round(v).toLocaleString()}원`
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -696,7 +703,7 @@ function DashboardContent() {
                   title="총 지출액"
                   value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
-                  format="currencyKRW"
+                  format={spendFormat}
                 />
                 {/* 나머지 4개 - 2x2 그리드 */}
                 <div className="grid grid-cols-2 gap-3">
@@ -723,7 +730,7 @@ function DashboardContent() {
                       return totalClicks > 0 ? totalSpend / totalClicks : 0
                     })()}
                     previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
-                    format="currencyKRW"
+                    format={spendFormat}
                   />
                 </div>
               </div>
@@ -744,7 +751,7 @@ function DashboardContent() {
                   title="총 지출액"
                   value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
-                  format="currencyKRW"
+                  format={spendFormat}
                 />
                 <KPICard
                   title="Meta 클릭수"
@@ -759,7 +766,7 @@ function DashboardContent() {
                     return totalClicks > 0 ? totalSpend / totalClicks : 0
                   })()}
                   previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
-                  format="currencyKRW"
+                  format={spendFormat}
                 />
               </div>
 
@@ -802,15 +809,15 @@ function DashboardContent() {
                             <span className="text-gray-500">CPC</span>
                             <p className="font-medium">
                               {data.meta.current.clicks > 0
-                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks).toLocaleString()
-                                : 0}원
+                                ? fmtSpend(Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks))
+                                : `${currencySymbol}0`}
                             </p>
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-blue-200">
                           <span className="text-gray-500 text-sm">광고비</span>
                           <p className="font-bold text-blue-600 text-lg">
-                            {(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))).toLocaleString()}원
+                            {fmtSpend(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350)))}
                           </p>
                         </div>
                       </div>
@@ -859,7 +866,7 @@ function DashboardContent() {
                                   : 0
                                 : data.naver.current.clicks > 0
                                   ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
-                                  : 0}원
+                                  : 0}{currencySuffix}
                             </p>
                           </div>
                         </div>
@@ -868,7 +875,7 @@ function DashboardContent() {
                           <p className="font-bold text-green-600 text-lg">
                             {clientInfo?.naverType === 'brand_search'
                               ? (brandSearchData?.data?.fixed_budget?.total || 1320000).toLocaleString()
-                              : data.naver.current.spend.toLocaleString()}원
+                              : data.naver.current.spend.toLocaleString()}{currencySuffix}
                           </p>
                         </div>
                       </div>
@@ -925,7 +932,7 @@ function DashboardContent() {
                                   : data.naver.current.clicks;
                                 const totalClicks = data.meta.current.clicks + naverClicks;
                                 return totalClicks > 0 ? Math.round((metaSpend + naverSpend) / totalClicks).toLocaleString() : 0;
-                              })()}원
+                              })()}{currencySuffix}
                             </p>
                           </div>
                         </div>
@@ -938,7 +945,7 @@ function DashboardContent() {
                                 ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
                                 : data.naver.current.spend;
                               return (metaSpend + naverSpend).toLocaleString();
-                            })()}원
+                            })()}{currencySuffix}
                           </p>
                         </div>
                       </div>
@@ -973,12 +980,12 @@ function DashboardContent() {
                                 : 0}%
                             </td>
                             <td className="px-4 py-3 text-right font-medium text-blue-600">
-                              {(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))).toLocaleString()}원
+                              {fmtSpend(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350)))}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {data.meta.current.clicks > 0
-                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks).toLocaleString()
-                                : 0}원
+                              {fmtSpend(data.meta.current.clicks > 0
+                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks)
+                                : 0)}
                             </td>
                           </tr>
                           <tr className="hover:bg-gray-50">
@@ -1008,7 +1015,7 @@ function DashboardContent() {
                             <td className="px-4 py-3 text-right font-medium text-green-600">
                               {clientInfo?.naverType === 'brand_search'
                                 ? (brandSearchData?.data?.fixed_budget?.total || 1320000).toLocaleString()
-                                : data.naver.current.spend.toLocaleString()}원
+                                : data.naver.current.spend.toLocaleString()}{currencySuffix}
                             </td>
                             <td className="px-4 py-3 text-right">
                               {clientInfo?.naverType === 'brand_search'
@@ -1017,7 +1024,7 @@ function DashboardContent() {
                                   : 0
                                 : data.naver.current.clicks > 0
                                   ? Math.round(data.naver.current.spend / data.naver.current.clicks).toLocaleString()
-                                  : 0}원
+                                  : 0}{currencySuffix}
                             </td>
                           </tr>
                           <tr className="bg-gray-100 font-semibold">
@@ -1056,8 +1063,8 @@ function DashboardContent() {
                                 const naverSpend = clientInfo?.naverType === 'brand_search'
                                   ? (brandSearchData?.data?.fixed_budget?.total || 1320000)
                                   : data.naver.current.spend;
-                                return (metaSpend + naverSpend).toLocaleString();
-                              })()}원
+                                return fmtSpend(metaSpend + naverSpend);
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-right">
                               {(() => {
@@ -1069,8 +1076,8 @@ function DashboardContent() {
                                   ? (brandSearchData?.data?.summary?.total_clicks || 0)
                                   : data.naver.current.clicks;
                                 const totalClicks = data.meta.current.clicks + naverClicks;
-                                return totalClicks > 0 ? Math.round((metaSpend + naverSpend) / totalClicks).toLocaleString() : 0;
-                              })()}원
+                                return fmtSpend(totalClicks > 0 ? Math.round((metaSpend + naverSpend) / totalClicks) : 0);
+                              })()}
                             </td>
                           </tr>
                         </tbody>
@@ -1148,6 +1155,7 @@ function DashboardContent() {
                   showLeads={clientSlug === 'naratton' || clientInfo?.clientType === 'consulting'}
                   showClicks={clientSlug === 'hea-pangyo' || clientInfo?.clientType === 'restaurant'}
                   channel="meta"
+                  currencySymbol={currencySymbol}
                 />
               </section>
             )}
@@ -1186,6 +1194,7 @@ function DashboardContent() {
                     <MetaSummaryCards
                       current={data.meta.current}
                       previous={data.meta.previous}
+                      currencySymbol={currencySymbol}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500">
@@ -1343,9 +1352,9 @@ function DashboardContent() {
                         <Card className="bg-gray-50 border-gray-200">
                           <CardContent className="pt-4 pb-3">
                             <div className="text-xl font-bold text-gray-700">
-                              {metaData.summary.total_spend_krw.toLocaleString()}원
+                              {fmtSpend(metaData.summary.total_spend_krw)}
                             </div>
-                            <div className="text-xs text-gray-500">총 지출 (KRW)</div>
+                            <div className="text-xs text-gray-500">총 지출{isUsdClient ? '' : ' (KRW)'}</div>
                           </CardContent>
                         </Card>
                         <Card className="bg-gray-50 border-gray-200">
@@ -1401,9 +1410,9 @@ function DashboardContent() {
                             <div className="flex items-center justify-between">
                               <div>
                                 <div className="text-2xl font-bold text-purple-600">
-                                  {(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350))).toLocaleString()}원
+                                  {fmtSpend(data.meta.current.spend_krw || Math.round(data.meta.current.spend * (data.exchange_rate || 1350)))}
                                 </div>
-                                <div className="text-sm text-gray-500">지출 (KRW)</div>
+                                <div className="text-sm text-gray-500">지출{isUsdClient ? '' : ' (KRW)'}</div>
                               </div>
                               <div className="p-3 rounded-lg bg-purple-100">
                                 <BarChart3 className="h-6 w-6 text-purple-600" />
@@ -1434,7 +1443,7 @@ function DashboardContent() {
                         <Card>
                           <CardContent className="pt-6">
                             <div className="text-2xl font-bold text-indigo-600">
-                              {Math.round(data.meta.current.spend).toLocaleString()}원
+                              {fmtSpend(Math.round(data.meta.current.spend))}
                             </div>
                             <div className="text-sm text-gray-500">지출</div>
                           </CardContent>
@@ -1454,11 +1463,11 @@ function DashboardContent() {
                         <Card>
                           <CardContent className="pt-6">
                             <div className="text-2xl font-bold text-pink-600">
-                              {data.meta.current.clicks > 0
-                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks).toLocaleString()
-                                : 0}원
+                              {fmtSpend(data.meta.current.clicks > 0
+                                ? Math.round((data.meta.current.spend_krw || data.meta.current.spend * (data.exchange_rate || 1350)) / data.meta.current.clicks)
+                                : 0)}
                             </div>
-                            <div className="text-sm text-gray-500">CPC (KRW)</div>
+                            <div className="text-sm text-gray-500">CPC{isUsdClient ? '' : ' (KRW)'}</div>
                           </CardContent>
                         </Card>
                         <Card>

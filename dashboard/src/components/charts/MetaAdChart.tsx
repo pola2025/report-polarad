@@ -119,6 +119,7 @@ interface MetaSummaryProps {
     spend: number
     spend_krw?: number
   }
+  currencySymbol?: string
 }
 
 // 요일별 추이 그래프 (주별 색상 구분)
@@ -220,20 +221,21 @@ export function MetaDayOfWeekChart({ data, metric = 'spend' }: DayOfWeekChartPro
   )
 }
 
-export function MetaSummaryCards({ current, previous }: MetaSummaryProps) {
+export function MetaSummaryCards({ current, previous, currencySymbol = '₩' }: MetaSummaryProps) {
   const ctr = current.impressions > 0 ? (current.clicks / current.impressions) * 100 : 0
   const previousCtr = previous.impressions > 0 ? (previous.clicks / previous.impressions) * 100 : 0
   const cpc = current.clicks > 0 ? current.spend / current.clicks : 0
   const previousCpc = previous.clicks > 0 ? previous.spend / previous.clicks : 0
+
+  const fmtCurrency = (v: number) => `${currencySymbol}${Math.round(v).toLocaleString()}`
 
   const metrics = [
     { label: '노출수', current: current.impressions, previous: previous.impressions, format: formatNumber },
     { label: '클릭수', current: current.clicks, previous: previous.clicks, format: formatNumber },
     { label: '리드수', current: current.leads, previous: previous.leads, format: formatNumber },
     { label: 'CTR', current: ctr, previous: previousCtr, format: (v: number) => `${v.toFixed(2)}%` },
-    // Note: spend는 이미 KRW로 저장되어 있음 (백필 시 변환 완료)
-    { label: '지출액', current: current.spend, previous: previous.spend, format: (v: number) => `₩${Math.round(v).toLocaleString()}` },
-    { label: 'CPC', current: cpc, previous: previousCpc, format: (v: number) => `₩${Math.round(v).toLocaleString()}` },
+    { label: '지출액', current: current.spend, previous: previous.spend, format: fmtCurrency },
+    { label: 'CPC', current: cpc, previous: previousCpc, format: fmtCurrency },
   ]
 
   return (

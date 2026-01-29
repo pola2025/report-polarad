@@ -7,7 +7,7 @@ interface KPICardProps {
   title: string
   value: number
   previousValue?: number
-  format?: 'number' | 'currency' | 'currencyKRW' | 'percent'
+  format?: 'number' | 'currency' | 'currencyKRW' | 'currencyUSD' | 'percent'
   className?: string
 }
 
@@ -24,6 +24,8 @@ export function KPICard({
         return formatCurrency(value)
       case 'currencyKRW':
         return formatCurrency(value, 'KRW')
+      case 'currencyUSD':
+        return `$${Math.round(value).toLocaleString()}`
       case 'percent':
         return formatPercent(value)
       default:
@@ -65,7 +67,7 @@ export function KPICard({
       </div>
       {previousValue !== undefined && (
         <p className="mt-1 text-xs text-gray-400">
-          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : formatNumber(previousValue)}
+          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : format === 'currencyUSD' ? `$${Math.round(previousValue).toLocaleString()}` : formatNumber(previousValue)}
         </p>
       )}
     </div>

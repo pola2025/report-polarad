@@ -23,6 +23,10 @@ const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }> = {
     baseId: process.env.AIRTABLE_NARATTON_BASE_ID || '',
     tableId: process.env.AIRTABLE_NARATTON_TABLE_ID || '',
   },
+  '비즈액터스쿨': {
+    baseId: process.env.AIRTABLE_BAS_BASE_ID || '',
+    tableId: process.env.AIRTABLE_BAS_TABLE_ID || '',
+  },
 }
 
 // Cron 인증 검증
@@ -240,7 +244,7 @@ async function backfillClient(
     }
 
     // 나라똔만 추가 필드 저장
-    if (clientName === '나라똔') {
+    if (clientName === '나라똔' || clientName === '비즈액터스쿨') {
       fields.campaign_name = campaignName
       fields.leads = getActionValue(row.actions, 'lead')
       fields.video_views = videoViews

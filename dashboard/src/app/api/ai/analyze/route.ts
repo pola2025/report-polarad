@@ -86,9 +86,74 @@ export async function POST(request: NextRequest) {
 
     const metricLabel = data.metricType === 'video' ? '영상 조회수' : '리드'
     const metricValue = data.metricType === 'video' ? data.meta.videoViews : data.meta.leads
+    const includeNaver = data.metricType !== 'video' // 네이버 광고 분석 포함 여부
 
     // 일별 성과 분석
     const dailyAnalysis = analyzeDailyPerformance(data.meta.daily)
+
+    // 네이버 섹션 (metricType이 video가 아닌 경우에만)
+    const naverSection = includeNaver ? `
+## 네이버 플레이스 광고 성과
+- 노출수: ${data.naver.impressions.toLocaleString()}회
+- 클릭수: ${data.naver.clicks.toLocaleString()}회
+- 광고비: ${data.naver.spend.toLocaleString()}원
+- CTR: ${data.naver.ctr.toFixed(2)}%
+- 평균 CPC: ${Math.round(data.naver.avgCpc).toLocaleString()}원
+
+### 키워드별 성과
+${keywordAnalysis}
+` : ''
+
+    // 네이버 분석 JSON 스키마 (metricType이 video가 아닌 경우에만)
+    const naverAnalysisSchema = includeNaver ? `
+  "naverAnalysis": {
+    "overallGrade": "A/B/C/D 중 선택",
+    "keywordInsight": "핵심 키워드 성과 분석",
+    "rankingAnalysis": "평균 순위 분석과 개선 방향",
+    "costEfficiency": "비용 대비 효율 분석"
+  },` : ''
+
+    // 네이버 추천 JSON 스키마 (metricType이 video가 아닌 경우에만)
+    const naverRecommendationSchema = includeNaver ? `,
+    {
+      "platform": "naver",
+      "priority": "high",
+      "title": "네이버 핵심 개선안",
+      "description": "구체적인 실행 방법과 예상 효과",
+      "expectedImpact": "예상되는 성과 개선 수치"
+    }` : ''
+
+    // 하이라이트 템플릿 (네이버 포함 여부에 따라 다름)
+    const highlightsTemplate = includeNaver
+      ? `[
+    "Meta 성과 분석: CTR ${data.meta.ctr.toFixed(2)}%는 업계 평균(0.9%) 대비 X% 높음/낮음. 구체적 수치와 의미 설명",
+    "네이버 성과 분석: CTR, CPC, 키워드별 성과에 대한 구체적 분석",
+    "비용 효율성: CPC ${Math.round(data.meta.cpc).toLocaleString()}원의 효율성 평가와 개선 방향",
+    "요일별 패턴: 가장 성과 좋은/나쁜 요일과 그 차이 분석",
+    "캠페인별 성과 차이와 최적화 포인트"
+  ]`
+      : `[
+    "Meta 성과 분석: CTR ${data.meta.ctr.toFixed(2)}%는 업계 평균(0.9%) 대비 X% 높음/낮음. 구체적 수치와 의미 설명",
+    "영상 조회수 성과: 총 ${(data.meta.videoViews || 0).toLocaleString()}회 조회, 평균 시청시간 분석",
+    "비용 효율성: CPC ${Math.round(data.meta.cpc).toLocaleString()}원의 효율성 평가와 개선 방향",
+    "요일별 패턴: 가장 성과 좋은/나쁜 요일과 그 차이 분석",
+    "캠페인별 성과 차이와 최적화 포인트"
+  ]`
+
+    // 분석 지침 (네이버 포함 여부에 따라 다름)
+    const analysisGuidelines = includeNaver
+      ? `분석 시 반드시 포함할 사항:
+1. 모든 수치는 구체적으로 명시 (%, 원, 회 단위 포함)
+2. 업계 평균 대비 비교 (Meta CTR 평균 0.9%, 네이버 플레이스 CTR 평균 2-3%)
+3. 요일별/캠페인별 성과 차이의 원인 분석
+4. 예산 재배분 제안 (고성과 영역 집중)
+5. 실행 가능한 구체적 액션 아이템`
+      : `분석 시 반드시 포함할 사항:
+1. 모든 수치는 구체적으로 명시 (%, 원, 회 단위 포함)
+2. 업계 평균 대비 비교 (Meta CTR 평균 0.9%)
+3. 요일별/캠페인별 성과 차이의 원인 분석
+4. 영상 조회수와 시청시간 기반 콘텐츠 효과 분석
+5. 실행 가능한 구체적 액션 아이템`
 
     const prompt = `당신은 디지털 광고 성과 분석 전문가입니다. 아래 데이터를 분석하여 마케팅 담당자에게 상세하고 실용적인 인사이트를 제공해주세요.
 
@@ -115,43 +180,21 @@ ${dailyByWeekday}
 
 ### 일별 성과 추이
 ${dailyAnalysis}
-
-## 네이버 플레이스 광고 성과
-- 노출수: ${data.naver.impressions.toLocaleString()}회
-- 클릭수: ${data.naver.clicks.toLocaleString()}회
-- 광고비: ${data.naver.spend.toLocaleString()}원
-- CTR: ${data.naver.ctr.toFixed(2)}%
-- 평균 CPC: ${Math.round(data.naver.avgCpc).toLocaleString()}원
-
-### 키워드별 성과
-${keywordAnalysis}
-
+${naverSection}
 ---
 
 위 데이터를 **매우 상세하게** 분석하여 다음 JSON 형식으로 응답해주세요. 반드시 JSON만 출력하세요.
 
 {
   "summary": "전체 성과에 대한 3-4문장 요약. 반드시 구체적인 수치(노출수, 클릭수, CTR, 광고비 등)를 포함하고, 업계 평균 대비 성과를 평가하세요.",
-  "highlights": [
-    "Meta 성과 분석: CTR ${data.meta.ctr.toFixed(2)}%는 업계 평균(0.9%) 대비 X% 높음/낮음. 구체적 수치와 의미 설명",
-    "네이버 성과 분석: CTR, CPC, 키워드별 성과에 대한 구체적 분석",
-    "비용 효율성: CPC ${Math.round(data.meta.cpc).toLocaleString()}원의 효율성 평가와 개선 방향",
-    "요일별 패턴: 가장 성과 좋은/나쁜 요일과 그 차이 분석",
-    "캠페인별 성과 차이와 최적화 포인트"
-  ],
+  "highlights": ${highlightsTemplate},
   "metaAnalysis": {
     "overallGrade": "A/B/C/D 중 선택",
     "ctrAnalysis": "CTR 상세 분석 (업계 평균 대비, 개선 방향)",
     "cpcAnalysis": "CPC 효율성 분석",
     "bestPerformance": "가장 성과 좋았던 부분",
     "worstPerformance": "개선이 필요한 부분"
-  },
-  "naverAnalysis": {
-    "overallGrade": "A/B/C/D 중 선택",
-    "keywordInsight": "핵심 키워드 성과 분석",
-    "rankingAnalysis": "평균 순위 분석과 개선 방향",
-    "costEfficiency": "비용 대비 효율 분석"
-  },
+  },${naverAnalysisSchema}
   "weekdayInsight": "요일별 성과 차이에 대한 상세 분석 (평일 vs 주말, 최고/최저 성과 요일)",
   "recommendations": [
     {
@@ -167,24 +210,12 @@ ${keywordAnalysis}
       "title": "중기 개선안",
       "description": "구체적인 실행 방법",
       "expectedImpact": "예상 효과"
-    },
-    {
-      "platform": "naver",
-      "priority": "high",
-      "title": "네이버 핵심 개선안",
-      "description": "구체적인 실행 방법과 예상 효과",
-      "expectedImpact": "예상되는 성과 개선 수치"
-    }
+    }${naverRecommendationSchema}
   ],
   "nextMonthStrategy": "다음 달 광고 운영 전략 제안 (2-3문장)"
 }
 
-분석 시 반드시 포함할 사항:
-1. 모든 수치는 구체적으로 명시 (%, 원, 회 단위 포함)
-2. 업계 평균 대비 비교 (Meta CTR 평균 0.9%, 네이버 플레이스 CTR 평균 2-3%)
-3. 요일별/캠페인별 성과 차이의 원인 분석
-4. 예산 재배분 제안 (고성과 영역 집중)
-5. 실행 가능한 구체적 액션 아이템`
+${analysisGuidelines}`
 
     const result = await model.generateContent(prompt)
     const response = result.response

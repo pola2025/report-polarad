@@ -33,6 +33,7 @@ interface DailyTrendChartProps {
   showSpend?: boolean  // 지출액 선 표시 여부 (H.E.A 판교 Naver: true)
   channel?: 'meta' | 'naver'  // 채널 구분 (제목에 표시)
   barMetric?: 'spend' | 'clicks'  // 막대 그래프에 표시할 지표 (기본: spend)
+  currencySymbol?: string  // 통화 심볼 (기본: ₩)
 }
 
 type MetricType = 'clicks' | 'impressions' | 'spend' | 'ctr'
@@ -70,9 +71,10 @@ interface CustomTooltipProps {
   showSpendLine: boolean  // 지출액 선 표시 여부
   barMetric: 'spend' | 'clicks'
   chartData: Array<{ day: number; label: string }>
+  currencySymbol: string
 }
 
-function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicksLine, showSpendLine, barMetric, chartData }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicksLine, showSpendLine, barMetric, chartData, currencySymbol }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
   const dateLabel = chartData.find(d => d.day === label)?.label || ''
@@ -91,7 +93,7 @@ function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicks
             // 막대가 지출액이거나, 지출액 선이 표시될 때
             if (barMetric !== 'spend' && !showSpendLine) return null
             displayName = '지출액'
-            displayValue = `₩${formatNumber(Math.round((value as number) * usdToKrw))}`
+            displayValue = `${currencySymbol}${formatNumber(Math.round((value as number) * usdToKrw))}`
             color = METRIC_COLORS.spend
             break
           case 'clicks':
@@ -127,7 +129,7 @@ function CustomTooltip({ active, payload, label, usdToKrw, showLeads, showClicks
   )
 }
 
-export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, showClicks = false, showSpend = false, channel, barMetric = 'spend' }: DailyTrendChartProps) {
+export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, showClicks = false, showSpend = false, channel, barMetric = 'spend', currencySymbol = '₩' }: DailyTrendChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('combined')
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('clicks')
 
@@ -160,7 +162,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
   const metricConfig: Record<MetricType, { label: string; color: string; format: (v: number) => string }> = {
     clicks: { label: '클릭수', color: '#1877F2', format: (v) => formatNumber(v) },
     impressions: { label: '노출수', color: '#03C75A', format: (v) => formatNumber(v) },
-    spend: { label: '지출액', color: '#F59E0B', format: (v) => `₩${formatNumber(Math.round(v * usdToKrw))}` },
+    spend: { label: '지출액', color: '#F59E0B', format: (v) => `${currencySymbol}${formatNumber(Math.round(v * usdToKrw))}` },
     ctr: { label: 'CTR', color: '#8B5CF6', format: (v) => `${v.toFixed(2)}%` },
   }
 
@@ -266,7 +268,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                   axisLine={{ stroke: barConfig.color }}
                   tickLine={false}
                   tickFormatter={(v) => barMetric === 'spend'
-                    ? `₩${(v * usdToKrw / 1000).toFixed(0)}K`
+                    ? `${currencySymbol}${(v * usdToKrw / 1000).toFixed(0)}K`
                     : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString()
                   }
                   label={{ value: barConfig.label, angle: -90, position: 'insideLeft', fill: barConfig.color, fontSize: 11 }}
@@ -309,7 +311,7 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                   />
                 )}
                 <Tooltip
-                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} showClicksLine={showClicksLine} showSpendLine={showSpendLine} barMetric={barMetric} chartData={chartData} />}
+                  content={<CustomTooltip usdToKrw={usdToKrw} showLeads={showLeads} showClicksLine={showClicksLine} showSpendLine={showSpendLine} barMetric={barMetric} chartData={chartData} currencySymbol={currencySymbol} />}
                 />
                 <Legend
                   formatter={(value) => {
@@ -389,8 +391,8 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                 {barMetric === 'spend' ? (
                   <>
                     <p className="text-xs text-purple-600">총 지출액</p>
-                    <p className="text-sm font-semibold text-purple-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                    <p className="text-xs text-purple-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                    <p className="text-sm font-semibold text-purple-700">{currencySymbol}{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                    <p className="text-xs text-purple-400">일평균 {currencySymbol}{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
                   </>
                 ) : (
                   <>
@@ -418,8 +420,8 @@ export function DailyTrendChart({ daily, usdToKrw = 1500, showLeads = false, sho
                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                 <div>
                   <p className="text-xs text-purple-600">총 지출액</p>
-                  <p className="text-sm font-semibold text-purple-700">₩{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
-                  <p className="text-xs text-purple-400">일평균 ₩{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
+                  <p className="text-sm font-semibold text-purple-700">{currencySymbol}{formatNumber(Math.round(totalSpend * usdToKrw))}</p>
+                  <p className="text-xs text-purple-400">일평균 {currencySymbol}{formatNumber(Math.round(avgSpend * usdToKrw))}</p>
                 </div>
               </div>
             )}

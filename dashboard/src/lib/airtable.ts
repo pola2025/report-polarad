@@ -148,6 +148,10 @@ export const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }
     baseId: process.env.AIRTABLE_NARATTON_BASE_ID!,
     tableId: process.env.AIRTABLE_NARATTON_TABLE_ID!,
   },
+  'bas': {
+    baseId: process.env.AIRTABLE_BAS_BASE_ID!,
+    tableId: process.env.AIRTABLE_BAS_TABLE_ID!,
+  },
 };
 
 // Airtable 레코드 타입
@@ -283,6 +287,8 @@ export function getClientSlugById(clientId: string): string | null {
     'h-e-a-판교': 'hea-pangyo',
     'H.E.A 판교': 'hea-pangyo',
     '나라똔': 'naratton',
+    '79e35fc6-a817-4ccc-9d5d-9a93c1ad4515': 'bas',
+    '비즈액터스쿨': 'bas',
   };
 
   // 1. 매핑 테이블에서 찾기
@@ -306,6 +312,7 @@ export function getClientIdBySlug(slug: string): string | null {
     'hea-pangyo': '3ff2896e-6786-4936-9c57-311f69f43c63',
     'naratton': 'c2f60730-f8c1-4361-b9fc-3b44725c3955',
     '나라똔': 'c2f60730-f8c1-4361-b9fc-3b44725c3955',
+    'bas': '79e35fc6-a817-4ccc-9d5d-9a93c1ad4515',
   };
   return SLUG_TO_UUID[slug] || null;
 }
