@@ -7,7 +7,7 @@ interface KPICardProps {
   title: string
   value: number
   previousValue?: number
-  format?: 'number' | 'currency' | 'currencyKRW' | 'currencyUSD' | 'percent'
+  format?: 'number' | 'currency' | 'currencyKRW' | 'currencyUSD' | 'percent' | 'time'
   className?: string
 }
 
@@ -28,6 +28,12 @@ export function KPICard({
         return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       case 'percent':
         return formatPercent(value)
+      case 'time': {
+        if (value < 60) return `${value.toFixed(1)}초`
+        const mins = Math.floor(value / 60)
+        const secs = Math.round(value % 60)
+        return secs > 0 ? `${mins}분 ${secs}초` : `${mins}분`
+      }
       default:
         return formatNumber(value)
     }
@@ -67,7 +73,7 @@ export function KPICard({
       </div>
       {previousValue !== undefined && (
         <p className="mt-1 text-xs text-gray-400">
-          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : format === 'currencyUSD' ? `$${previousValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatNumber(previousValue)}
+          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : format === 'currencyUSD' ? `$${previousValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : format === 'time' ? (previousValue < 60 ? `${previousValue.toFixed(1)}초` : `${Math.floor(previousValue / 60)}분 ${Math.round(previousValue % 60)}초`) : formatNumber(previousValue)}
         </p>
       )}
     </div>

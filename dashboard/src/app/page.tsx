@@ -723,9 +723,10 @@ function DashboardContent() {
                     previousValue={data.kpi.previousTotalClicks}
                   />
                   <KPICard
-                    title={isNaverEnabled ? "Meta 클릭수" : "리드수"}
-                    value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.leads || 0)}
-                    previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.leads || 0)}
+                    title={isNaverEnabled ? "Meta 클릭수" : "평균시청시간"}
+                    value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.avg_watch_time || 0)}
+                    previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.avg_watch_time || 0)}
+                    format={isNaverEnabled ? undefined : 'time'}
                   />
                   <KPICard
                     title="평균 CPC"
@@ -759,9 +760,10 @@ function DashboardContent() {
                   format={spendFormat}
                 />
                 <KPICard
-                  title={isNaverEnabled ? "Meta 클릭수" : "리드수"}
-                  value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.leads || 0)}
-                  previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.leads || 0)}
+                  title={isNaverEnabled ? "Meta 클릭수" : "평균시청시간"}
+                  value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.avg_watch_time || 0)}
+                  previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.avg_watch_time || 0)}
+                  format={isNaverEnabled ? undefined : 'time'}
                 />
                 <KPICard
                   title="평균 CPC"

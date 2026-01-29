@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
     const resolvedSlug = clientSlug && AIRTABLE_CONFIG[clientSlug] ? clientSlug : null
 
     // ===== 전체 광고 데이터 집계 (Airtable - Meta + Naver 통합) =====
-    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string; video_views?: number}> = []
-    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number; video_views?: number}> = []
+    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string; video_views?: number; avg_watch_time?: number}> = []
+    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number; video_views?: number; avg_watch_time?: number}> = []
     let naverCurrentData: Array<{impressions: number; clicks: number; spend: number; date: string}> = []
     let naverPreviousData: Array<{impressions: number; clicks: number; spend: number}> = []
 
@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
           spend: r.spend,
           date: r.date,
           video_views: r.video_views,
+          avg_watch_time: r.avg_watch_time,
         }))
 
       // Naver 데이터 필터링 (source = 'naver_place' 또는 'naver_brand_search')
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
           leads: r.leads,
           spend: r.spend,
           video_views: r.video_views,
+          avg_watch_time: r.avg_watch_time,
         }))
 
       // 이전 기간 Naver 데이터
@@ -138,15 +140,28 @@ export async function GET(request: NextRequest) {
       leads: 0,
       spend: 0,
       video_views: 0,
+      avg_watch_time: 0,
     }
 
+    let currentWatchTimeSum = 0
+    let currentWatchTimeWeight = 0
     metaCurrentData.forEach(row => {
       metaCurrentPeriod.impressions += row.impressions || 0
       metaCurrentPeriod.clicks += row.clicks || 0
       metaCurrentPeriod.leads += row.leads || 0
       metaCurrentPeriod.spend += row.spend || 0
       metaCurrentPeriod.video_views += row.video_views || 0
+      // 가중 평균 시청시간 (video_views 기준)
+      const views = row.video_views || 0
+      const watchTime = row.avg_watch_time || 0
+      if (views > 0 && watchTime > 0) {
+        currentWatchTimeSum += watchTime * views
+        currentWatchTimeWeight += views
+      }
     })
+    metaCurrentPeriod.avg_watch_time = currentWatchTimeWeight > 0
+      ? Math.round((currentWatchTimeSum / currentWatchTimeWeight) * 10) / 10
+      : 0
 
     // 이전 기간 Meta 집계
     const metaPreviousPeriod = {
@@ -155,15 +170,27 @@ export async function GET(request: NextRequest) {
       leads: 0,
       spend: 0,
       video_views: 0,
+      avg_watch_time: 0,
     }
 
+    let previousWatchTimeSum = 0
+    let previousWatchTimeWeight = 0
     metaPreviousData.forEach(row => {
       metaPreviousPeriod.impressions += row.impressions || 0
       metaPreviousPeriod.clicks += row.clicks || 0
       metaPreviousPeriod.leads += row.leads || 0
       metaPreviousPeriod.spend += row.spend || 0
       metaPreviousPeriod.video_views += row.video_views || 0
+      const views = row.video_views || 0
+      const watchTime = row.avg_watch_time || 0
+      if (views > 0 && watchTime > 0) {
+        previousWatchTimeSum += watchTime * views
+        previousWatchTimeWeight += views
+      }
     })
+    metaPreviousPeriod.avg_watch_time = previousWatchTimeWeight > 0
+      ? Math.round((previousWatchTimeSum / previousWatchTimeWeight) * 10) / 10
+      : 0
 
     // ===== 나라똔 홈페이지 리드 (트래픽 광고 → 홈페이지 접수) =====
     // Meta 잠재고객 광고 접수(metaCurrentPeriod.leads)와 별도로 관리
