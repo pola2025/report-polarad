@@ -25,7 +25,7 @@ export function KPICard({
       case 'currencyKRW':
         return formatCurrency(value, 'KRW')
       case 'currencyUSD':
-        return `$${Math.round(value).toLocaleString()}`
+        return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       case 'percent':
         return formatPercent(value)
       default:
@@ -67,7 +67,7 @@ export function KPICard({
       </div>
       {previousValue !== undefined && (
         <p className="mt-1 text-xs text-gray-400">
-          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : format === 'currencyUSD' ? `$${Math.round(previousValue).toLocaleString()}` : formatNumber(previousValue)}
+          이전: {format === 'currency' ? formatCurrency(previousValue) : format === 'currencyKRW' ? formatCurrency(previousValue, 'KRW') : format === 'currencyUSD' ? `$${previousValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatNumber(previousValue)}
         </p>
       )}
     </div>

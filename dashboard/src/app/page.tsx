@@ -516,7 +516,10 @@ function DashboardContent() {
   const currencySymbol = isUsdClient ? '$' : '₩'
   const currencySuffix = isUsdClient ? '' : '원'
   const spendFormat = isUsdClient ? 'currencyUSD' as const : 'currencyKRW' as const
-  const fmtSpend = (v: number) => isUsdClient ? `$${Math.round(v).toLocaleString()}` : `${Math.round(v).toLocaleString()}원`
+
+  // 네이버 활성화 여부 (BAS는 네이버 없음)
+  const isNaverEnabled = clientSlug !== 'bas' && clientInfo?.naver?.enabled !== false
+  const fmtSpend = (v: number) => isUsdClient ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Math.round(v).toLocaleString()}원`
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -623,7 +626,9 @@ function DashboardContent() {
             {/* 탭 네비게이션 */}
             {showTabs && (
               <div className={`grid gap-1 border-b border-gray-200 mb-6 ${
-                clientInfo?.ga?.enabled ? 'grid-cols-5' : 'grid-cols-4'
+                clientInfo?.ga?.enabled
+                  ? (isNaverEnabled ? 'grid-cols-5' : 'grid-cols-4')
+                  : (isNaverEnabled ? 'grid-cols-4' : 'grid-cols-3')
               }`}>
                 <button
                   onClick={() => handleTabChange('summary')}
@@ -645,8 +650,8 @@ function DashboardContent() {
                 >
                   Meta 상세
                 </button>
-                {/* 네이버 상세 탭 - show_detail_tab이 true일 때만 표시 */}
-                {clientInfo?.naver?.show_detail_tab !== false && (
+                {/* 네이버 상세 탭 - 네이버 활성화 & show_detail_tab이 true일 때만 표시 */}
+                {isNaverEnabled && clientInfo?.naver?.show_detail_tab !== false && (
                   <button
                     onClick={() => handleTabChange('naver')}
                     className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
@@ -700,33 +705,33 @@ function DashboardContent() {
               <div className="md:hidden space-y-3">
                 {/* 총 지출액 - 전체 너비 */}
                 <KPICard
-                  title="총 지출액"
-                  value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
+                  title={isNaverEnabled ? "총 지출액" : "지출액"}
+                  value={data.kpi.totalSpend + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
                   format={spendFormat}
                 />
                 {/* 나머지 4개 - 2x2 그리드 */}
                 <div className="grid grid-cols-2 gap-3">
                   <KPICard
-                    title="총 노출수"
-                    value={data.kpi.totalImpressions + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
+                    title={isNaverEnabled ? "총 노출수" : "노출수"}
+                    value={data.kpi.totalImpressions + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
                     previousValue={data.kpi.previousTotalImpressions}
                   />
                   <KPICard
-                    title="총 클릭수"
-                    value={data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
+                    title={isNaverEnabled ? "총 클릭수" : "클릭수"}
+                    value={data.kpi.totalClicks + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
                     previousValue={data.kpi.previousTotalClicks}
                   />
                   <KPICard
-                    title="Meta 클릭수"
-                    value={data.meta.current.clicks}
-                    previousValue={data.meta.previous.clicks}
+                    title={isNaverEnabled ? "Meta 클릭수" : "리드수"}
+                    value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.leads || 0)}
+                    previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.leads || 0)}
                   />
                   <KPICard
                     title="평균 CPC"
                     value={(() => {
-                      const totalClicks = data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
-                      const totalSpend = data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
+                      const totalClicks = data.kpi.totalClicks + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
+                      const totalSpend = data.kpi.totalSpend + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
                       return totalClicks > 0 ? totalSpend / totalClicks : 0
                     })()}
                     previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
@@ -738,31 +743,31 @@ function DashboardContent() {
               {/* 데스크톱: 기존 5열 그리드 */}
               <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <KPICard
-                  title="총 노출수"
-                  value={data.kpi.totalImpressions + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
+                  title={isNaverEnabled ? "총 노출수" : "노출수"}
+                  value={data.kpi.totalImpressions + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_impressions || 0) : 0)}
                   previousValue={data.kpi.previousTotalImpressions}
                 />
                 <KPICard
-                  title="총 클릭수"
-                  value={data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
+                  title={isNaverEnabled ? "총 클릭수" : "클릭수"}
+                  value={data.kpi.totalClicks + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)}
                   previousValue={data.kpi.previousTotalClicks}
                 />
                 <KPICard
-                  title="총 지출액"
-                  value={data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
+                  title={isNaverEnabled ? "총 지출액" : "지출액"}
+                  value={data.kpi.totalSpend + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)}
                   previousValue={data.kpi.previousTotalSpend}
                   format={spendFormat}
                 />
                 <KPICard
-                  title="Meta 클릭수"
-                  value={data.meta.current.clicks}
-                  previousValue={data.meta.previous.clicks}
+                  title={isNaverEnabled ? "Meta 클릭수" : "리드수"}
+                  value={isNaverEnabled ? data.meta.current.clicks : (data.meta.current.leads || 0)}
+                  previousValue={isNaverEnabled ? data.meta.previous.clicks : (data.meta.previous.leads || 0)}
                 />
                 <KPICard
                   title="평균 CPC"
                   value={(() => {
-                    const totalClicks = data.kpi.totalClicks + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
-                    const totalSpend = data.kpi.totalSpend + (clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
+                    const totalClicks = data.kpi.totalClicks + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.summary?.total_clicks || 0) : 0)
+                    const totalSpend = data.kpi.totalSpend + (isNaverEnabled && clientInfo?.naverType === 'brand_search' ? (brandSearchData?.data?.fixed_budget?.total || 0) : 0)
                     return totalClicks > 0 ? totalSpend / totalClicks : 0
                   })()}
                   previousValue={data.meta.previous.clicks > 0 ? data.meta.previous.spend / data.meta.previous.clicks : 0}
@@ -822,7 +827,8 @@ function DashboardContent() {
                         </div>
                       </div>
 
-                      {/* 네이버 */}
+                      {/* 네이버 - 네이버 활성화 시에만 표시 */}
+                      {isNaverEnabled && (
                       <div className="bg-green-50 rounded-lg p-4 border border-green-100">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -879,8 +885,10 @@ function DashboardContent() {
                           </p>
                         </div>
                       </div>
+                      )}
 
-                      {/* 합계 */}
+                      {/* 합계 - 네이버 활성화 시에만 표시 */}
+                      {isNaverEnabled && (
                       <div className="bg-[#FFF8E7] rounded-lg p-4 border border-[#F5A623]/30">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-3 h-3 rounded-full bg-[#F5A623]"></div>
@@ -949,6 +957,7 @@ function DashboardContent() {
                           </p>
                         </div>
                       </div>
+                      )}
                     </div>
 
                     {/* 데스크톱 테이블 뷰 */}
@@ -988,6 +997,8 @@ function DashboardContent() {
                                 : 0)}
                             </td>
                           </tr>
+                          {/* 네이버 행 - 네이버 활성화 시에만 */}
+                          {isNaverEnabled && (
                           <tr className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium">
                               <div className="flex items-center gap-2">
@@ -1027,6 +1038,9 @@ function DashboardContent() {
                                   : 0}{currencySuffix}
                             </td>
                           </tr>
+                          )}
+                          {/* 합계 행 - 네이버 활성화 시에만 */}
+                          {isNaverEnabled && (
                           <tr className="bg-gray-100 font-semibold">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -1080,6 +1094,7 @@ function DashboardContent() {
                               })()}
                             </td>
                           </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1088,7 +1103,8 @@ function DashboardContent() {
               </div>
             </section>
 
-            {/* Channel Comparison Chart */}
+            {/* Channel Comparison Chart - 네이버 활성화 시에만 */}
+            {isNaverEnabled && (
             <section className="mb-8">
               <Card>
                 <CardHeader>
@@ -1139,6 +1155,7 @@ function DashboardContent() {
                 </CardContent>
               </Card>
             </section>
+            )}
 
             {/* Meta 일별 성과 추이 (통합 차트) */}
             {data.dailyTrend.length > 0 && (
@@ -1160,8 +1177,8 @@ function DashboardContent() {
               </section>
             )}
 
-            {/* Naver 일별 성과 추이 (통합 차트) - 네이버 데이터가 있을 때만 */}
-            {data.dailyTrend.length > 0 && clientInfo?.naver?.enabled !== false && (
+            {/* Naver 일별 성과 추이 (통합 차트) - 네이버 활성화 시에만 */}
+            {data.dailyTrend.length > 0 && isNaverEnabled && (
               <section className="mb-6">
                 <DailyTrendChart
                   daily={data.dailyTrend.map(d => ({
@@ -1204,8 +1221,8 @@ function DashboardContent() {
                 </CardContent>
               </Card>
 
-              {/* 네이버 광고 성과 - naver.enabled가 true일 때만 표시 */}
-              {clientInfo?.naver?.enabled !== false && (
+              {/* 네이버 광고 성과 - 네이버 활성화 시에만 표시 */}
+              {isNaverEnabled && (
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -1526,8 +1543,8 @@ function DashboardContent() {
               </div>
             )}
 
-            {/* 네이버 상세 탭 - show_detail_tab이 true일 때만 표시 */}
-            {activeTab === 'naver' && showTabs && clientInfo?.naver?.show_detail_tab !== false && (
+            {/* 네이버 상세 탭 - 네이버 활성화 시에만 표시 */}
+            {activeTab === 'naver' && showTabs && isNaverEnabled && clientInfo?.naver?.show_detail_tab !== false && (
               <div className="space-y-6">
                 {/* 브랜드검색 타입일 때 */}
                 {clientInfo?.naverType === 'brand_search' ? (
