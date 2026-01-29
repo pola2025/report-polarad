@@ -36,8 +36,8 @@ interface DashboardData {
     previousAvgCPL: number
   }
   meta: {
-    current: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number }
-    previous: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number }
+    current: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number; avg_watch_time?: number }
+    previous: { impressions: number; clicks: number; leads: number; spend: number; spend_krw?: number; video_views?: number; avg_watch_time?: number }
   }
   exchange_rate?: number
   naver: {
