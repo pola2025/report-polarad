@@ -70,13 +70,8 @@ function getActionValue(
   return action ? parseInt(action.value) || 0 : 0
 }
 
-// Meta API 호출 (캠페인 레벨, 영상 데이터 포함)
-async function fetchMetaData(
-  accessToken: string,
-  adAccountId: string,
-  startDate: string,
-  endDate: string
-): Promise<Array<{
+// Meta API 응답 타입
+interface MetaInsightRow {
   date_start: string
   device_platform: string
   impressions: string
@@ -84,31 +79,42 @@ async function fetchMetaData(
   spend: string
   campaign_id: string
   campaign_name: string
+  ad_id?: string
+  ad_name?: string
   actions?: Array<{ action_type: string; value: string }>
   video_p100_watched_actions?: Array<{ action_type: string; value: string }>
+  video_play_actions?: Array<{ action_type: string; value: string }>
+  video_thruplay_watched_actions?: Array<{ action_type: string; value: string }>
   video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>
-}>> {
-  // 영상 관련 필드 추가 (수동 백필과 동일)
-  const fields = 'date_start,campaign_id,campaign_name,impressions,clicks,spend,actions,video_p100_watched_actions,video_avg_time_watched_actions'
-  const allData: Array<{
-    date_start: string
-    device_platform: string
-    impressions: string
-    clicks: string
-    spend: string
-    campaign_id: string
-    campaign_name: string
-    actions?: Array<{ action_type: string; value: string }>
-    video_p100_watched_actions?: Array<{ action_type: string; value: string }>
-    video_avg_time_watched_actions?: Array<{ action_type: string; value: string }>
-  }> = []
+}
+
+// 광고 레벨 백필이 필요한 클라이언트 (ad_id 저장)
+const AD_LEVEL_CLIENTS = ['비즈액터스쿨']
+
+// Meta API 호출 (클라이언트별 캠페인/광고 레벨 분기)
+async function fetchMetaData(
+  accessToken: string,
+  adAccountId: string,
+  startDate: string,
+  endDate: string,
+  clientName: string
+): Promise<MetaInsightRow[]> {
+  const isAdLevel = AD_LEVEL_CLIENTS.includes(clientName)
+  const level = isAdLevel ? 'ad' : 'campaign'
+
+  // 광고 레벨은 ad_id, ad_name 추가 + video_play_actions, video_thruplay 포함
+  const fields = isAdLevel
+    ? 'date_start,campaign_id,campaign_name,ad_id,ad_name,impressions,clicks,spend,actions,video_play_actions,video_thruplay_watched_actions,video_avg_time_watched_actions'
+    : 'date_start,campaign_id,campaign_name,impressions,clicks,spend,actions,video_p100_watched_actions,video_avg_time_watched_actions'
+
+  const allData: MetaInsightRow[] = []
 
   let url = `https://graph.facebook.com/v21.0/act_${adAccountId}/insights?` +
     `fields=${fields}&` +
     `breakdowns=device_platform&` +
     `time_range={"since":"${startDate}","until":"${endDate}"}&` +
     `time_increment=1&` +
-    `level=campaign&` +
+    `level=${level}&` +
     `limit=500&` +
     `access_token=${accessToken}`
 
@@ -132,7 +138,7 @@ async function fetchMetaData(
   return allData
 }
 
-// Airtable에서 기존 레코드 조회 (date + source + device + campaign_name으로 정합성 체크)
+// Airtable에서 기존 레코드 조회 (캠페인 레벨: date+source+device+campaign_name)
 async function findExistingRecord(
   baseId: string,
   tableId: string,
@@ -142,6 +148,26 @@ async function findExistingRecord(
   campaignName: string
 ): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
   const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {campaign_name}='${campaignName}')`
+  const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+  })
+
+  const data = await response.json()
+  return data.records?.[0] || null
+}
+
+// Airtable에서 기존 레코드 조회 (광고 레벨: date+source+device+ad_id)
+async function findExistingAdRecord(
+  baseId: string,
+  tableId: string,
+  date: string,
+  source: string,
+  device: string,
+  adId: string
+): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
+  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {ad_id}='${adId}')`
   const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
 
   const response = await fetch(url, {
@@ -212,8 +238,10 @@ async function backfillClient(
     throw new Error(`Airtable 설정 없음: ${clientName}`)
   }
 
-  // Meta API 호출
-  const rawData = await fetchMetaData(accessToken, adAccountId, startDate, endDate)
+  const isAdLevel = AD_LEVEL_CLIENTS.includes(clientName)
+
+  // Meta API 호출 (클라이언트별 레벨 분기)
+  const rawData = await fetchMetaData(accessToken, adAccountId, startDate, endDate, clientName)
 
   let created = 0
   let updated = 0
@@ -225,15 +253,7 @@ async function backfillClient(
     const source = 'meta'
     const campaignName = row.campaign_name || ''
 
-    // 영상 데이터 추출 (수동 백필과 동일)
-    const videoViews = row.video_p100_watched_actions?.[0]?.value
-      ? parseInt(row.video_p100_watched_actions[0].value) : 0
-    const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value
-      ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
-
     // 클라이언트별 필드 구조 (테이블 스키마에 맞춤)
-    // - HEA 판교: date, device, impressions, clicks, spend, source
-    // - 나라똔: date, device, impressions, clicks, spend, source, campaign_name, leads, video_views, avg_watch_time
     const fields: Record<string, unknown> = {
       date,
       device,
@@ -243,19 +263,41 @@ async function backfillClient(
       source,
     }
 
-    // 나라똔만 추가 필드 저장
-    if (clientName === '나라똔' || clientName === '비즈액터스쿨') {
+    if (isAdLevel) {
+      // 광고 레벨 (BAS): ad_id, campaign_name = "광고명 (캠페인명)" 형식
+      const adId = row.ad_id || ''
+      const adName = row.ad_name || ''
+      fields.ad_id = adId
+      fields.campaign_name = `${adName}${campaignName ? ` (${campaignName})` : ''}`
+      fields.leads = getActionValue(row.actions, 'lead')
+      // 광고 레벨: video_play_actions 사용
+      fields.video_views = row.video_play_actions?.[0]?.value
+        ? parseInt(row.video_play_actions[0].value) : 0
+      fields.video_thruplay = row.video_thruplay_watched_actions?.[0]?.value
+        ? parseInt(row.video_thruplay_watched_actions[0].value) : 0
+      fields.avg_watch_time = row.video_avg_time_watched_actions?.[0]?.value
+        ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
+    } else if (clientName === '나라똔') {
+      // 나라똔: 캠페인 레벨 + 추가 필드
       fields.campaign_name = campaignName
       fields.leads = getActionValue(row.actions, 'lead')
-      fields.video_views = videoViews
-      fields.avg_watch_time = avgWatchTime
+      fields.video_views = row.video_p100_watched_actions?.[0]?.value
+        ? parseInt(row.video_p100_watched_actions[0].value) : 0
+      fields.avg_watch_time = row.video_avg_time_watched_actions?.[0]?.value
+        ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
     }
+    // HEA 판교: 기본 필드만 (date, device, impressions, clicks, spend, source)
 
-    // 기존 레코드 확인
-    // - HEA 판교: date + source + device (캠페인명 필드 없음)
-    // - 나라똔: date + source + device + campaign_name
-    const searchCampaign = clientName === 'H.E.A 판교' ? '' : campaignName
-    const existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, searchCampaign)
+    // 기존 레코드 확인 (레벨별 분기)
+    let existing: { id: string; fields: { is_finalized?: boolean } } | null = null
+    if (isAdLevel) {
+      // 광고 레벨: date + source + device + ad_id
+      existing = await findExistingAdRecord(config.baseId, config.tableId, date, source, device, row.ad_id || '')
+    } else {
+      // 캠페인 레벨: date + source + device + campaign_name
+      const searchCampaign = clientName === 'H.E.A 판교' ? '' : campaignName
+      existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, searchCampaign)
+    }
 
     if (existing) {
       if (existing.fields.is_finalized === true) {

@@ -21,6 +21,7 @@ import type { BrandSearchAPIResponse } from '@/types/brand-search'
 import type { GA4AnalyticsResponse } from '@/types/ga4-analytics'
 import { GA4Section } from '@/components/ga4'
 import { FunnelSection } from '@/components/funnel'
+import { BasDashboardView } from '@/components/bas'
 
 interface DashboardData {
   kpi: {
@@ -520,6 +521,41 @@ function DashboardContent() {
   // 네이버 활성화 여부 (BAS는 네이버 없음)
   const isNaverEnabled = clientSlug !== 'bas' && clientInfo?.naver?.enabled !== false
   const fmtSpend = (v: number) => isUsdClient ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Math.round(v).toLocaleString()}원`
+
+  // BAS 전용 대시보드 뷰 (clientSlug === 'bas' 일 때)
+  if (clientSlug === 'bas' && clientInfo) {
+    return (
+      <>
+        {/* 관리자 브레드크럼 */}
+        {isAdminView && (
+          <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <button
+                    onClick={() => setSelectedClientSlug('')}
+                    className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1 transition-colors"
+                  >
+                    <span>←</span>
+                    <span>전체 클라이언트</span>
+                  </button>
+                  <span className="text-gray-300">/</span>
+                  <span className="text-gray-900 font-semibold">{clientInfo.name}</span>
+                  <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-md font-medium">관리자</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        <BasDashboardView
+          clientSlug="bas"
+          clientName={clientInfo.name}
+          isAdmin={isAdminView}
+          dateRange={dateRange}
+        />
+      </>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

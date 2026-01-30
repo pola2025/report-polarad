@@ -26,6 +26,10 @@ const AIRTABLE_CONFIG = {
     baseId: 'appN2KzUoORRrb8X9',
     tableId: 'tblmC9Ft2ioXKXsrL',
   },
+  '비즈액터스쿨': {
+    baseId: process.env.AIRTABLE_BAS_BASE_ID,
+    tableId: process.env.AIRTABLE_BAS_TABLE_ID,
+  },
 };
 
 // actions 배열에서 특정 action_type 값 추출
@@ -153,8 +157,8 @@ async function updateAirtableRecord(baseId, tableId, recordId, fields) {
 // 클라이언트별 백필
 async function backfillClient(clientName, accessToken, adAccountId, startDate, endDate) {
   const config = AIRTABLE_CONFIG[clientName];
-  if (!config) {
-    throw new Error(`Airtable 설정 없음: ${clientName}`);
+  if (!config || !config.baseId || !config.tableId) {
+    throw new Error(`Airtable 설정 없음 또는 환경변수 미설정: ${clientName}`);
   }
 
   console.log(`\n📦 ${clientName} 백필 시작...`);
@@ -261,7 +265,7 @@ async function main() {
     console.error('  CLIENT=나라똔 BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js');
     console.error('  CLIENT="H.E.A 판교" BACKFILL_START=2026-01-01 BACKFILL_END=2026-01-06 node --env-file=.env.local scripts/backfill-meta-ads.js');
     console.error('');
-    console.error('가능한 클라이언트: 나라똔, H.E.A 판교');
+    console.error('가능한 클라이언트: 나라똔, H.E.A 판교, 비즈액터스쿨');
     process.exit(1);
   }
 
