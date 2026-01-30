@@ -328,83 +328,287 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
   )
 }
 
-// --- 광고 관리 탭 (활성/비활성 구분) ---
-function AdsManagementSection({
-  ads,
-  daily,
-}: {
-  ads: MetaAdData[]
-  daily: MetaDailyData[]
-}) {
-  // 최근 7일 활성 여부 판단
-  const last7Days = new Set(daily.slice(-7).map((d) => d.date))
+// --- 광고 관리 탭 (Meta API effective_status 기반) ---
 
-  const activeAds = ads.filter((ad) => {
-    // last_date가 최근 7일 내이면 활성
-    return last7Days.has(ad.last_date) || (new Date(ad.last_date) >= new Date(daily[Math.max(0, daily.length - 7)]?.date || ''))
+// 상태 타입
+interface AdStatusItem {
+  id: string
+  name: string
+  effective_status: string
+  configured_status: string
+  is_active: boolean
+  status_label: string
+}
+
+interface AdSetStatusItem extends AdStatusItem {
+  campaign_id: string
+  ads: AdStatusItem[]
+}
+
+interface CampaignStatusItem extends AdStatusItem {
+  adsets: AdSetStatusItem[]
+}
+
+interface AdsStatusResponse {
+  campaigns: CampaignStatusItem[]
+  summary: {
+    total_campaigns: number
+    active_campaigns: number
+    total_adsets: number
+    active_adsets: number
+    total_ads: number
+    active_ads: number
+  }
+}
+
+// ON/OFF 배지
+function StatusBadge({ isActive, label }: { isActive: boolean; label: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+        isActive
+          ? 'bg-green-100 text-green-700'
+          : 'bg-red-100 text-red-600'
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+      {isActive ? 'ON' : 'OFF'}
+      {!isActive && label !== '일시중지' && (
+        <span className="text-red-400 ml-0.5">({label})</span>
+      )}
+    </span>
+  )
+}
+
+function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
+  const [statusData, setStatusData] = useState<AdsStatusResponse | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set())
+  const [expandedAdsets, setExpandedAdsets] = useState<Set<string>>(new Set())
+  const [filterMode, setFilterMode] = useState<'all' | 'active' | 'inactive'>('all')
+
+  // Meta API에서 실시간 상태 조회
+  useEffect(() => {
+    async function loadStatus() {
+      setStatusLoading(true)
+      setStatusError(null)
+      try {
+        const res = await fetch(`/api/meta/ads-status?clientSlug=${clientSlug}`)
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || '상태 조회 실패')
+        }
+        const data: AdsStatusResponse = await res.json()
+        setStatusData(data)
+        // 활성 캠페인은 기본 펼침
+        const activeIds = new Set(
+          data.campaigns.filter((c) => c.is_active).map((c) => c.id)
+        )
+        setExpandedCampaigns(activeIds)
+      } catch (err) {
+        setStatusError(err instanceof Error ? err.message : '알 수 없는 오류')
+      } finally {
+        setStatusLoading(false)
+      }
+    }
+    loadStatus()
+  }, [clientSlug])
+
+  const toggleCampaign = (id: string) => {
+    setExpandedCampaigns((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleAdset = (id: string) => {
+    setExpandedAdsets((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // 로딩
+  if (statusLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 text-amber-500 animate-spin mb-3" />
+        <p className="text-sm text-gray-500">Meta API에서 광고 상태를 조회하는 중...</p>
+      </div>
+    )
+  }
+
+  // 에러
+  if (statusError || !statusData) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 font-medium mb-2">{statusError || '상태 데이터를 불러올 수 없습니다.'}</p>
+        <p className="text-sm text-gray-500">Meta API 토큰이 만료되었거나 권한이 부족할 수 있습니다.</p>
+      </div>
+    )
+  }
+
+  const { campaigns, summary } = statusData
+
+  // 필터 적용
+  const filteredCampaigns = campaigns.filter((c) => {
+    if (filterMode === 'active') return c.is_active
+    if (filterMode === 'inactive') return !c.is_active
+    return true
   })
 
-  const inactiveAds = ads.filter((ad) => !activeAds.includes(ad))
-
   return (
-    <div className="space-y-6">
-      {/* 활성 광고 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="w-3 h-3 bg-green-500 rounded-full" />
-          <h3 className="text-base font-semibold text-gray-900">
-            활성 광고 ({activeAds.length}개)
-          </h3>
+    <div className="space-y-4">
+      {/* 요약 통계 */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
+          <div className="text-2xl font-bold text-gray-900">{summary.active_campaigns}/{summary.total_campaigns}</div>
+          <div className="text-xs text-gray-500 mt-1">캠페인</div>
         </div>
-        {activeAds.length > 0 ? (
-          <div className="space-y-3">
-            {activeAds.map((ad) => (
-              <div key={ad.ad_id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-gray-900 truncate">{ad.ad_name}</div>
-                  <div className="text-xs text-gray-500">
-                    {ad.first_date} ~ {ad.last_date} ({ad.days_count}일)
-                  </div>
-                </div>
-                <div className="text-right ml-4 flex-shrink-0">
-                  <div className="text-sm font-semibold">{ad.leads}건</div>
-                  <div className="text-xs text-gray-500">${ad.spend.toFixed(0)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 py-4">활성 광고가 없습니다.</p>
-        )}
+        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
+          <div className="text-2xl font-bold text-gray-900">{summary.active_adsets}/{summary.total_adsets}</div>
+          <div className="text-xs text-gray-500 mt-1">광고세트</div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
+          <div className="text-2xl font-bold text-gray-900">{summary.active_ads}/{summary.total_ads}</div>
+          <div className="text-xs text-gray-500 mt-1">광고</div>
+        </div>
       </div>
 
-      {/* 비활성 광고 */}
-      {inactiveAds.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-3 h-3 bg-gray-400 rounded-full" />
-            <h3 className="text-base font-semibold text-gray-900">
-              비활성 광고 ({inactiveAds.length}개)
-            </h3>
+      {/* 필터 */}
+      <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg w-fit">
+        {(['all', 'active', 'inactive'] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setFilterMode(mode)}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterMode === mode
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {mode === 'all' ? '전체' : mode === 'active' ? 'ON' : 'OFF'}
+          </button>
+        ))}
+      </div>
+
+      {/* 캠페인 계층 트리 */}
+      <div className="space-y-3">
+        {filteredCampaigns.length === 0 && (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            {filterMode === 'active' ? '활성 캠페인이 없습니다.' : filterMode === 'inactive' ? '비활성 캠페인이 없습니다.' : '캠페인이 없습니다.'}
           </div>
-          <div className="space-y-3">
-            {inactiveAds.map((ad) => (
-              <div key={ad.ad_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-gray-600 truncate">{ad.ad_name}</div>
-                  <div className="text-xs text-gray-400">
-                    {ad.first_date} ~ {ad.last_date} ({ad.days_count}일)
+        )}
+
+        {filteredCampaigns.map((campaign) => {
+          const isExpanded = expandedCampaigns.has(campaign.id)
+          const activeAdsetCount = campaign.adsets.filter((a) => a.is_active).length
+          const totalAdCount = campaign.adsets.reduce((s, a) => s + a.ads.length, 0)
+          const activeAdCount = campaign.adsets.reduce(
+            (s, a) => s + a.ads.filter((ad) => ad.is_active).length, 0
+          )
+
+          return (
+            <div key={campaign.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* 캠페인 헤더 */}
+              <button
+                onClick={() => toggleCampaign(campaign.id)}
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0 rotate-90" />
+                  )}
+                  <Megaphone className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{campaign.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      광고세트 {activeAdsetCount}/{campaign.adsets.length} &middot; 광고 {activeAdCount}/{totalAdCount}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right ml-4 flex-shrink-0">
-                  <div className="text-sm font-semibold text-gray-600">{ad.leads}건</div>
-                  <div className="text-xs text-gray-400">${ad.spend.toFixed(0)}</div>
+                <StatusBadge isActive={campaign.is_active} label={campaign.status_label} />
+              </button>
+
+              {/* 광고세트 목록 */}
+              {isExpanded && campaign.adsets.length > 0 && (
+                <div className="border-t border-gray-100">
+                  {campaign.adsets.map((adset) => {
+                    const adsetExpanded = expandedAdsets.has(adset.id)
+                    const activeAdsInSet = adset.ads.filter((a) => a.is_active).length
+
+                    return (
+                      <div key={adset.id}>
+                        {/* 광고세트 행 */}
+                        <button
+                          onClick={() => toggleAdset(adset.id)}
+                          className="w-full flex items-center justify-between px-4 py-3 pl-10 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {adset.ads.length > 0 ? (
+                              adsetExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                              ) : (
+                                <ChevronUp className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 rotate-90" />
+                              )
+                            ) : (
+                              <span className="w-3.5" />
+                            )}
+                            <div className="text-left min-w-0">
+                              <div className="text-sm font-medium text-gray-800 truncate">{adset.name}</div>
+                              <div className="text-xs text-gray-400">
+                                광고 {activeAdsInSet}/{adset.ads.length}
+                              </div>
+                            </div>
+                          </div>
+                          <StatusBadge isActive={adset.is_active} label={adset.status_label} />
+                        </button>
+
+                        {/* 광고 목록 */}
+                        {adsetExpanded && adset.ads.length > 0 && (
+                          <div className="bg-gray-50">
+                            {adset.ads.map((ad) => (
+                              <div
+                                key={ad.id}
+                                className="flex items-center justify-between px-4 py-2.5 pl-16 border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="text-sm text-gray-700 truncate min-w-0 flex-1">
+                                  {ad.name}
+                                </div>
+                                <StatusBadge isActive={ad.is_active} label={ad.status_label} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              )}
+
+              {/* 빈 캠페인 */}
+              {isExpanded && campaign.adsets.length === 0 && (
+                <div className="px-4 py-3 border-t border-gray-100 text-sm text-gray-400 pl-10">
+                  광고세트가 없습니다.
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -763,7 +967,7 @@ export function BasDashboardView({
             )}
 
             {activeTab === 'ads-management' && (
-              <AdsManagementSection ads={ads} daily={daily} />
+              <AdsManagementSection clientSlug={clientSlug} />
             )}
           </section>
         </div>
