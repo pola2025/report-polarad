@@ -170,7 +170,7 @@ function PeriodDataSection({
 }
 
 // --- 광고 상세 테이블 ---
-type SortField = 'ad_name' | 'impressions' | 'clicks' | 'ctr' | 'spend' | 'leads' | 'cpl' | 'days_count'
+type SortField = 'ad_name' | 'impressions' | 'clicks' | 'ctr' | 'spend' | 'leads' | 'cpl' | 'avg_watch_time' | 'days_count'
 type SortDir = 'asc' | 'desc'
 
 function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
@@ -212,6 +212,10 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
     const totalClicks = sortedAds.reduce((s, a) => s + a.clicks, 0)
     const totalSpend = sortedAds.reduce((s, a) => s + a.spend, 0)
     const totalLeads = sortedAds.reduce((s, a) => s + a.leads, 0)
+    const watchTimeAds = sortedAds.filter((a) => a.avg_watch_time && a.avg_watch_time > 0)
+    const avgWatchTime = watchTimeAds.length > 0
+      ? watchTimeAds.reduce((s, a) => s + (a.avg_watch_time || 0), 0) / watchTimeAds.length
+      : 0
     return {
       impressions: totalImpressions,
       clicks: totalClicks,
@@ -219,12 +223,19 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
       leads: totalLeads,
       ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
       cpl: totalLeads > 0 ? totalSpend / totalLeads : 0,
+      avgWatchTime,
     }
   }, [sortedAds])
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp className="h-3 w-3 opacity-30" />
     return sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+  }
+
+  const formatWatchTime = (seconds: number | undefined) => {
+    if (!seconds) return '-'
+    if (seconds < 60) return `${seconds.toFixed(1)}s`
+    return `${Math.floor(seconds / 60)}:${Math.round(seconds % 60).toString().padStart(2, '0')}`
   }
 
   return (
@@ -241,8 +252,100 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
         />
       </div>
 
-      {/* 테이블 */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* 모바일: 정렬 선택 */}
+      <div className="flex items-center gap-2 md:hidden">
+        <span className="text-xs text-gray-500">정렬:</span>
+        <select
+          value={sortField}
+          onChange={(e) => { setSortField(e.target.value as SortField); setSortDir('desc') }}
+          className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white"
+        >
+          <option value="spend">지출</option>
+          <option value="leads">리드</option>
+          <option value="cpl">CPL</option>
+          <option value="avg_watch_time">시청시간</option>
+          <option value="impressions">노출수</option>
+          <option value="clicks">클릭수</option>
+          <option value="ctr">CTR</option>
+        </select>
+        <button
+          onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+          className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white"
+        >
+          {sortDir === 'desc' ? '높은순' : '낮은순'}
+        </button>
+      </div>
+
+      {/* 모바일: 합계 요약 카드 */}
+      {sortedAds.length > 0 && (
+        <div className="grid grid-cols-4 gap-2 md:hidden">
+          <div className="bg-blue-50 rounded-lg p-2 text-center">
+            <div className="text-[10px] text-blue-500">지출</div>
+            <div className="text-xs font-bold text-blue-700">${totals.spend.toFixed(0)}</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2 text-center">
+            <div className="text-[10px] text-gray-500">리드</div>
+            <div className="text-xs font-bold text-gray-800">{totals.leads}</div>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-2 text-center">
+            <div className="text-[10px] text-purple-500">CPL</div>
+            <div className="text-xs font-bold text-purple-700">{totals.leads > 0 ? `$${totals.cpl.toFixed(0)}` : '-'}</div>
+          </div>
+          <div className="bg-pink-50 rounded-lg p-2 text-center">
+            <div className="text-[10px] text-pink-500">시청시간</div>
+            <div className="text-xs font-bold text-pink-700">{formatWatchTime(totals.avgWatchTime || undefined)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 모바일: 카드 리스트 */}
+      <div className="space-y-2 md:hidden">
+        {sortedAds.map((ad, index) => (
+          <div key={ad.ad_id} className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-start gap-2 mb-2">
+              <span className="text-gray-400 text-xs mt-0.5">{index + 1}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm text-gray-900 truncate">{ad.ad_name}</div>
+                {ad.campaign_name && (
+                  <div className="text-xs text-gray-400 truncate">{ad.campaign_name}</div>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <div className="text-[10px] text-gray-400">지출</div>
+                <div className="text-xs font-semibold text-blue-600">${ad.spend.toFixed(0)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400">리드</div>
+                <div className="text-xs font-semibold">{ad.leads}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400">CPL</div>
+                <div className="text-xs font-semibold text-purple-600">{ad.leads > 0 ? `$${ad.cpl.toFixed(0)}` : '-'}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400">시청시간</div>
+                <div className="text-xs font-semibold text-pink-600">{formatWatchTime(ad.avg_watch_time)}</div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-1.5 pt-1.5 border-t border-gray-100">
+              <span className="text-[10px] text-gray-400">노출 {formatNumber(ad.impressions)}</span>
+              <span className="text-[10px] text-gray-400">클릭 {formatNumber(ad.clicks)}</span>
+              <span className="text-[10px] text-green-600">CTR {ad.ctr.toFixed(2)}%</span>
+              <span className="text-[10px] text-gray-400">{ad.days_count}일</span>
+            </div>
+          </div>
+        ))}
+        {sortedAds.length === 0 && (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            {searchTerm ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
+          </div>
+        )}
+      </div>
+
+      {/* 데스크탑: 테이블 */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hidden md:block">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 sticky top-0">
@@ -267,6 +370,9 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
                 </th>
                 <th className="px-3 py-3 text-right font-medium text-gray-500 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('cpl')}>
                   <div className="flex items-center justify-end gap-1">CPL <SortIcon field="cpl" /></div>
+                </th>
+                <th className="px-3 py-3 text-right font-medium text-gray-500 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('avg_watch_time')}>
+                  <div className="flex items-center justify-end gap-1">시청시간 <SortIcon field="avg_watch_time" /></div>
                 </th>
                 <th className="px-3 py-3 text-right font-medium text-gray-500">기간</th>
               </tr>
@@ -294,12 +400,15 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
                   <td className="px-3 py-3 text-right text-purple-600">
                     {ad.leads > 0 ? `$${ad.cpl.toFixed(2)}` : '-'}
                   </td>
+                  <td className="px-3 py-3 text-right text-pink-600">
+                    {formatWatchTime(ad.avg_watch_time)}
+                  </td>
                   <td className="px-3 py-3 text-right text-gray-500 text-xs">{ad.days_count}일</td>
                 </tr>
               ))}
               {sortedAds.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
                     {searchTerm ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
                   </td>
                 </tr>
@@ -316,6 +425,9 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
                   <td className="px-3 py-3 text-right">{totals.leads}</td>
                   <td className="px-3 py-3 text-right text-purple-600">
                     {totals.leads > 0 ? `$${totals.cpl.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="px-3 py-3 text-right text-pink-600">
+                    {formatWatchTime(totals.avgWatchTime || undefined)}
                   </td>
                   <td className="px-3 py-3 text-right">-</td>
                 </tr>

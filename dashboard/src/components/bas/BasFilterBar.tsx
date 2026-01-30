@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Search } from 'lucide-react'
 
 interface BasFilterBarProps {
   compareMode: 'none' | 'weekly' | 'monthly'
@@ -9,6 +11,22 @@ interface BasFilterBarProps {
 export function BasFilterBar({ compareMode }: BasFilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  const currentStart = searchParams.get('start')
+  const currentEnd = searchParams.get('end')
+
+  // 로컬 state로 날짜 버퍼링 (즉시 반영 방지)
+  const [draftStart, setDraftStart] = useState(currentStart || '')
+  const [draftEnd, setDraftEnd] = useState(currentEnd || '')
+
+  // URL 파라미터가 외부에서 변경되면 동기화 (퀵 버튼 등)
+  useEffect(() => {
+    setDraftStart(currentStart || '')
+    setDraftEnd(currentEnd || '')
+  }, [currentStart, currentEnd])
+
+  // 날짜가 URL과 다른지 확인
+  const isDirty = draftStart !== (currentStart || '') || draftEnd !== (currentEnd || '')
 
   const updateCompareMode = (mode: 'none' | 'weekly' | 'monthly') => {
     const params = new URLSearchParams(searchParams.toString())
@@ -36,8 +54,22 @@ export function BasFilterBar({ compareMode }: BasFilterBarProps) {
     router.push(`?${params.toString()}`)
   }
 
-  const currentStart = searchParams.get('start')
-  const currentEnd = searchParams.get('end')
+  // 조회 버튼: 두 날짜를 한 번에 적용
+  const applyDateRange = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (draftStart) {
+      params.set('start', draftStart)
+    } else {
+      params.delete('start')
+    }
+    if (draftEnd) {
+      params.set('end', draftEnd)
+    } else {
+      params.delete('end')
+    }
+    router.push(`?${params.toString()}`)
+  }
+
   const activeQuick = !currentStart && !currentEnd ? 'all' : undefined
 
   return (
@@ -83,29 +115,33 @@ export function BasFilterBar({ compareMode }: BasFilterBarProps) {
           </div>
         </div>
 
-        {/* 날짜 입력 */}
+        {/* 날짜 입력 + 조회 버튼 */}
         <div className="flex items-center gap-1">
           <input
             type="date"
-            value={currentStart || ''}
-            onChange={(e) => {
-              const params = new URLSearchParams(searchParams.toString())
-              params.set('start', e.target.value)
-              router.push(`?${params.toString()}`)
-            }}
+            value={draftStart}
+            onChange={(e) => setDraftStart(e.target.value)}
             className="px-2 py-1 text-xs border border-gray-200 rounded-md"
           />
           <span className="text-xs text-gray-400">~</span>
           <input
             type="date"
-            value={currentEnd || ''}
-            onChange={(e) => {
-              const params = new URLSearchParams(searchParams.toString())
-              params.set('end', e.target.value)
-              router.push(`?${params.toString()}`)
-            }}
+            value={draftEnd}
+            onChange={(e) => setDraftEnd(e.target.value)}
             className="px-2 py-1 text-xs border border-gray-200 rounded-md"
           />
+          <button
+            onClick={applyDateRange}
+            disabled={!isDirty}
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              isDirty
+                ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <Search className="h-3 w-3" />
+            조회
+          </button>
         </div>
       </div>
     </div>
