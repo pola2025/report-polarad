@@ -458,16 +458,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 완료 알림
+    // 완료 알림 (클라이언트별 상세 포함)
     const successCount = Object.values(results).filter(r => !r.error).length
     const errorCount = Object.values(results).filter(r => r.error).length
+
+    const clientDetails = Object.entries(results)
+      .map(([name, r]) => {
+        if (r.error) return `❌ ${name}: ${r.error}`
+        return `✅ ${name}: +${r.created} / ~${r.updated} / ⏭${r.skipped}`
+      })
+      .join('\n')
 
     await sendTelegram(
       `✅ <b>Cron 백필 완료</b>\n\n` +
       `📅 기간: ${startDate} ~ ${endDate}\n` +
       `📊 생성: ${totalCreated}개, 업데이트: ${totalUpdated}개\n` +
-      `✅ 성공: ${successCount}개 클라이언트\n` +
-      (errorCount > 0 ? `❌ 실패: ${errorCount}개 클라이언트` : '')
+      `✅ 성공: ${successCount}개 / ❌ 실패: ${errorCount}개\n\n` +
+      `<b>클라이언트별 결과:</b>\n${clientDetails}`
     )
 
     return NextResponse.json({
