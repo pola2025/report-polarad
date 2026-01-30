@@ -3,11 +3,16 @@
  *
  * 매일 새벽 3시 KST (UTC 18:00)에 실행
  * Meta 데이터를 수집하여 Airtable에 저장
+ *
+ * 최적화: 배치 조회/쓰기, 재시도 로직 (2026-01-30)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { TABLES } from '@/lib/supabase'
+
+// Vercel Pro: 최대 실행 시간 60초
+export const maxDuration = 60
 
 // 텔레그램 설정
 const BACKFILL_CHAT_ID = '-1003394139746'
@@ -91,6 +96,50 @@ interface MetaInsightRow {
 // 광고 레벨 백필이 필요한 클라이언트 (ad_id 저장)
 const AD_LEVEL_CLIENTS = ['비즈액터스쿨']
 
+// Airtable 레코드 타입
+interface AirtableRecord {
+  id: string
+  fields: Record<string, unknown>
+}
+
+// ─── 변경 2: fetchWithRetry ─────────────────────────────────────────
+// 3회 재시도 + 지수 백오프 + 429 Retry-After 존중
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastResponse: Response | null = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options)
+    lastResponse = response
+
+    if (response.ok) return response
+
+    // 429 Rate Limit → Retry-After 존중
+    if (response.status === 429 && attempt < maxRetries) {
+      const retryAfter = parseInt(response.headers.get('Retry-After') || '') || (2 ** attempt)
+      console.warn(`⏳ Rate limit (429), ${retryAfter}초 대기 (${attempt + 1}/${maxRetries})`)
+      await new Promise(r => setTimeout(r, retryAfter * 1000))
+      continue
+    }
+
+    // 서버 에러 (5xx) → 지수 백오프 재시도
+    if (response.status >= 500 && response.status <= 504 && attempt < maxRetries) {
+      const delay = (2 ** attempt) * 1000
+      console.warn(`⏳ 서버 에러 (${response.status}), ${delay}ms 대기 (${attempt + 1}/${maxRetries})`)
+      await new Promise(r => setTimeout(r, delay))
+      continue
+    }
+
+    // 재시도 불가능한 에러 또는 마지막 시도
+    return response
+  }
+
+  return lastResponse!
+}
+
 // Meta API 호출 (클라이언트별 캠페인/광고 레벨 분기)
 async function fetchMetaData(
   accessToken: string,
@@ -120,7 +169,7 @@ async function fetchMetaData(
 
   // 페이지네이션 처리
   while (url) {
-    const response = await fetch(url)
+    const response = await fetchWithRetry(url)
     const data = await response.json()
 
     if (data.error) {
@@ -138,94 +187,119 @@ async function fetchMetaData(
   return allData
 }
 
-// Airtable에서 기존 레코드 조회 (캠페인 레벨: date+source+device+campaign_name)
-async function findExistingRecord(
+// ─── 변경 3: 배치 조회 ──────────────────────────────────────────────
+// 날짜 범위 전체 레코드를 1~3회 페이지네이션으로 로드 → Map 구축
+// 키: BAS → date|ad_id|device, 나라똔 → date|campaign_name|device, HEA → date||device
+async function loadExistingRecords(
   baseId: string,
   tableId: string,
-  date: string,
-  source: string,
-  device: string,
-  campaignName: string
-): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
-  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {campaign_name}='${campaignName}')`
-  const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
+  startDate: string,
+  endDate: string,
+  clientName: string
+): Promise<Map<string, AirtableRecord>> {
+  const records: AirtableRecord[] = []
+  let offset = ''
 
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
-  })
+  do {
+    const formula = encodeURIComponent(
+      `AND({date}>='${startDate}', {date}<='${endDate}', {source}='meta')`
+    )
+    let url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${formula}&pageSize=100`
+    if (offset) url += `&offset=${offset}`
 
-  const data = await response.json()
-  return data.records?.[0] || null
-}
+    const response = await fetchWithRetry(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+    })
+    const data = await response.json()
+    if (data.records) records.push(...data.records)
+    offset = data.offset || ''
+  } while (offset)
 
-// Airtable에서 기존 레코드 조회 (광고 레벨: date+source+device+ad_id)
-async function findExistingAdRecord(
-  baseId: string,
-  tableId: string,
-  date: string,
-  source: string,
-  device: string,
-  adId: string
-): Promise<{ id: string; fields: { is_finalized?: boolean } } | null> {
-  const formula = `AND({date}='${date}', {source}='${source}', {device}='${device}', {ad_id}='${adId}')`
-  const url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`
+  // 클라이언트별 키로 Map 구축
+  const isAdLevel = AD_LEVEL_CLIENTS.includes(clientName)
+  const map = new Map<string, AirtableRecord>()
 
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
-  })
-
-  const data = await response.json()
-  return data.records?.[0] || null
-}
-
-// Airtable 레코드 생성
-async function createAirtableRecord(
-  baseId: string,
-  tableId: string,
-  fields: Record<string, unknown>
-): Promise<void> {
-  const url = `https://api.airtable.com/v0/${baseId}/${tableId}`
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ fields }),
-  })
-
-  const data = await response.json()
-  if (data.error) {
-    throw new Error(`Airtable 생성 오류: ${data.error.message}`)
+  for (const r of records) {
+    let key: string
+    if (isAdLevel) {
+      // BAS: date + ad_id + device
+      key = `${r.fields.date}|${r.fields.ad_id || ''}|${r.fields.device || ''}`
+    } else if (clientName === '나라똔') {
+      // 나라똔: date + campaign_name + device
+      key = `${r.fields.date}|${r.fields.campaign_name || ''}|${r.fields.device || ''}`
+    } else {
+      // HEA: date + device (campaign_name 없음)
+      key = `${r.fields.date}||${r.fields.device || ''}`
+    }
+    map.set(key, r)
   }
+
+  return map
 }
 
-// Airtable 레코드 업데이트
-async function updateAirtableRecord(
+// ─── 변경 4: 배치 쓰기 ──────────────────────────────────────────────
+// Airtable 배치 API: 최대 10건/요청
+async function batchCreateRecords(
   baseId: string,
   tableId: string,
-  recordId: string,
-  fields: Record<string, unknown>
-): Promise<void> {
-  const url = `https://api.airtable.com/v0/${baseId}/${tableId}/${recordId}`
-
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ fields }),
-  })
-
-  const data = await response.json()
-  if (data.error) {
-    throw new Error(`Airtable 업데이트 오류: ${data.error.message}`)
+  fieldsList: Array<Record<string, unknown>>
+): Promise<number> {
+  let created = 0
+  for (let i = 0; i < fieldsList.length; i += 10) {
+    const batch = fieldsList.slice(i, i + 10)
+    const response = await fetchWithRetry(
+      `https://api.airtable.com/v0/${baseId}/${tableId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          records: batch.map(fields => ({ fields })),
+        }),
+      }
+    )
+    const data = await response.json()
+    if (data.error) {
+      throw new Error(`Airtable 배치 생성 오류: ${data.error.message}`)
+    }
+    created += batch.length
   }
+  return created
 }
 
-// 클라이언트별 백필
+async function batchUpdateRecords(
+  baseId: string,
+  tableId: string,
+  updates: Array<{ id: string; fields: Record<string, unknown> }>
+): Promise<number> {
+  let updated = 0
+  for (let i = 0; i < updates.length; i += 10) {
+    const batch = updates.slice(i, i + 10)
+    const response = await fetchWithRetry(
+      `https://api.airtable.com/v0/${baseId}/${tableId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          records: batch.map(u => ({ id: u.id, fields: u.fields })),
+        }),
+      }
+    )
+    const data = await response.json()
+    if (data.error) {
+      throw new Error(`Airtable 배치 업데이트 오류: ${data.error.message}`)
+    }
+    updated += batch.length
+  }
+  return updated
+}
+
+// 클라이언트별 백필 (3단계: Meta 조회 → 분류 → 배치 실행)
 async function backfillClient(
   clientName: string,
   accessToken: string,
@@ -240,11 +314,16 @@ async function backfillClient(
 
   const isAdLevel = AD_LEVEL_CLIENTS.includes(clientName)
 
-  // Meta API 호출 (클라이언트별 레벨 분기)
+  // Phase 1: Meta API 호출
   const rawData = await fetchMetaData(accessToken, adAccountId, startDate, endDate, clientName)
 
-  let created = 0
-  let updated = 0
+  // Phase 2: 기존 레코드 배치 로드 + 분류
+  const existingMap = await loadExistingRecords(
+    config.baseId, config.tableId, startDate, endDate, clientName
+  )
+
+  const toCreate = new Map<string, Record<string, unknown>>()
+  const toUpdate = new Map<string, { id: string; fields: Record<string, unknown> }>()
   let skipped = 0
 
   for (const row of rawData) {
@@ -263,6 +342,8 @@ async function backfillClient(
       source,
     }
 
+    let key: string
+
     if (isAdLevel) {
       // 광고 레벨 (BAS): ad_id, campaign_name = "광고명 (캠페인명)" 형식
       const adId = row.ad_id || ''
@@ -270,13 +351,13 @@ async function backfillClient(
       fields.ad_id = adId
       fields.campaign_name = `${adName}${campaignName ? ` (${campaignName})` : ''}`
       fields.leads = getActionValue(row.actions, 'lead')
-      // 광고 레벨: video_play_actions 사용
       fields.video_views = row.video_play_actions?.[0]?.value
         ? parseInt(row.video_play_actions[0].value) : 0
       fields.video_thruplay = row.video_thruplay_watched_actions?.[0]?.value
         ? parseInt(row.video_thruplay_watched_actions[0].value) : 0
       fields.avg_watch_time = row.video_avg_time_watched_actions?.[0]?.value
         ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
+      key = `${date}|${adId}|${device}`
     } else if (clientName === '나라똔') {
       // 나라똔: 캠페인 레벨 + 추가 필드
       fields.campaign_name = campaignName
@@ -285,35 +366,32 @@ async function backfillClient(
         ? parseInt(row.video_p100_watched_actions[0].value) : 0
       fields.avg_watch_time = row.video_avg_time_watched_actions?.[0]?.value
         ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
-    }
-    // HEA 판교: 기본 필드만 (date, device, impressions, clicks, spend, source)
-
-    // 기존 레코드 확인 (레벨별 분기)
-    let existing: { id: string; fields: { is_finalized?: boolean } } | null = null
-    if (isAdLevel) {
-      // 광고 레벨: date + source + device + ad_id
-      existing = await findExistingAdRecord(config.baseId, config.tableId, date, source, device, row.ad_id || '')
+      key = `${date}|${campaignName}|${device}`
     } else {
-      // 캠페인 레벨: date + source + device + campaign_name
-      const searchCampaign = clientName === 'H.E.A 판교' ? '' : campaignName
-      existing = await findExistingRecord(config.baseId, config.tableId, date, source, device, searchCampaign)
+      // HEA 판교: 기본 필드만 (date, device, impressions, clicks, spend, source)
+      key = `${date}||${device}`
     }
 
+    // 분류: create / update / skip
+    const existing = existingMap.get(key)
     if (existing) {
       if (existing.fields.is_finalized === true) {
         skipped++
         continue
       }
-      await updateAirtableRecord(config.baseId, config.tableId, existing.id, fields)
-      updated++
+      toUpdate.set(key, { id: existing.id, fields })
     } else {
-      await createAirtableRecord(config.baseId, config.tableId, fields)
-      created++
+      toCreate.set(key, fields)
     }
-
-    // Rate limit 방지 (200ms)
-    await new Promise(r => setTimeout(r, 200))
   }
+
+  // Phase 3: 배치 쓰기
+  const created = toCreate.size > 0
+    ? await batchCreateRecords(config.baseId, config.tableId, Array.from(toCreate.values()))
+    : 0
+  const updated = toUpdate.size > 0
+    ? await batchUpdateRecords(config.baseId, config.tableId, Array.from(toUpdate.values()))
+    : 0
 
   return { created, updated, skipped }
 }
