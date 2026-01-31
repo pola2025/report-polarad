@@ -138,13 +138,13 @@ export function BasBudgetGauge({ summary, daily, monthlyBudget }: BasBudgetGauge
               transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
             />
             {/* 눈금 */}
-            <text x="16" y="118" fontSize="8" fill="#9ca3af" textAnchor="start">
+            <text x="16" y="118" fontSize="10" fill="#6b7280" fontWeight="600" textAnchor="start">
               $0
             </text>
-            <text x="100" y="28" fontSize="8" fill="#9ca3af" textAnchor="middle">
+            <text x="100" y="24" fontSize="11" fill="#4b5563" fontWeight="700" textAnchor="middle">
               ${formatNumber(Math.round(budget / 2))}
             </text>
-            <text x="184" y="118" fontSize="8" fill="#9ca3af" textAnchor="end">
+            <text x="184" y="118" fontSize="10" fill="#6b7280" fontWeight="600" textAnchor="end">
               ${formatNumber(Math.round(budget))}
             </text>
           </motion.svg>

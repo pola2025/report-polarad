@@ -47,7 +47,6 @@ import { BasConversionFunnel } from './BasConversionFunnel'
 import { BasBudgetGauge } from './BasBudgetGauge'
 import { BasPerformanceHeatmap } from './BasPerformanceHeatmap'
 import { BasAdBubbleMap } from './BasAdBubbleMap'
-import { BasCampaignTreemap } from './BasCampaignTreemap'
 import { BasAdRadarChart } from './BasAdRadarChart'
 import { BasAdEfficiencyReport } from './BasAdEfficiencyReport'
 
@@ -261,14 +260,15 @@ function PeriodDataSection({
 type SortField = 'ad_name' | 'impressions' | 'clicks' | 'ctr' | 'spend' | 'leads' | 'cpl' | 'avg_watch_time' | 'days_count'
 type SortDir = 'asc' | 'desc'
 
-type AdsViewMode = 'table' | 'bubble' | 'treemap' | 'efficiency'
+type AdsViewMode = 'table' | 'bubble' | 'efficiency'
 
 const ADS_VIEW_TABS: { id: AdsViewMode; label: string; emoji: string }[] = [
   { id: 'table', label: '테이블', emoji: '📋' },
   { id: 'bubble', label: '버블맵', emoji: '🫧' },
-  { id: 'treemap', label: '트리맵', emoji: '🗺️' },
   { id: 'efficiency', label: '효율분석', emoji: '📊' },
 ]
+
+type StatusFilter = 'all' | 'active' | 'inactive'
 
 function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clientSlug: string; daily?: MetaDailyData[] }) {
   const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
@@ -276,6 +276,33 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [activeAdIds, setActiveAdIds] = useState<Set<string> | null>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+
+  // Fetch ad ON/OFF status
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const res = await fetch(`/api/meta/ads-status?clientSlug=${clientSlug}`)
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        const ids = new Set<string>()
+        for (const campaign of data.campaigns || []) {
+          for (const adset of campaign.adsets || []) {
+            for (const ad of adset.ads || []) {
+              if (ad.is_active) ids.add(ad.id)
+            }
+          }
+        }
+        if (!cancelled) setActiveAdIds(ids)
+      } catch {
+        if (!cancelled) setActiveAdIds(null)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [clientSlug])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -286,8 +313,22 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
     }
   }
 
+  const isAdActive = useCallback((adId: string) => {
+    if (activeAdIds === null) return null // unknown
+    return activeAdIds.has(adId)
+  }, [activeAdIds])
+
   const sortedAds = useMemo(() => {
     let result = ads
+
+    // Status filter
+    if (statusFilter !== 'all' && activeAdIds !== null) {
+      result = result.filter((ad) => {
+        const active = activeAdIds.has(ad.ad_id)
+        return statusFilter === 'active' ? active : !active
+      })
+    }
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       result = result.filter(
@@ -304,7 +345,7 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
       }
       return sortDir === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal)
     })
-  }, [ads, searchTerm, sortField, sortDir])
+  }, [ads, searchTerm, sortField, sortDir, statusFilter, activeAdIds])
 
   const totals = useMemo(() => {
     const totalImpressions = sortedAds.reduce((s, a) => s + a.impressions, 0)
@@ -357,16 +398,40 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
           ))}
         </div>
         {adsViewMode === 'table' && (
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="광고 또는 캠페인 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            />
-          </div>
+          <>
+            {/* ON/OFF 필터 */}
+            {activeAdIds !== null && (
+              <div className="flex bg-gray-100 rounded-lg p-0.5">
+                {([
+                  { key: 'all' as StatusFilter, label: `전체 ${ads.length}` },
+                  { key: 'active' as StatusFilter, label: `ON ${activeAdIds.size}` },
+                  { key: 'inactive' as StatusFilter, label: `OFF ${ads.length - activeAdIds.size}` },
+                ]).map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setStatusFilter(opt.key)}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      statusFilter === opt.key
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="광고 또는 캠페인 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+          </>
         )}
       </div>
 
@@ -375,20 +440,6 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
         <div className={`grid gap-4 ${selectedAd ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
           <div className={selectedAd ? 'lg:col-span-2' : ''}>
             <BasAdBubbleMap ads={ads} onAdClick={(ad) => setSelectedAd(ad)} />
-          </div>
-          {selectedAd && (
-            <div>
-              <BasAdRadarChart ad={selectedAd} allAds={ads} onClose={() => setSelectedAd(null)} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 트리맵 뷰 */}
-      {adsViewMode === 'treemap' && (
-        <div className={`grid gap-4 ${selectedAd ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
-          <div className={selectedAd ? 'lg:col-span-2' : ''}>
-            <BasCampaignTreemap ads={ads} onAdSelect={(ad) => setSelectedAd(ad)} />
           </div>
           {selectedAd && (
             <div>
@@ -455,10 +506,15 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
 
       {/* 모바일: 카드 리스트 */}
       <div className="space-y-2 md:hidden">
-        {sortedAds.map((ad, index) => (
-          <div key={ad.ad_id} className="bg-white rounded-lg border border-gray-200 p-3">
+        {sortedAds.map((ad, index) => {
+          const mobileActive = isAdActive(ad.ad_id)
+          return (
+          <div key={ad.ad_id} className={`bg-white rounded-lg border border-gray-200 p-3 ${mobileActive === false ? 'opacity-50' : ''}`}>
             <div className="flex items-start gap-2 mb-2">
               <span className="text-gray-400 text-xs mt-0.5">{index + 1}</span>
+              {mobileActive !== null && (
+                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${mobileActive ? 'bg-green-500' : 'bg-red-400'}`} />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-sm text-gray-900 truncate">{ad.ad_name}</div>
                 {ad.campaign_name && (
@@ -491,7 +547,8 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
               <span className="text-[10px] text-gray-400">{ad.days_count}일</span>
             </div>
           </div>
-        ))}
+          )
+        })}
         {sortedAds.length === 0 && (
           <div className="text-center py-8 text-gray-500 text-sm">
             {searchTerm ? '검색 결과가 없습니다.' : '데이터가 없습니다.'}
@@ -533,16 +590,22 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedAds.map((ad, index) => (
-                <tr key={ad.ad_id} className="hover:bg-gray-50">
+              {sortedAds.map((ad, index) => {
+                const adActive = isAdActive(ad.ad_id)
+                return (
+                <tr key={ad.ad_id} className={`hover:bg-gray-50 ${adActive === false ? 'opacity-50' : ''}`}>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400 text-xs">{index + 1}</span>
-                      <Megaphone className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <div className="font-medium truncate max-w-[200px]" title={ad.ad_name}>{ad.ad_name}</div>
+                      {adActive !== null ? (
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${adActive ? 'bg-green-500' : 'bg-red-400'}`} title={adActive ? 'ON' : 'OFF'} />
+                      ) : (
+                        <Megaphone className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate" title={ad.ad_name}>{ad.ad_name}</div>
                         {ad.campaign_name && (
-                          <div className="text-xs text-gray-400 truncate max-w-[200px]" title={ad.campaign_name}>{ad.campaign_name}</div>
+                          <div className="text-xs text-gray-400 truncate" title={ad.campaign_name}>{ad.campaign_name}</div>
                         )}
                       </div>
                     </div>
@@ -560,7 +623,8 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
                   </td>
                   <td className="px-3 py-3 text-right text-gray-500 text-xs">{ad.days_count}일</td>
                 </tr>
-              ))}
+                )
+              })}
               {sortedAds.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
