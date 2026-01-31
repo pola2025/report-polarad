@@ -604,6 +604,7 @@ function LeadTable({
               <th className="text-left px-4 py-3 font-medium text-gray-500">연락처</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">상태</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">담당자</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">플랫폼</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">접수일</th>
               <th className="text-center px-4 py-3 font-medium text-gray-500">횟수</th>
               <th className="text-center px-4 py-3 font-medium text-gray-500">메모</th>
@@ -663,6 +664,21 @@ function LeadTable({
                       <option key={s.id} value={s.name}>{s.name}</option>
                     ))}
                   </select>
+                </td>
+
+                {/* 플랫폼 */}
+                <td className="px-4 py-3">
+                  {lead.platform ? (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      lead.platform === 'fb' ? 'bg-blue-50 text-blue-700' :
+                      lead.platform === 'ig' ? 'bg-pink-50 text-pink-700' :
+                      'bg-gray-50 text-gray-600'
+                    }`}>
+                      {lead.platform === 'fb' ? 'Facebook' : lead.platform === 'ig' ? 'Instagram' : lead.platform}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 text-xs">-</span>
+                  )}
                 </td>
 
                 {/* 접수일 */}
@@ -836,15 +852,35 @@ function LeadDetailSlide({
             </button>
           </div>
 
-          {/* 이전 이력 (재접수) */}
-          {lead.submission_count > 1 && (lead.previous_status || lead.previous_staff) && (
-            <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
-              <h5 className="text-xs font-medium text-amber-700 mb-2">이전 접수 이력</h5>
-              <div className="space-y-1 text-xs text-amber-800">
-                {lead.previous_status && <p>상태: {lead.previous_status}</p>}
-                {lead.previous_staff && <p>담당자: {lead.previous_staff}</p>}
-                {lead.previous_date && <p>접수일: {lead.previous_date}</p>}
+          {/* 광고 출처 */}
+          {(lead.campaign || lead.platform) && (
+            <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-3">
+              <h5 className="text-xs font-medium text-indigo-700 mb-2">광고 출처</h5>
+              <div className="space-y-1 text-xs text-indigo-800">
+                {lead.platform && (
+                  <p>플랫폼: <span className="font-medium">{lead.platform === 'fb' ? 'Facebook' : lead.platform === 'ig' ? 'Instagram' : lead.platform}</span></p>
+                )}
+                {lead.campaign && <p>캠페인: {lead.campaign}</p>}
+                {lead.ad_name && <p>광고: {lead.ad_name}</p>}
               </div>
+            </div>
+          )}
+
+          {/* 접수 이력 (재접수) */}
+          {lead.submission_history && (
+            <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+              <h5 className="text-xs font-medium text-amber-700 mb-2">접수 이력 ({lead.submission_count}회)</h5>
+              <div className="space-y-1 text-xs text-amber-800">
+                {lead.submission_history.split('\n').filter(Boolean).map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
+              </div>
+              {(lead.previous_status || lead.previous_staff) && (
+                <div className="mt-2 pt-2 border-t border-amber-200 space-y-1 text-xs text-amber-700">
+                  {lead.previous_status && <p>이전 상태: {lead.previous_status}</p>}
+                  {lead.previous_staff && <p>이전 담당자: {lead.previous_staff}</p>}
+                </div>
+              )}
             </div>
           )}
 
