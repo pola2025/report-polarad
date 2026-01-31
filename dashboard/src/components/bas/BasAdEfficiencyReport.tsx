@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Lightbulb, Loader2, AlertTriangle, Zap } from 'lucide-react'
+import { ChevronDown, Lightbulb, Loader2, AlertTriangle, Zap, DollarSign } from 'lucide-react'
+import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts'
 import type { MetaAdData, MetaDailyData } from '@/types/meta-analytics'
 import type { BasLead } from '@/types/bas-leads'
 import type { AdRiskFactors, AdRiskScore } from '@/types/bas-analytics'
@@ -17,6 +18,15 @@ import {
 
 type SortKey = 'risk_desc' | 'risk_asc' | 'wpv_desc' | 'score_asc' | 'score_desc' | 'age_desc'
 type Recommendation = 'off' | 'watch' | 'keep'
+
+interface CampaignInfo {
+  id: string
+  name: string
+  dailyBudget: number | null    // USD (campaign-level CBO budget)
+  lifetimeBudget: number | null // USD
+  adsetDailyBudgetSum: number   // sum of adset daily_budgets if no campaign budget
+  activeAdCount: number
+}
 
 interface ScoredAd {
   ad: MetaAdData
@@ -63,15 +73,38 @@ function getAdBatch(ad: MetaAdData): string {
 
 // --- Factor Scoring ---
 
-/** Factor 1: Burn Rate (25%) — spend efficiency risk */
+/** Factor 1: Burn Rate (25%) — 예산 낭비 위험도
+ * 감점 기준:
+ *  - 리드 0건 기본 위험 60 (Meta 알고리즘이 감점한 광고 포함)
+ *  - 리드 0건 + 지출 많음 → +20 (예산 직접 낭비)
+ *  - 리드 0건 + 노출 많음 → +20 (전환 실패: 사람들이 봤으나 반응 안 함)
+ *  - 리드 있음 → CPL 기반 + 노출당 전환율 보정
+ */
 function scoreBurnRate(ad: MetaAdData, metaAllocationShare: number): number {
   if (ad.leads === 0) {
-    // No leads: risk proportional to how much Meta allocated
-    return clamp(metaAllocationShare * 100)
+    // 리드 0건: 무조건 위험 신호
+    let risk = 60 // 기본 위험도 (Meta가 배분을 줄인 광고도 최소 60)
+
+    // 지출 많을수록 예산 낭비 심각 (0-15점 추가)
+    risk += Math.min(ad.spend / KILL_SWITCH_SPEND_THRESHOLD, 1) * 15
+
+    // 노출 많은데 리드 0 = 전환 실패 (0-15점 추가)
+    risk += Math.min(ad.impressions / 5000, 1) * 15
+
+    // Meta 배분 높은데 리드 0 = 큰 기회를 낭비 (0-10점 추가)
+    risk += metaAllocationShare * 10
+
+    return clamp(risk) // 60-100
   }
-  // Has leads: risk based on CPL vs target
+  // 리드 있음: CPL 기반 위험도
   const cplRatio = ad.cpl / TARGET_CPL
-  return clamp((cplRatio - 1) * 50 + 50) // CPL = target → 50, 2x target → 100
+  const cplRisk = clamp((cplRatio - 1) * 50 + 50) // CPL = target → 50, 2x → 100
+
+  // 노출 대비 전환율 보정: 노출 많은데 리드 적으면 추가 위험
+  const impressionsPerLead = ad.impressions / ad.leads
+  const conversionPenalty = Math.min(15, Math.max(0, (impressionsPerLead - 3000) / 400))
+
+  return clamp(cplRisk + conversionPenalty)
 }
 
 /** Factor 2: CPL Trend (25%) — uses aggregated daily data for the ad's campaign */
@@ -139,20 +172,37 @@ function scoreStability(
   return clamp(cv * 100)
 }
 
-/** Factor 5: Ad Fatigue (15%) — CTR vs batch avg + age penalty */
+/** Factor 5: Ad Fatigue (15%) — CTR + 시청시간 vs 배치평균 + 나이 패널티
+ * 좋은 광고 = 클릭 많고 시청시간 길다 → 낮은 피로도
+ * 나쁜 광고 = CTR 저조, 시청시간 짧다 → 높은 피로도
+ */
 function scoreFatigue(
   ad: MetaAdData,
   ageDays: number,
   batchAvgCtr: number,
+  batchAvgWatchTime: number,
 ): number {
   let fatigue = 0
+
+  // CTR vs 배치 평균 (0-50)
   if (batchAvgCtr > 0) {
     const ctrRatio = ad.ctr / batchAvgCtr
-    // CTR < batch avg → fatigued
-    fatigue = clamp((1 - ctrRatio) * 80)
+    fatigue += clamp((1 - ctrRatio) * 50)
   }
-  // Age penalty: +15pts max at D+30
-  const agePenalty = Math.min(15, (ageDays / 30) * 15)
+
+  // 시청시간 vs 배치 평균 (0-30)
+  const adWatchTime = ad.avg_watch_time || 0
+  if (batchAvgWatchTime > 0) {
+    if (adWatchTime > 0) {
+      const watchRatio = adWatchTime / batchAvgWatchTime
+      fatigue += clamp((1 - watchRatio) * 30)
+    } else {
+      fatigue += 15 // 다른 광고는 시청시간 있는데 이 광고만 없음
+    }
+  }
+
+  // 나이 패널티: D+30에서 최대 20점
+  const agePenalty = Math.min(20, (ageDays / 30) * 20)
   return clamp(fatigue + agePenalty)
 }
 
@@ -170,6 +220,73 @@ function classifyRisk(
   if (compositeRisk >= 45) return 'watch'
   if (ageDays >= 7 && ageDays < 14 && leads === 0) return 'watch'
   return 'keep'
+}
+
+/** OFF/KILL/WATCH 이유를 실제 수치 기반으로 생성 */
+function getWarningReason(item: ScoredAd): string | null {
+  if (item.recommendation === 'keep') return null
+
+  const parts: string[] = []
+  const { factors } = item.risk
+  const ad = item.ad
+
+  // ── 핵심 지표 (리드/CPL) ──
+  if (ad.leads === 0) {
+    const imps = ad.impressions > 1000
+      ? `${(ad.impressions / 1000).toFixed(1)}K`
+      : `${ad.impressions}`
+    parts.push(`${imps} 노출, $${ad.spend.toFixed(0)} 지출 → 전환 0건`)
+  } else if (ad.cpl > TARGET_CPL) {
+    parts.push(`CPL $${ad.cpl.toFixed(1)} (목표 $${TARGET_CPL}의 ${(ad.cpl / TARGET_CPL).toFixed(1)}배)`)
+  }
+
+  // ── 팩터별 수치 기반 이유 (60 이상만, 최대 2개) ──
+  const factorParts: string[] = []
+
+  if (factors.burnRate >= 60 && ad.leads > 0) {
+    const iplead = Math.round(ad.impressions / ad.leads)
+    factorParts.push(`노출 ${iplead.toLocaleString()}회당 1리드`)
+  }
+
+  if (factors.cplTrend >= 60) {
+    factorParts.push('최근 CPL 상승 추세')
+  }
+
+  if (factors.pipeline >= 60) {
+    if (item.risk.wpv === 0) {
+      factorParts.push('파이프라인 진행 0건')
+    } else {
+      factorParts.push(`WPV ${item.risk.wpv} · 효율 ${item.risk.wpvEfficiency.toFixed(2)}/$ (하위)`)
+    }
+  }
+
+  if (factors.stability >= 60) {
+    factorParts.push('리드 유입량 불안정')
+  }
+
+  if (factors.fatigue >= 60) {
+    const wt = ad.avg_watch_time
+    if (wt && wt > 0) {
+      factorParts.push(`시청 ${wt.toFixed(1)}s · CTR ${ad.ctr.toFixed(2)}% (배치 하회)`)
+    } else {
+      factorParts.push(`CTR ${ad.ctr.toFixed(2)}% (배치 평균 하회)`)
+    }
+  }
+
+  // 최대 2개 팩터만
+  parts.push(...factorParts.slice(0, 2))
+
+  // ── Kill Switch 보충 ──
+  if (item.risk.killSwitch && item.risk.metaAllocationShare > 0.3) {
+    parts.push(`Meta 예산 ${(item.risk.metaAllocationShare * 100).toFixed(0)}% 배분`)
+  }
+
+  // ── 장기 미전환 ──
+  if (item.ageDays >= 14 && ad.leads === 0 && !parts.some(p => p.includes('전환'))) {
+    parts.push(`D+${item.ageDays}일 집행, 미전환`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 // --- Config ---
@@ -287,8 +404,11 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
   const [statusLoading, setStatusLoading] = useState(true)
   const [leads, setLeads] = useState<BasLead[]>([])
   const [leadsLoaded, setLeadsLoaded] = useState(false)
+  const [adToCampaignMap, setAdToCampaignMap] = useState<Map<string, string>>(new Map())
+  const [campaignInfoMap, setCampaignInfoMap] = useState<Map<string, CampaignInfo>>(new Map())
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all')
 
-  // Fetch ad effective_status from Meta API
+  // Fetch ad effective_status from Meta API + campaign info
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -298,14 +418,39 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
         if (!res.ok) throw new Error('상태 조회 실패')
         const data = await res.json()
         const ids = new Set<string>()
+        const adCampaign = new Map<string, string>()
+        const campInfo = new Map<string, CampaignInfo>()
+
         for (const campaign of data.campaigns || []) {
+          let adsetDailyBudgetSum = 0
+          let activeAdCount = 0
+
           for (const adset of campaign.adsets || []) {
+            if (adset.daily_budget) adsetDailyBudgetSum += adset.daily_budget
             for (const ad of adset.ads || []) {
-              if (ad.is_active) ids.add(ad.id)
+              if (ad.is_active) {
+                ids.add(ad.id)
+                activeAdCount++
+              }
+              adCampaign.set(ad.id, campaign.id)
             }
           }
+
+          campInfo.set(campaign.id, {
+            id: campaign.id,
+            name: campaign.name,
+            dailyBudget: campaign.daily_budget,
+            lifetimeBudget: campaign.lifetime_budget,
+            adsetDailyBudgetSum,
+            activeAdCount,
+          })
         }
-        if (!cancelled) setActiveAdIds(ids)
+
+        if (!cancelled) {
+          setActiveAdIds(ids)
+          setAdToCampaignMap(adCampaign)
+          setCampaignInfoMap(campInfo)
+        }
       } catch {
         if (!cancelled) setActiveAdIds(null)
       } finally {
@@ -345,7 +490,54 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     return ads.filter((ad) => activeAdIds.has(ad.ad_id))
   }, [ads, activeAdIds])
 
+  // Campaign filter
+  const filteredAds = useMemo(() => {
+    if (selectedCampaignId === 'all') return activeAds
+    return activeAds.filter((ad) => adToCampaignMap.get(ad.ad_id) === selectedCampaignId)
+  }, [activeAds, selectedCampaignId, adToCampaignMap])
+
+  // List of campaigns that have active ads (for dropdown)
+  const activeCampaigns = useMemo(() => {
+    const campIds = new Set<string>()
+    for (const ad of activeAds) {
+      const cid = adToCampaignMap.get(ad.ad_id)
+      if (cid) campIds.add(cid)
+    }
+    return Array.from(campIds)
+      .map((id) => campaignInfoMap.get(id))
+      .filter((c): c is CampaignInfo => !!c)
+  }, [activeAds, adToCampaignMap, campaignInfoMap])
+
   const excludedCount = ads.length - activeAds.length
+
+  // Budget info for selected campaign(s)
+  const budgetInfo = useMemo(() => {
+    if (selectedCampaignId !== 'all') {
+      const camp = campaignInfoMap.get(selectedCampaignId)
+      if (!camp) return { dailyBudget: null, lifetimeBudget: null }
+      // CBO: campaign-level daily_budget, otherwise sum of adset budgets
+      const daily = camp.dailyBudget ?? (camp.adsetDailyBudgetSum > 0 ? camp.adsetDailyBudgetSum : null)
+      return { dailyBudget: daily, lifetimeBudget: camp.lifetimeBudget }
+    }
+    // "all": sum all campaigns' effective daily budgets
+    let totalDaily = 0
+    let hasAny = false
+    let totalLifetime: number | null = null
+    for (const camp of activeCampaigns) {
+      const daily = camp.dailyBudget ?? (camp.adsetDailyBudgetSum > 0 ? camp.adsetDailyBudgetSum : null)
+      if (daily !== null) { totalDaily += daily; hasAny = true }
+      if (camp.lifetimeBudget !== null) {
+        totalLifetime = (totalLifetime ?? 0) + camp.lifetimeBudget
+      }
+    }
+    return { dailyBudget: hasAny ? totalDaily : null, lifetimeBudget: totalLifetime }
+  }, [selectedCampaignId, campaignInfoMap, activeCampaigns])
+
+  // Average days_count across filtered ads
+  const avgDaysCount = useMemo(() => {
+    if (filteredAds.length === 0) return 0
+    return Math.round(filteredAds.reduce((s, a) => s + a.days_count, 0) / filteredAds.length)
+  }, [filteredAds])
 
   // Build WPV map: ad_name → total WPV
   const wpvMap = useMemo(() => {
@@ -363,7 +555,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
   // Build batch CTR averages
   const batchAvgCtrs = useMemo(() => {
     const batchCtrs = new Map<string, number[]>()
-    for (const ad of activeAds) {
+    for (const ad of filteredAds) {
       const batch = getAdBatch(ad)
       if (!batchCtrs.has(batch)) batchCtrs.set(batch, [])
       batchCtrs.get(batch)!.push(ad.ctr)
@@ -373,17 +565,35 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
       avgs.set(batch, ctrs.reduce((s: number, v: number) => s + v, 0) / ctrs.length)
     })
     return avgs
-  }, [activeAds])
+  }, [filteredAds])
+
+  // Build batch avg watch times
+  const batchAvgWatchTimes = useMemo(() => {
+    const batchTimes = new Map<string, number[]>()
+    for (const ad of filteredAds) {
+      const wt = ad.avg_watch_time || 0
+      if (wt > 0) {
+        const batch = getAdBatch(ad)
+        if (!batchTimes.has(batch)) batchTimes.set(batch, [])
+        batchTimes.get(batch)!.push(wt)
+      }
+    }
+    const avgs = new Map<string, number>()
+    batchTimes.forEach((times, batch) => {
+      avgs.set(batch, times.reduce((s: number, v: number) => s + v, 0) / times.length)
+    })
+    return avgs
+  }, [filteredAds])
 
   // Total spend for allocation share
-  const totalSpend = useMemo(() => activeAds.reduce((s, a) => s + a.spend, 0), [activeAds])
+  const totalSpend = useMemo(() => filteredAds.reduce((s, a) => s + a.spend, 0), [filteredAds])
 
   // Scored ads with full risk analysis
   const scored = useMemo<ScoredAd[]>(() => {
-    if (activeAds.length === 0) return []
+    if (filteredAds.length === 0) return []
 
     // Precompute enriched values
-    const enriched = activeAds.map((ad) => {
+    const enriched = filteredAds.map((ad) => {
       const created = parseAdCreatedDate(ad)
       const ageDays = daysSince(created)
       const activeDays = Math.max(ad.days_count, 1)
@@ -429,7 +639,9 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
       )
 
       // 5-Factor Risk Scoring
-      const batchAvg = batchAvgCtrs.get(getAdBatch(e.ad)) || e.ad.ctr
+      const adBatch = getAdBatch(e.ad)
+      const batchAvgCtr = batchAvgCtrs.get(adBatch) || e.ad.ctr
+      const batchAvgWatch = batchAvgWatchTimes.get(adBatch) || 0
       const factors: AdRiskFactors = {
         burnRate: scoreBurnRate(e.ad, e.metaAllocationShare),
         cplTrend: scoreCplTrend(e.ad, dailyData),
@@ -437,10 +649,10 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
           ? scorePipeline(e.wpv, e.ad.spend, allWpvEfficiencies)
           : 50,
         stability: scoreStability(e.ad, dailyData),
-        fatigue: scoreFatigue(e.ad, e.ageDays, batchAvg),
+        fatigue: scoreFatigue(e.ad, e.ageDays, batchAvgCtr, batchAvgWatch),
       }
 
-      const compositeRisk = Math.round(
+      const baseRisk = Math.round(
         factors.burnRate * CFO_RISK_WEIGHTS.burnRate +
         factors.cplTrend * CFO_RISK_WEIGHTS.cplTrend +
         factors.pipeline * CFO_RISK_WEIGHTS.pipeline +
@@ -463,6 +675,9 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
         killSwitchReason = `Meta 배분 ${(e.metaAllocationShare * 100).toFixed(0)}%, 리드 0건`
       }
 
+      // Kill Switch = 최고 위험 → compositeRisk 최소 80 보장
+      const compositeRisk = killSwitch ? Math.max(baseRisk, 80) : baseRisk
+
       const risk: AdRiskScore = {
         factors,
         compositeRisk,
@@ -480,7 +695,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
         recommendation: classifyRisk(compositeRisk, killSwitch, e.ageDays, e.ad.leads),
       }
     })
-  }, [activeAds, totalSpend, wpvMap, batchAvgCtrs, dailyData, leadsLoaded])
+  }, [filteredAds, totalSpend, wpvMap, batchAvgCtrs, batchAvgWatchTimes, dailyData, leadsLoaded])
 
   // Sorted
   const sorted = useMemo(() => {
@@ -538,6 +753,37 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     }
   }, [scored])
 
+  // Spend by recommendation for stack bar
+  const spendByRec = useMemo(() => {
+    const map = { off: 0, watch: 0, keep: 0 }
+    scored.forEach((s) => { map[s.recommendation] += s.ad.spend })
+    return map
+  }, [scored])
+
+  // Scatter plot data: spend vs leads
+  const scatterData = useMemo(() =>
+    scored.map((s) => ({
+      name: s.ad.ad_name.length > 20 ? s.ad.ad_name.slice(0, 20) + '…' : s.ad.ad_name,
+      fullName: s.ad.ad_name,
+      spend: Math.round(s.ad.spend),
+      leads: s.ad.leads,
+      impressions: s.ad.impressions,
+      cpl: s.ad.leads > 0 ? s.ad.cpl : 0,
+      recommendation: s.recommendation,
+      killSwitch: s.risk.killSwitch,
+      // bubble size: 노출수 비례 (min 40, max 400)
+      size: Math.max(40, Math.min(400, s.ad.impressions / 20)),
+    })),
+  [scored])
+
+  // Median spend for reference line
+  const medianSpend = useMemo(() => {
+    if (scored.length === 0) return 0
+    const spends = scored.map((s) => s.ad.spend).sort((a, b) => a - b)
+    const mid = Math.floor(spends.length / 2)
+    return spends.length % 2 ? spends[mid] : (spends[mid - 1] + spends[mid]) / 2
+  }, [scored])
+
   // Auto-insight
   const insight = useMemo(() => {
     if (scored.length === 0) return null
@@ -579,12 +825,14 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     return lines
   }, [scored, killSwitchAds, dailyWaste])
 
-  // Loading
-  if (statusLoading) {
+  // Loading: 광고 상태 + 리드 데이터 모두 완료될 때까지 대기
+  if (statusLoading || !leadsLoaded) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 flex items-center justify-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        <p className="text-gray-400 text-sm">광고 상태 조회 중...</p>
+        <p className="text-gray-400 text-sm">
+          {statusLoading ? '광고 상태 조회 중...' : '리드 데이터 분석 중...'}
+        </p>
       </div>
     )
   }
@@ -604,6 +852,212 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
 
   return (
     <div className="space-y-4">
+      {/* ── 소진예산 + 산점도 패널 ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left: 소진예산 스택바 */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-semibold text-gray-800">소진예산 배분</span>
+              </div>
+              {activeCampaigns.length >= 2 && (
+                <div className="relative">
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    className="text-[11px] border border-gray-300 rounded-lg px-2 py-1 bg-white pr-6 appearance-none cursor-pointer max-w-[180px] truncate"
+                  >
+                    <option value="all">전체 캠페인</option>
+                    {activeCampaigns.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                </div>
+              )}
+            </div>
+
+            {/* 3-column metrics: 총 지출 / 광고일수 / 일 예산 */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div>
+                <div className="text-2xl font-bold text-gray-900">${totalSpend.toFixed(0)}</div>
+                <div className="text-[10px] text-gray-400">총 지출</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 flex items-baseline gap-1">
+                  {avgDaysCount}<span className="text-sm font-medium text-gray-400">일</span>
+                </div>
+                <div className="text-[10px] text-gray-400">광고일수</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {budgetInfo.dailyBudget !== null
+                    ? `$${budgetInfo.dailyBudget.toFixed(0)}`
+                    : budgetInfo.lifetimeBudget !== null
+                      ? `$${budgetInfo.lifetimeBudget.toFixed(0)}`
+                      : '미설정'}
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  {budgetInfo.dailyBudget !== null
+                    ? '일 예산'
+                    : budgetInfo.lifetimeBudget !== null
+                      ? '전체 예산'
+                      : '일 예산'}
+                </div>
+              </div>
+            </div>
+            <div className="text-[10px] text-gray-400 mb-3">활성 광고 {filteredAds.length}개{selectedCampaignId !== 'all' ? '' : ` · 캠페인 ${activeCampaigns.length}개`}</div>
+
+            {/* Stack bar */}
+            {totalSpend > 0 && (
+              <>
+                <div className="flex h-5 rounded-full overflow-hidden mb-2">
+                  {spendByRec.off > 0 && (
+                    <div
+                      className="bg-red-400 h-full transition-all duration-500 flex items-center justify-center"
+                      style={{ width: `${(spendByRec.off / totalSpend) * 100}%` }}
+                    >
+                      {spendByRec.off / totalSpend > 0.1 && (
+                        <span className="text-[9px] text-white font-bold">${spendByRec.off.toFixed(0)}</span>
+                      )}
+                    </div>
+                  )}
+                  {spendByRec.watch > 0 && (
+                    <div
+                      className="bg-amber-300 h-full transition-all duration-500 flex items-center justify-center"
+                      style={{ width: `${(spendByRec.watch / totalSpend) * 100}%` }}
+                    >
+                      {spendByRec.watch / totalSpend > 0.1 && (
+                        <span className="text-[9px] text-amber-800 font-bold">${spendByRec.watch.toFixed(0)}</span>
+                      )}
+                    </div>
+                  )}
+                  {spendByRec.keep > 0 && (
+                    <div
+                      className="bg-emerald-400 h-full transition-all duration-500 flex items-center justify-center"
+                      style={{ width: `${(spendByRec.keep / totalSpend) * 100}%` }}
+                    >
+                      {spendByRec.keep / totalSpend > 0.1 && (
+                        <span className="text-[9px] text-white font-bold">${spendByRec.keep.toFixed(0)}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 text-[10px]">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-red-400" />
+                    OFF {(spendByRec.off / totalSpend * 100).toFixed(0)}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-300" />
+                    관찰 {(spendByRec.watch / totalSpend * 100).toFixed(0)}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    유지 {(spendByRec.keep / totalSpend * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Top spenders */}
+            <div className="mt-3 space-y-2">
+              {[...scored].sort((a, b) => b.ad.spend - a.ad.spend).slice(0, 5).map((s) => {
+                const pct = totalSpend > 0 ? (s.ad.spend / totalSpend) * 100 : 0
+                const barColor = s.recommendation === 'off' ? 'bg-red-400' : s.recommendation === 'watch' ? 'bg-amber-300' : 'bg-emerald-400'
+                return (
+                  <div key={s.ad.ad_id} className="text-[11px]">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="text-gray-600 font-medium break-all leading-tight">{s.ad.ad_name}</span>
+                      <span className="flex-shrink-0 flex items-center gap-1.5">
+                        <span className="text-gray-700 font-semibold">${s.ad.spend.toFixed(0)}</span>
+                        <span className="text-gray-400">{s.ad.leads}건</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Right: 지출 vs 성과 산점도 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-800">지출 vs 리드</span>
+              <div className="flex gap-2 text-[9px]">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />OFF/KILL</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" />관찰</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />유지</span>
+              </div>
+            </div>
+            <div className="h-[220px] sm:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 0 }}>
+                  <XAxis
+                    dataKey="spend" type="number" name="지출"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    tickFormatter={(v: number) => `$${v}`}
+                    label={{ value: '지출($)', position: 'bottom', offset: 0, style: { fontSize: 10, fill: '#9ca3af' } }}
+                  />
+                  <YAxis
+                    dataKey="leads" type="number" name="리드"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    label={{ value: '리드', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }}
+                  />
+                  <ReferenceLine x={medianSpend} stroke="#e5e7eb" strokeDasharray="3 3" />
+                  <ReferenceLine y={1} stroke="#e5e7eb" strokeDasharray="3 3" />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2.5 text-xs max-w-[200px]">
+                          <div className="font-semibold text-gray-900 truncate">{d.fullName}</div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-gray-600">
+                            <span>지출</span><span className="font-medium text-right">${d.spend}</span>
+                            <span>리드</span><span className="font-medium text-right">{d.leads}건</span>
+                            <span>CPL</span><span className="font-medium text-right">{d.leads > 0 ? `$${d.cpl.toFixed(1)}` : '-'}</span>
+                            <span>노출</span><span className="font-medium text-right">{d.impressions.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Scatter data={scatterData}>
+                    {scatterData.map((d, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={
+                          d.killSwitch ? '#dc2626'
+                          : d.recommendation === 'off' ? '#ef4444'
+                          : d.recommendation === 'watch' ? '#f59e0b'
+                          : '#10b981'
+                        }
+                        fillOpacity={d.killSwitch ? 0.9 : 0.7}
+                        stroke={d.killSwitch ? '#991b1b' : 'none'}
+                        strokeWidth={d.killSwitch ? 2 : 0}
+                      />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Quadrant labels */}
+            <div className="grid grid-cols-2 gap-1 mt-1 text-[9px]">
+              <div className="text-center text-gray-400">저지출 + 고성과 ⭐</div>
+              <div className="text-center text-gray-400">고지출 + 고성과 ✅</div>
+              <div className="text-center text-gray-400">저지출 + 무성과 🔇</div>
+              <div className="text-center text-red-400 font-medium">고지출 + 무성과 🚨</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Risk Summary Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         {/* Factor gauges row */}
@@ -657,7 +1111,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="text-sm text-gray-500">
-            활성 <span className="font-semibold text-gray-900">{activeAds.length}</span>개 광고
+            활성 <span className="font-semibold text-gray-900">{filteredAds.length}</span>개 광고
             {excludedCount > 0 && (
               <span className="text-gray-400 ml-1">(OFF {excludedCount}개 제외)</span>
             )}
@@ -696,6 +1150,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
             const riskColor = item.risk.compositeRisk >= 70 ? '#ef4444'
               : item.risk.compositeRisk >= 45 ? '#f59e0b'
               : '#10b981'
+            const warningReason = getWarningReason(item)
 
             return (
               <motion.div
@@ -705,7 +1160,13 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.3) }}
-                className={`bg-white rounded-xl border p-4 ${cfg.border}`}
+                className={`rounded-xl border p-4 ${
+                  item.risk.killSwitch
+                    ? 'bg-red-50/60 border-red-300 border-2 ring-1 ring-red-200'
+                    : item.recommendation === 'off'
+                      ? 'bg-red-50/30 border-red-200'
+                      : `bg-white ${cfg.border}`
+                }`}
               >
                 <div className="flex items-start gap-3">
                   {/* Risk gauge */}
@@ -743,6 +1204,24 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                       <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.ad.campaign_name}</p>
                     )}
 
+                    {/* Warning reason banner — OFF/KILL/WATCH 이유 */}
+                    {warningReason && (
+                      <div className={`mt-1.5 px-2.5 py-1.5 rounded-lg text-[11px] leading-snug ${
+                        item.risk.killSwitch
+                          ? 'bg-white text-red-800 border border-red-300 shadow-sm'
+                          : item.recommendation === 'off'
+                            ? 'bg-red-50/70 text-red-600 border border-red-100'
+                            : 'bg-amber-50 text-amber-700 border border-amber-100'
+                      }`}>
+                        <span className="font-bold">
+                          {item.risk.killSwitch ? '⚡ ' : item.recommendation === 'off' ? '⛔ ' : '⚠️ '}
+                        </span>
+                        <span className={item.risk.killSwitch ? 'font-semibold' : ''}>
+                          {warningReason}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Risk bar */}
                     <div className="mt-2 mb-1">
                       <div className="flex items-center justify-between mb-0.5">
@@ -757,9 +1236,6 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                     {/* Meta allocation */}
                     <div className="text-[10px] text-gray-400 mb-1">
                       Meta 배분 {(item.risk.metaAllocationShare * 100).toFixed(1)}%
-                      {item.risk.killSwitchReason && (
-                        <span className="text-red-500 ml-1">· {item.risk.killSwitchReason}</span>
-                      )}
                     </div>
 
                     {/* Metrics grid */}

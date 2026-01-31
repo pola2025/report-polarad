@@ -61,6 +61,8 @@ interface CampaignStatus {
   configured_status: string
   is_active: boolean
   status_label: string
+  daily_budget: number | null
+  lifetime_budget: number | null
   adsets: AdSetStatus[]
 }
 
@@ -72,6 +74,8 @@ interface AdSetStatus {
   configured_status: string
   is_active: boolean
   status_label: string
+  daily_budget: number | null
+  lifetime_budget: number | null
   ads: AdStatus[]
 }
 
@@ -123,7 +127,9 @@ export async function GET(request: NextRequest) {
         name: string
         effective_status: string
         configured_status: string
-      }>(`${baseUrl}/campaigns?fields=id,name,effective_status,configured_status&limit=500&access_token=${token}`),
+        daily_budget?: string
+        lifetime_budget?: string
+      }>(`${baseUrl}/campaigns?fields=id,name,effective_status,configured_status,daily_budget,lifetime_budget&limit=500&access_token=${token}`),
 
       fetchAllPages<{
         id: string
@@ -131,7 +137,9 @@ export async function GET(request: NextRequest) {
         effective_status: string
         configured_status: string
         campaign_id: string
-      }>(`${baseUrl}/adsets?fields=id,name,effective_status,configured_status,campaign_id&limit=500&access_token=${token}`),
+        daily_budget?: string
+        lifetime_budget?: string
+      }>(`${baseUrl}/adsets?fields=id,name,effective_status,configured_status,campaign_id,daily_budget,lifetime_budget&limit=500&access_token=${token}`),
 
       fetchAllPages<{
         id: string
@@ -173,6 +181,8 @@ export async function GET(request: NextRequest) {
         configured_status: adset.configured_status,
         is_active: isActive(adset.effective_status),
         status_label: statusLabel(adset.effective_status),
+        daily_budget: adset.daily_budget ? parseInt(adset.daily_budget, 10) / 100 : null,
+        lifetime_budget: adset.lifetime_budget ? parseInt(adset.lifetime_budget, 10) / 100 : null,
         ads: adsByAdset.get(adset.id) || [],
       }
       const list = adsetsByCampaign.get(adset.campaign_id) || []
@@ -188,6 +198,8 @@ export async function GET(request: NextRequest) {
       configured_status: c.configured_status,
       is_active: isActive(c.effective_status),
       status_label: statusLabel(c.effective_status),
+      daily_budget: c.daily_budget ? parseInt(c.daily_budget, 10) / 100 : null,
+      lifetime_budget: c.lifetime_budget ? parseInt(c.lifetime_budget, 10) / 100 : null,
       adsets: adsetsByCampaign.get(c.id) || [],
     }))
 
