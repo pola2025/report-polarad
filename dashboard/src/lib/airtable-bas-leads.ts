@@ -56,6 +56,11 @@ function mapRecordToLead(record: any): BasLead {
     previous_staff: f['previous_staff'] || '',
     previous_date: f['previous_date'] || '',
     last_updated_by: f['last_updated_by'] || '',
+    // 추적 필드
+    submission_history: f['submission_history'] || '',
+    campaign: f['campaign'] || '',
+    ad_name: f['ad_name'] || '',
+    platform: f['platform'] || '',
   }
 }
 
@@ -364,6 +369,45 @@ export async function createBasStaff(name: string): Promise<BasStaff | null> {
   }
 
   return mapRecordToStaff(data)
+}
+
+// ===========================
+// 리드 생성 (Webhook용)
+// ===========================
+export async function createBasLead(fields: {
+  name: string
+  phone: string
+  email?: string
+  message?: string
+  created_at?: string
+}): Promise<BasLead | null> {
+  const now = new Date().toISOString().split('T')[0]
+
+  const url = `${BASE_URL}/${LEADS_TABLE_ID}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      fields: {
+        '이름': fields.name,
+        '연락처': fields.phone,
+        '이메일': fields.email || '',
+        '문의내용': fields.message || '',
+        '접수일': fields.created_at || now,
+        status: '접수',
+        submission_count: 1,
+        first_submission_date: fields.created_at || now,
+      },
+    }),
+  })
+  const data = await res.json()
+
+  if (data.error) {
+    console.error('createBasLead error:', data.error)
+    return null
+  }
+
+  return mapRecordToLead(data)
 }
 
 export async function updateBasStaff(
