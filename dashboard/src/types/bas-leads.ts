@@ -24,6 +24,11 @@ export interface BasLead {
   previous_staff: string
   previous_date: string
   last_updated_by: string
+  // 추적 필드
+  submission_history: string   // "1차: 2026-01-15\n2차: 2026-01-30"
+  campaign: string             // 캠페인명
+  ad_name: string              // 광고명
+  platform: string             // fb / ig
 }
 
 // === 담당자 ===
