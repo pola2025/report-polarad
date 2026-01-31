@@ -13,7 +13,13 @@ import {
   ChevronUp,
   Search,
   Megaphone,
+  LayoutDashboard,
+  CalendarDays,
+  FileText,
+  Settings2,
+  Users,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import type {
   MetaPeriodDataResponse,
@@ -37,6 +43,12 @@ import { BasFilterBar } from './BasFilterBar'
 import { BasExportButton } from './BasExportButton'
 import { BasReportHistory } from './BasReportHistory'
 import { BasLeadManagement } from './BasLeadManagement'
+import { BasConversionFunnel } from './BasConversionFunnel'
+import { BasBudgetGauge } from './BasBudgetGauge'
+import { BasPerformanceHeatmap } from './BasPerformanceHeatmap'
+import { BasAdBubbleMap } from './BasAdBubbleMap'
+import { BasCampaignTreemap } from './BasCampaignTreemap'
+import { BasAdRadarChart } from './BasAdRadarChart'
 
 // BAS API
 import {
@@ -58,15 +70,16 @@ type TabId = 'overview' | 'period' | 'ads-detail' | 'reports' | 'ads-management'
 interface TabDef {
   id: TabId
   label: string
+  icon: LucideIcon
 }
 
 const TABS: TabDef[] = [
-  { id: 'overview', label: '개요' },
-  { id: 'period', label: '기간별' },
-  { id: 'ads-detail', label: '광고상세' },
-  { id: 'reports', label: '리포트' },
-  { id: 'ads-management', label: '광고관리' },
-  { id: 'lead-management', label: '리드관리' },
+  { id: 'overview', label: '개요', icon: LayoutDashboard },
+  { id: 'period', label: '기간별', icon: CalendarDays },
+  { id: 'ads-detail', label: '광고상세', icon: Megaphone },
+  { id: 'reports', label: '리포트', icon: FileText },
+  { id: 'ads-management', label: '광고관리', icon: Settings2 },
+  { id: 'lead-management', label: '리드관리', icon: Users },
 ]
 
 // --- 내부 기간별 데이터 테이블 ---
@@ -247,7 +260,17 @@ function PeriodDataSection({
 type SortField = 'ad_name' | 'impressions' | 'clicks' | 'ctr' | 'spend' | 'leads' | 'cpl' | 'avg_watch_time' | 'days_count'
 type SortDir = 'asc' | 'desc'
 
+type AdsViewMode = 'table' | 'bubble' | 'treemap'
+
+const ADS_VIEW_TABS: { id: AdsViewMode; label: string; emoji: string }[] = [
+  { id: 'table', label: '테이블', emoji: '📋' },
+  { id: 'bubble', label: '버블맵', emoji: '🫧' },
+  { id: 'treemap', label: '트리맵', emoji: '🗺️' },
+]
+
 function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
+  const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
+  const [selectedAd, setSelectedAd] = useState<MetaAdData | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -314,17 +337,68 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
 
   return (
     <div className="space-y-4">
-      {/* 검색 */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="광고 또는 캠페인 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-        />
+      {/* 뷰 전환 토글 + 검색 */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex bg-gray-100 rounded-lg p-0.5">
+          {ADS_VIEW_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setAdsViewMode(tab.id); setSelectedAd(null) }}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                adsViewMode === tab.id
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.emoji} {tab.label}
+            </button>
+          ))}
+        </div>
+        {adsViewMode === 'table' && (
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="광고 또는 캠페인 검색..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+          </div>
+        )}
       </div>
+
+      {/* 버블맵 뷰 */}
+      {adsViewMode === 'bubble' && (
+        <div className={`grid gap-4 ${selectedAd ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+          <div className={selectedAd ? 'lg:col-span-2' : ''}>
+            <BasAdBubbleMap ads={ads} onAdClick={(ad) => setSelectedAd(ad)} />
+          </div>
+          {selectedAd && (
+            <div>
+              <BasAdRadarChart ad={selectedAd} allAds={ads} onClose={() => setSelectedAd(null)} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 트리맵 뷰 */}
+      {adsViewMode === 'treemap' && (
+        <div className={`grid gap-4 ${selectedAd ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+          <div className={selectedAd ? 'lg:col-span-2' : ''}>
+            <BasCampaignTreemap ads={ads} onAdSelect={(ad) => setSelectedAd(ad)} />
+          </div>
+          {selectedAd && (
+            <div>
+              <BasAdRadarChart ad={selectedAd} allAds={ads} onClose={() => setSelectedAd(null)} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 테이블 뷰 (기존) */}
+      {adsViewMode === 'table' && (
+        <>
 
       {/* 모바일: 정렬 선택 */}
       <div className="flex items-center gap-2 md:hidden">
@@ -510,6 +584,8 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
           </table>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }
@@ -910,23 +986,32 @@ export function BasDashboardView({
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50">
-        {/* 헤더 */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold">{clientName} 대시보드</h1>
-                <p className="text-amber-100 text-sm mt-1">BAS Meta Ads Analytics</p>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold">{clientName}</h1>
+                <span className="text-amber-200 text-xs sm:text-sm font-medium bg-white/10 px-2 py-0.5 rounded">BAS</span>
               </div>
             </div>
           </div>
         </div>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center justify-center py-20">
+        <div className="flex min-h-[calc(100vh-64px)]">
+          <aside className="hidden lg:flex lg:flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
+            <nav className="flex-1 py-4">
+              {TABS.map((tab) => (
+                <div key={tab.id} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-400">
+                  <tab.icon className="h-5 w-5" />
+                  <span>{tab.label}</span>
+                </div>
+              ))}
+            </nav>
+          </aside>
+          <div className="flex-1 min-w-0 flex flex-col items-center justify-center py-20">
             <Loader2 className="h-10 w-10 text-amber-500 animate-spin mb-4" />
             <p className="text-gray-500">데이터를 불러오는 중...</p>
           </div>
-        </main>
+        </div>
       </div>
     )
   }
@@ -936,12 +1021,25 @@ export function BasDashboardView({
     return (
       <div className="min-h-screen bg-neutral-50">
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 className="text-xl sm:text-2xl font-bold">{clientName} 대시보드</h1>
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold">{clientName}</h1>
+              <span className="text-amber-200 text-xs sm:text-sm font-medium bg-white/10 px-2 py-0.5 rounded">BAS</span>
+            </div>
           </div>
         </div>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-20">
+        <div className="flex min-h-[calc(100vh-64px)]">
+          <aside className="hidden lg:flex lg:flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
+            <nav className="flex-1 py-4">
+              {TABS.map((tab) => (
+                <div key={tab.id} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-400">
+                  <tab.icon className="h-5 w-5" />
+                  <span>{tab.label}</span>
+                </div>
+              ))}
+            </nav>
+          </aside>
+          <div className="flex-1 min-w-0 text-center py-20">
             <p className="text-red-600 font-medium">{error || '데이터를 불러올 수 없습니다.'}</p>
             <button
               onClick={loadData}
@@ -950,7 +1048,7 @@ export function BasDashboardView({
               다시 시도
             </button>
           </div>
-        </main>
+        </div>
       </div>
     )
   }
@@ -974,14 +1072,14 @@ export function BasDashboardView({
     <div className="min-h-screen bg-neutral-50">
       {/* 헤더 - 황금색 배경 */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold">{clientName} 대시보드</h1>
-              <p className="text-amber-100 text-xs sm:text-sm mt-1">
-                {summary.date_range.start} ~ {summary.date_range.end}
-                <span className="block sm:inline sm:ml-1">({summary.data_days}일간)</span>
-              </p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold">{clientName}</h1>
+              <span className="text-amber-200 text-xs sm:text-sm font-medium bg-white/10 px-2 py-0.5 rounded">BAS</span>
+              <span className="hidden sm:inline text-amber-100 text-xs sm:text-sm">
+                {summary.date_range.start} ~ {summary.date_range.end} ({summary.data_days}일)
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <BasExportButton
@@ -998,130 +1096,177 @@ export function BasDashboardView({
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="space-y-6 sm:space-y-8">
-          {/* BAS 필터 바 */}
-          <BasFilterBar compareMode={compareMode} />
-
-          {/* 경영 요약 */}
-          <BasExecutiveSummary
-            highlights={executiveSummary.highlights}
-            warnings={executiveSummary.warnings}
-            actions={executiveSummary.actions}
-            summaryText={executiveSummary.summaryText}
-          />
-
-          {/* 일별 성과 카드 */}
-          {daily.length > 0 && (
-            <BasDailyCards
-              data={daily.map((d) => ({
-                date: d.date,
-                leads: d.leads,
-                cpl: d.cpl,
-                spend: d.spend,
-                clicks: d.clicks,
-              }))}
-            />
-          )}
-
-          {/* KPI 카드 영역 */}
-          <section>
-            <h2 className="text-lg sm:text-2xl font-bold mb-3 sm:mb-4">주요 지표</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
-              <BasKPICard
-                title="총 리드"
-                value={summary.total_leads}
-                icon={Target}
-                format="number"
-                trend={calculateTrend(summary.total_leads, comparisonSummary?.total_leads)}
-                sparklineData={sparklineData.leads}
-                colorScheme="blue"
-              />
-              <BasKPICard
-                title="총 지출"
-                value={summary.total_spend}
-                icon={DollarSign}
-                format="currency"
-                trend={calculateTrend(summary.total_spend, comparisonSummary?.total_spend)}
-                sparklineData={sparklineData.spend}
-                colorScheme="purple"
-              />
-              <BasKPICard
-                title="리드당 가격"
-                value={summary.avg_cpl}
-                icon={TrendingUp}
-                format="currency"
-                trend={calculateTrend(summary.avg_cpl, comparisonSummary?.avg_cpl)}
-                target={20}
-                sparklineData={sparklineData.cpl}
-                colorScheme="orange"
-              />
-              <BasKPICard
-                title="평균 CTR"
-                value={summary.avg_ctr}
-                icon={MousePointerClick}
-                format="percentage"
-                trend={calculateTrend(summary.avg_ctr, comparisonSummary?.avg_ctr)}
-                sparklineData={sparklineData.ctr}
-                colorScheme="green"
-              />
-              <div className="col-span-2 lg:col-span-1">
-                <BasKPICard
-                  title="평균 시청시간"
-                  value={
-                    summary.avg_watch_time
-                      ? summary.avg_watch_time < 60
-                        ? `${summary.avg_watch_time.toFixed(1)}s`
-                        : `${Math.floor(summary.avg_watch_time / 60)}:${Math.round(summary.avg_watch_time % 60).toString().padStart(2, '0')}`
-                      : '-'
-                  }
-                  icon={Clock}
-                  format="number"
-                  trend={calculateTrend(summary.avg_watch_time || 0, comparisonSummary?.avg_watch_time)}
-                  colorScheme="pink"
-                />
-              </div>
+      <div className="flex min-h-[calc(100vh-64px)]">
+        {/* PC 사이드바 (lg 이상) */}
+        <aside className="hidden lg:flex lg:flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
+          <nav className="flex-1 py-4">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-amber-50 text-amber-700 border-l-[3px] border-amber-500'
+                      : 'text-gray-600 hover:bg-gray-50 border-l-[3px] border-transparent'
+                  }`}
+                >
+                  <tab.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-amber-600' : 'text-gray-400'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+          {/* 사이드바 하단 정보 */}
+          <div className="p-4 border-t border-gray-100">
+            <div className="text-xs text-gray-400">
+              <div>{summary.date_range.start}</div>
+              <div>~ {summary.date_range.end}</div>
+              <div className="mt-1 text-gray-500 font-medium">{summary.data_days}일간 데이터</div>
             </div>
-          </section>
+          </div>
+        </aside>
 
-          {/* 비교 분석 섹션 */}
-          {compareMode !== 'none' && comparisonSummary && comparisonPeriod && (
-            <BasComparisonSection
-              current={summary}
-              previous={comparisonSummary}
-              currentPeriod={comparisonPeriod.current}
-              previousPeriod={comparisonPeriod.previous}
-              mode={compareMode as 'weekly' | 'monthly'}
-            />
-          )}
-
-          {/* 탭 영역 */}
-          <section>
-            {/* 탭 네비게이션 */}
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
-                {TABS.map((tab) => (
+        {/* 메인 영역 */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* 모바일 가로 탭바 (lg 미만) */}
+          <nav className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-2">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === tab.id
-                        ? 'border-amber-500 text-amber-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex-shrink-0 ${
+                      isActive
+                        ? 'bg-amber-500 text-white'
+                        : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                     }`}
                   >
-                    {tab.label}
+                    <tab.icon className="h-3.5 w-3.5" />
+                    <span>{tab.label}</span>
                   </button>
-                ))}
-              </nav>
+                )
+              })}
             </div>
+          </nav>
 
-            {/* 탭 콘텐츠 */}
+          {/* 콘텐츠 */}
+          <main className="flex-1 p-4 lg:p-8">
+            {/* 개요 탭 */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                {/* 차트 영역 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6 sm:space-y-8">
+                {/* BAS 필터 바 */}
+                <BasFilterBar compareMode={compareMode} />
+
+                {/* 경영 요약 */}
+                <BasExecutiveSummary
+                  highlights={executiveSummary.highlights}
+                  warnings={executiveSummary.warnings}
+                  actions={executiveSummary.actions}
+                  summaryText={executiveSummary.summaryText}
+                />
+
+                {/* 일별 성과 카드 */}
+                {daily.length > 0 && (
+                  <BasDailyCards
+                    data={daily.map((d) => ({
+                      date: d.date,
+                      leads: d.leads,
+                      cpl: d.cpl,
+                      spend: d.spend,
+                      clicks: d.clicks,
+                    }))}
+                  />
+                )}
+
+                {/* KPI 카드 영역 */}
+                <section>
+                  <h2 className="text-lg sm:text-2xl font-bold mb-3 sm:mb-4">주요 지표</h2>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+                    <BasKPICard
+                      title="총 리드"
+                      value={summary.total_leads}
+                      icon={Target}
+                      format="number"
+                      trend={calculateTrend(summary.total_leads, comparisonSummary?.total_leads)}
+                      sparklineData={sparklineData.leads}
+                      colorScheme="blue"
+                    />
+                    <BasKPICard
+                      title="총 지출"
+                      value={summary.total_spend}
+                      icon={DollarSign}
+                      format="currency"
+                      trend={calculateTrend(summary.total_spend, comparisonSummary?.total_spend)}
+                      sparklineData={sparklineData.spend}
+                      colorScheme="purple"
+                    />
+                    <BasKPICard
+                      title="리드당 가격"
+                      value={summary.avg_cpl}
+                      icon={TrendingUp}
+                      format="currency"
+                      trend={calculateTrend(summary.avg_cpl, comparisonSummary?.avg_cpl)}
+                      target={20}
+                      sparklineData={sparklineData.cpl}
+                      colorScheme="orange"
+                    />
+                    <BasKPICard
+                      title="평균 CTR"
+                      value={summary.avg_ctr}
+                      icon={MousePointerClick}
+                      format="percentage"
+                      trend={calculateTrend(summary.avg_ctr, comparisonSummary?.avg_ctr)}
+                      sparklineData={sparklineData.ctr}
+                      colorScheme="green"
+                    />
+                    <div className="col-span-2 lg:col-span-1">
+                      <BasKPICard
+                        title="평균 시청시간"
+                        value={
+                          summary.avg_watch_time
+                            ? summary.avg_watch_time < 60
+                              ? `${summary.avg_watch_time.toFixed(1)}s`
+                              : `${Math.floor(summary.avg_watch_time / 60)}:${Math.round(summary.avg_watch_time % 60).toString().padStart(2, '0')}`
+                            : '-'
+                        }
+                        icon={Clock}
+                        format="number"
+                        trend={calculateTrend(summary.avg_watch_time || 0, comparisonSummary?.avg_watch_time)}
+                        colorScheme="pink"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* 전환 퍼널 + 예산 게이지 (Phase 1) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                  <BasConversionFunnel summary={summary} ads={ads} />
+                  <BasBudgetGauge summary={summary} daily={daily} />
+                </div>
+
+                {/* 비교 분석 섹션 */}
+                {compareMode !== 'none' && comparisonSummary && comparisonPeriod && (
+                  <BasComparisonSection
+                    current={summary}
+                    previous={comparisonSummary}
+                    currentPeriod={comparisonPeriod.current}
+                    previousPeriod={comparisonPeriod.previous}
+                    mode={compareMode as 'weekly' | 'monthly'}
+                  />
+                )}
+
+                {/* 차트 영역 + 히트맵 (Phase 2) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                   <BasTrendChart data={daily} />
+                  <BasPerformanceHeatmap daily={daily} />
+                </div>
+
+                {/* 플랫폼 비교 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                   <BasPlatformChart
                     ads={ads}
                     dateRange={{ start: startDate, end: endDate }}
@@ -1161,27 +1306,27 @@ export function BasDashboardView({
             {activeTab === 'lead-management' && (
               <BasLeadManagement clientSlug={clientSlug} />
             )}
-          </section>
-        </div>
-      </main>
+          </main>
 
-      {/* 푸터 */}
-      <footer className="mt-12 py-8 md:py-12 border-t border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-6">
-            <div className="text-xs md:text-sm text-gray-500 order-2 md:order-1">
-              &copy; {new Date().getFullYear()} POLAR AD. All rights reserved.
+          {/* 푸터 */}
+          <footer className="mt-auto py-8 md:py-12 border-t border-gray-200 bg-white">
+            <div className="px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-6">
+                <div className="text-xs md:text-sm text-gray-500 order-2 md:order-1">
+                  &copy; {new Date().getFullYear()} POLAR AD. All rights reserved.
+                </div>
+                <div className="flex flex-col items-center gap-1 md:flex-row md:gap-4 text-xs md:text-sm text-gray-500 order-1 md:order-2">
+                  <span>문의: mkt@polarad.co.kr</span>
+                  <span className="hidden md:inline text-gray-300">|</span>
+                  <span>
+                    데이터 기간: {summary.date_range.start} ~ {summary.date_range.end}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-4 text-xs md:text-sm text-gray-500 order-1 md:order-2">
-              <span>문의: mkt@polarad.co.kr</span>
-              <span className="hidden md:inline text-gray-300">|</span>
-              <span>
-                데이터 기간: {summary.date_range.start} ~ {summary.date_range.end}
-              </span>
-            </div>
-          </div>
+          </footer>
         </div>
-      </footer>
+      </div>
     </div>
   )
 }
