@@ -1,0 +1,37 @@
+# Meta API Warmup - 앱 검수용 15일 API 호출 기록 쌓기
+# 매일 오전 9시 (KST) = 00:00 UTC
+name: Meta API Warmup
+
+on:
+  schedule:
+    # KST 매일 09:00 = UTC 00:00
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 수동 실행 허용
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install @supabase/supabase-js dotenv
+
+      - name: Create .env file
+        run: |
+          cat > dashboard/.env.local << EOF
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          EOF
+
+      - name: Run Meta API Warmup
+        working-directory: scripts
+        run: node meta-api-warmup.js
