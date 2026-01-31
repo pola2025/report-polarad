@@ -52,6 +52,9 @@ export function BasDailyCards({ data }: BasDailyCardsProps) {
             >
               <div className="text-xs text-gray-500 mb-1">
                 {day.date.slice(5)}
+                <span className="text-gray-400 ml-0.5">
+                  {'일월화수목금토'[new Date(day.date).getDay()]}
+                </span>
                 {isMax && <span className="ml-1 text-green-600">최고</span>}
                 {isMin && <span className="ml-1 text-amber-600">최저</span>}
               </div>

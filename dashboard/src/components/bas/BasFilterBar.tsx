@@ -73,67 +73,67 @@ export function BasFilterBar({ compareMode }: BasFilterBarProps) {
   const activeQuick = !currentStart && !currentEnd ? 'all' : undefined
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {/* 퀵 기간 버튼 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500">기간:</span>
-          <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+        {/* 퀵 기간 + 비교 모드 (모바일: 한 줄에 나란히) */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="text-xs font-medium text-gray-500 flex-shrink-0">기간:</span>
+          <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg flex-shrink-0">
             {(['all', '7d', '30d'] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => setQuickRange(range)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   activeQuick === range
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {range === 'all' ? '전체' : range === '7d' ? '최근 7일' : '최근 30일'}
+                {range === 'all' ? '전체' : range === '7d' ? '7일' : '30일'}
               </button>
             ))}
           </div>
         </div>
 
         {/* 비교 모드 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500">비교:</span>
-          <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="text-xs font-medium text-gray-500 flex-shrink-0">비교:</span>
+          <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg flex-shrink-0">
             {(['none', 'weekly', 'monthly'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => updateCompareMode(mode)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   compareMode === mode
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {mode === 'none' ? '없음' : mode === 'weekly' ? '주간(7일)' : '월간(30일)'}
+                {mode === 'none' ? '없음' : mode === 'weekly' ? '주간' : '월간'}
               </button>
             ))}
           </div>
         </div>
 
         {/* 날짜 입력 + 조회 버튼 */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 w-full sm:w-auto">
           <input
             type="date"
             value={draftStart}
             onChange={(e) => setDraftStart(e.target.value)}
-            className="px-2 py-1 text-xs border border-gray-200 rounded-md"
+            className="flex-1 sm:flex-none px-2 py-1.5 text-xs border border-gray-200 rounded-md min-w-0"
           />
-          <span className="text-xs text-gray-400">~</span>
+          <span className="text-xs text-gray-400 flex-shrink-0">~</span>
           <input
             type="date"
             value={draftEnd}
             onChange={(e) => setDraftEnd(e.target.value)}
-            className="px-2 py-1 text-xs border border-gray-200 rounded-md"
+            className="flex-1 sm:flex-none px-2 py-1.5 text-xs border border-gray-200 rounded-md min-w-0"
           />
           <button
             onClick={applyDateRange}
             disabled={!isDirty}
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex-shrink-0 ${
               isDirty
                 ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'

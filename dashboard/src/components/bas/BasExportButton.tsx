@@ -78,9 +78,9 @@ export function BasExportButton({ data, disabled = false }: BasExportButtonProps
     <button
       onClick={handleExport}
       disabled={disabled || exporting}
-      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
-      <Download className="w-4 h-4" />
+      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       {exporting ? '내보내는 중...' : 'CSV 내보내기'}
     </button>
   )

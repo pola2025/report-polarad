@@ -36,6 +36,7 @@ import { BasDailyCards } from './BasDailyCards'
 import { BasFilterBar } from './BasFilterBar'
 import { BasExportButton } from './BasExportButton'
 import { BasReportHistory } from './BasReportHistory'
+import { BasLeadManagement } from './BasLeadManagement'
 
 // BAS API
 import {
@@ -52,7 +53,7 @@ interface BasDashboardViewProps {
 }
 
 // --- 내부 탭 UI ---
-type TabId = 'overview' | 'period' | 'ads-detail' | 'reports' | 'ads-management'
+type TabId = 'overview' | 'period' | 'ads-detail' | 'reports' | 'ads-management' | 'lead-management'
 
 interface TabDef {
   id: TabId
@@ -65,6 +66,7 @@ const TABS: TabDef[] = [
   { id: 'ads-detail', label: '광고상세' },
   { id: 'reports', label: '리포트' },
   { id: 'ads-management', label: '광고관리' },
+  { id: 'lead-management', label: '리드관리' },
 ]
 
 // --- 내부 기간별 데이터 테이블 ---
@@ -81,6 +83,37 @@ function PeriodDataSection({
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
 
+  // 모바일 카드용 데이터 렌더
+  const renderMobileCard = (item: { label: string; sublabel?: string; impressions: number; clicks: number; ctr: number; spend: number; leads: number; cpl: number }, key: string) => (
+    <div key={key} className="bg-white rounded-lg border border-gray-200 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <div className="font-medium text-sm text-gray-900">{item.label}</div>
+          {item.sublabel && <div className="text-xs text-gray-400">{item.sublabel}</div>}
+        </div>
+        <span className="text-xs font-semibold text-blue-600">${item.spend.toFixed(0)}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <div className="text-[10px] text-gray-400">리드</div>
+          <div className="text-sm font-bold text-gray-900">{item.leads}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-gray-400">CPL</div>
+          <div className="text-sm font-semibold text-purple-600">{item.leads > 0 ? `$${item.cpl.toFixed(0)}` : '-'}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-gray-400">CTR</div>
+          <div className="text-sm font-semibold text-green-600">{item.ctr.toFixed(2)}%</div>
+        </div>
+      </div>
+      <div className="flex gap-3 mt-1.5 pt-1.5 border-t border-gray-100">
+        <span className="text-[10px] text-gray-400">노출 {formatNumber(item.impressions)}</span>
+        <span className="text-[10px] text-gray-400">클릭 {formatNumber(item.clicks)}</span>
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-4">
       {/* 뷰 모드 선택 */}
@@ -89,7 +122,7 @@ function PeriodDataSection({
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
               viewMode === mode
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -100,8 +133,49 @@ function PeriodDataSection({
         ))}
       </div>
 
-      {/* 데이터 테이블 */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* 모바일: 카드 리스트 */}
+      <div className="space-y-2 md:hidden">
+        {viewMode === 'daily' &&
+          [...daily].reverse().map((d) =>
+            renderMobileCard({
+              label: d.date.slice(5),
+              impressions: d.impressions,
+              clicks: d.clicks,
+              ctr: d.ctr,
+              spend: d.spend,
+              leads: d.leads,
+              cpl: d.cpl,
+            }, d.date)
+          )}
+        {viewMode === 'weekly' &&
+          [...weekly].reverse().map((w) =>
+            renderMobileCard({
+              label: w.week_label,
+              sublabel: `${w.week_start?.slice(5)} ~ ${w.week_end?.slice(5)}`,
+              impressions: w.impressions,
+              clicks: w.clicks,
+              ctr: w.ctr,
+              spend: w.spend,
+              leads: w.leads,
+              cpl: w.cpl,
+            }, w.week_label)
+          )}
+        {viewMode === 'monthly' &&
+          [...monthly].reverse().map((m) =>
+            renderMobileCard({
+              label: m.month_label,
+              impressions: m.impressions,
+              clicks: m.clicks,
+              ctr: m.ctr,
+              spend: m.spend,
+              leads: m.leads,
+              cpl: m.cpl,
+            }, m.month)
+          )}
+      </div>
+
+      {/* 데스크탑: 테이블 */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hidden md:block">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 sticky top-0">
@@ -329,7 +403,7 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
                 <div className="text-xs font-semibold text-pink-600">{formatWatchTime(ad.avg_watch_time)}</div>
               </div>
             </div>
-            <div className="flex gap-3 mt-1.5 pt-1.5 border-t border-gray-100">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 pt-1.5 border-t border-gray-100">
               <span className="text-[10px] text-gray-400">노출 {formatNumber(ad.impressions)}</span>
               <span className="text-[10px] text-gray-400">클릭 {formatNumber(ad.clicks)}</span>
               <span className="text-[10px] text-green-600">CTR {ad.ctr.toFixed(2)}%</span>
@@ -583,18 +657,18 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
   return (
     <div className="space-y-4">
       {/* 요약 통계 */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-          <div className="text-2xl font-bold text-gray-900">{summary.active_campaigns}/{summary.total_campaigns}</div>
-          <div className="text-xs text-gray-500 mt-1">캠페인</div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="bg-white rounded-lg border border-gray-200 p-2.5 sm:p-3 text-center">
+          <div className="text-lg sm:text-2xl font-bold text-gray-900">{summary.active_campaigns}/{summary.total_campaigns}</div>
+          <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">캠페인</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-          <div className="text-2xl font-bold text-gray-900">{summary.active_adsets}/{summary.total_adsets}</div>
-          <div className="text-xs text-gray-500 mt-1">광고세트</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-2.5 sm:p-3 text-center">
+          <div className="text-lg sm:text-2xl font-bold text-gray-900">{summary.active_adsets}/{summary.total_adsets}</div>
+          <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">광고세트</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-          <div className="text-2xl font-bold text-gray-900">{summary.active_ads}/{summary.total_ads}</div>
-          <div className="text-xs text-gray-500 mt-1">광고</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-2.5 sm:p-3 text-center">
+          <div className="text-lg sm:text-2xl font-bold text-gray-900">{summary.active_ads}/{summary.total_ads}</div>
+          <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">광고</div>
         </div>
       </div>
 
@@ -604,7 +678,7 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
           <button
             key={mode}
             onClick={() => setFilterMode(mode)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
               filterMode === mode
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -636,9 +710,9 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
               {/* 캠페인 헤더 */}
               <button
                 onClick={() => toggleCampaign(campaign.id)}
-                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   {isExpanded ? (
                     <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   ) : (
@@ -646,9 +720,9 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
                   )}
                   <Megaphone className="h-4 w-4 text-amber-500 flex-shrink-0" />
                   <div className="text-left min-w-0">
-                    <div className="font-semibold text-gray-900 truncate">{campaign.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      광고세트 {activeAdsetCount}/{campaign.adsets.length} &middot; 광고 {activeAdCount}/{totalAdCount}
+                    <div className="font-semibold text-sm sm:text-base text-gray-900 truncate">{campaign.name}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-400 mt-0.5">
+                      세트 {activeAdsetCount}/{campaign.adsets.length} &middot; 광고 {activeAdCount}/{totalAdCount}
                     </div>
                   </div>
                 </div>
@@ -667,7 +741,7 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
                         {/* 광고세트 행 */}
                         <button
                           onClick={() => toggleAdset(adset.id)}
-                          className="w-full flex items-center justify-between px-4 py-3 pl-10 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                          className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 pl-7 sm:pl-10 hover:bg-gray-50 transition-colors border-b border-gray-50"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {adset.ads.length > 0 ? (
@@ -680,8 +754,8 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
                               <span className="w-3.5" />
                             )}
                             <div className="text-left min-w-0">
-                              <div className="text-sm font-medium text-gray-800 truncate">{adset.name}</div>
-                              <div className="text-xs text-gray-400">
+                              <div className="text-xs sm:text-sm font-medium text-gray-800 truncate">{adset.name}</div>
+                              <div className="text-[10px] sm:text-xs text-gray-400">
                                 광고 {activeAdsInSet}/{adset.ads.length}
                               </div>
                             </div>
@@ -695,9 +769,9 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
                             {adset.ads.map((ad) => (
                               <div
                                 key={ad.id}
-                                className="flex items-center justify-between px-4 py-2.5 pl-16 border-b border-gray-100 last:border-b-0"
+                                className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 pl-10 sm:pl-16 border-b border-gray-100 last:border-b-0"
                               >
-                                <div className="text-sm text-gray-700 truncate min-w-0 flex-1">
+                                <div className="text-xs sm:text-sm text-gray-700 truncate min-w-0 flex-1">
                                   {ad.name}
                                 </div>
                                 <StatusBadge isActive={ad.is_active} label={ad.status_label} />
@@ -904,9 +978,9 @@ export function BasDashboardView({
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold">{clientName} 대시보드</h1>
-              <p className="text-amber-100 text-sm mt-1">
+              <p className="text-amber-100 text-xs sm:text-sm mt-1">
                 {summary.date_range.start} ~ {summary.date_range.end}
-                {' '}({summary.data_days}일간)
+                <span className="block sm:inline sm:ml-1">({summary.data_days}일간)</span>
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -991,20 +1065,22 @@ export function BasDashboardView({
                 sparklineData={sparklineData.ctr}
                 colorScheme="green"
               />
-              <BasKPICard
-                title="평균 시청시간"
-                value={
-                  summary.avg_watch_time
-                    ? summary.avg_watch_time < 60
-                      ? `${summary.avg_watch_time.toFixed(1)}s`
-                      : `${Math.floor(summary.avg_watch_time / 60)}:${Math.round(summary.avg_watch_time % 60).toString().padStart(2, '0')}`
-                    : '-'
-                }
-                icon={Clock}
-                format="number"
-                trend={calculateTrend(summary.avg_watch_time || 0, comparisonSummary?.avg_watch_time)}
-                colorScheme="pink"
-              />
+              <div className="col-span-2 lg:col-span-1">
+                <BasKPICard
+                  title="평균 시청시간"
+                  value={
+                    summary.avg_watch_time
+                      ? summary.avg_watch_time < 60
+                        ? `${summary.avg_watch_time.toFixed(1)}s`
+                        : `${Math.floor(summary.avg_watch_time / 60)}:${Math.round(summary.avg_watch_time % 60).toString().padStart(2, '0')}`
+                      : '-'
+                  }
+                  icon={Clock}
+                  format="number"
+                  trend={calculateTrend(summary.avg_watch_time || 0, comparisonSummary?.avg_watch_time)}
+                  colorScheme="pink"
+                />
+              </div>
             </div>
           </section>
 
@@ -1080,6 +1156,10 @@ export function BasDashboardView({
 
             {activeTab === 'ads-management' && (
               <AdsManagementSection clientSlug={clientSlug} />
+            )}
+
+            {activeTab === 'lead-management' && (
+              <BasLeadManagement clientSlug={clientSlug} />
             )}
           </section>
         </div>
