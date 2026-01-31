@@ -326,43 +326,6 @@ const FACTOR_COLORS: Record<keyof AdRiskFactors, string> = {
 
 // --- SVG Components ---
 
-function ScoreGauge({ score, size = 56 }: { score: number; size?: number }) {
-  const r = (size - 8) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ - (score / 100) * circ
-  // 리스크 기준 색상: 높을수록 위험(빨강), 낮을수록 안전(녹색)
-  const color = score >= 70 ? '#ef4444' : score >= 45 ? '#f59e0b' : '#10b981'
-  return (
-    <svg width={size} height={size} className="flex-shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={4} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={4} strokeLinecap="round"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        className="transition-all duration-700"
-      />
-      <text x={size / 2} y={size / 2 + 1} textAnchor="middle" dominantBaseline="central"
-        className="text-xs font-bold" fill={color}
-      >
-        {score}
-      </text>
-    </svg>
-  )
-}
-
-function RiskBar({ value, color = '#ef4444' }: { value: number; color?: string }) {
-  const bg = value >= 70 ? '#fef2f2' : value >= 45 ? '#fffbeb' : '#f0fdf4'
-  return (
-    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: bg }}>
-      <div
-        className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${value}%`, backgroundColor: color }}
-      />
-    </div>
-  )
-}
-
 function MiniFactorGauge({ label, value, color }: { label: string; value: number; color: string }) {
   const size = 36
   const r = (size - 6) / 2
@@ -1160,7 +1123,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.3) }}
-                className={`rounded-xl border p-4 ${
+                className={`rounded-xl border px-4 pt-3 pb-4 ${
                   item.risk.killSwitch
                     ? 'bg-red-50/60 border-red-300 border-2 ring-1 ring-red-200'
                     : item.recommendation === 'off'
@@ -1168,107 +1131,107 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                       : `bg-white ${cfg.border}`
                 }`}
               >
-                <div className="flex items-start gap-3">
-                  {/* Risk gauge */}
-                  <ScoreGauge score={item.risk.compositeRisk} />
+                  {/* Risk bar on top */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-gray-100">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${item.risk.compositeRisk}%`, backgroundColor: riskColor }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold tabular-nums flex-shrink-0" style={{ color: riskColor }}>
+                    {item.risk.compositeRisk}
+                  </span>
+                </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    {/* Name + badges */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-sm font-semibold text-gray-900 truncate max-w-[180px]" title={item.ad.ad_name}>
-                        {item.ad.ad_name}
-                      </h4>
-                      <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                        D+{item.ageDays}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
-                        {cfg.emoji} {cfg.label}
-                      </span>
-                      {/* Kill Switch badge */}
-                      {item.risk.killSwitch && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 bg-red-600 text-white animate-pulse flex items-center gap-0.5">
-                          <Zap className="h-2.5 w-2.5" />
-                          KILL
-                        </span>
-                      )}
-                      {/* WPV badge */}
-                      {item.risk.wpv > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 bg-blue-100 text-blue-700">
-                          WPV {item.risk.wpv}
-                        </span>
-                      )}
-                    </div>
+                {/* Name + badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm font-semibold text-gray-900 truncate max-w-[200px]" title={item.ad.ad_name}>
+                    {item.ad.ad_name}
+                  </h4>
+                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                    D+{item.ageDays}
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
+                    {cfg.emoji} {cfg.label}
+                  </span>
+                  {item.risk.killSwitch && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 bg-red-600 text-white animate-pulse flex items-center gap-0.5">
+                      <Zap className="h-2.5 w-2.5" />
+                      KILL
+                    </span>
+                  )}
+                  {item.risk.wpv > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 bg-blue-100 text-blue-700">
+                      WPV {item.risk.wpv}
+                    </span>
+                  )}
+                </div>
 
-                    {item.ad.campaign_name && (
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.ad.campaign_name}</p>
-                    )}
+                {item.ad.campaign_name && (
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5">{item.ad.campaign_name}</p>
+                )}
 
-                    {/* Warning reason banner — OFF/KILL/WATCH 이유 */}
-                    {warningReason && (
-                      <div className={`mt-1.5 px-2.5 py-1.5 rounded-lg text-[11px] leading-snug ${
-                        item.risk.killSwitch
-                          ? 'bg-white text-red-800 border border-red-300 shadow-sm'
-                          : item.recommendation === 'off'
-                            ? 'bg-red-50/70 text-red-600 border border-red-100'
-                            : 'bg-amber-50 text-amber-700 border border-amber-100'
-                      }`}>
-                        <span className="font-bold">
-                          {item.risk.killSwitch ? '⚡ ' : item.recommendation === 'off' ? '⛔ ' : '⚠️ '}
-                        </span>
-                        <span className={item.risk.killSwitch ? 'font-semibold' : ''}>
-                          {warningReason}
-                        </span>
-                      </div>
-                    )}
+                {/* Warning reason banner */}
+                {warningReason && (
+                  <div className={`mt-1.5 px-2.5 py-1.5 rounded-lg text-[11px] leading-snug ${
+                    item.risk.killSwitch
+                      ? 'bg-white text-red-800 border border-red-300 shadow-sm'
+                      : item.recommendation === 'off'
+                        ? 'bg-red-50/70 text-red-600 border border-red-100'
+                        : 'bg-amber-50 text-amber-700 border border-amber-100'
+                  }`}>
+                    <span className="font-bold">
+                      {item.risk.killSwitch ? '⚡ ' : item.recommendation === 'off' ? '⛔ ' : '⚠️ '}
+                    </span>
+                    <span className={item.risk.killSwitch ? 'font-semibold' : ''}>
+                      {warningReason}
+                    </span>
+                  </div>
+                )}
 
-                    {/* Risk bar */}
-                    <div className="mt-2 mb-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[10px] text-gray-400">리스크</span>
-                        <span className="text-[10px] font-semibold" style={{ color: riskColor }}>
-                          {item.risk.compositeRisk}
-                        </span>
-                      </div>
-                      <RiskBar value={item.risk.compositeRisk} color={riskColor} />
-                    </div>
+                {/* Meta allocation */}
+                <div className="text-[10px] text-gray-400 mt-1.5 mb-1">
+                  Meta 배분 {(item.risk.metaAllocationShare * 100).toFixed(1)}%
+                </div>
 
-                    {/* Meta allocation */}
-                    <div className="text-[10px] text-gray-400 mb-1">
-                      Meta 배분 {(item.risk.metaAllocationShare * 100).toFixed(1)}%
-                    </div>
-
-                    {/* Metrics grid */}
-                    <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
-                      <div>
-                        <span className="text-gray-400">CPL</span>{' '}
-                        <span className="font-medium text-gray-700">
-                          {item.ad.leads > 0 ? `$${item.ad.cpl.toFixed(1)}` : '-'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">CTR</span>{' '}
-                        <span className="font-medium text-gray-700">{item.ad.ctr.toFixed(2)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">리드</span>{' '}
-                        <span className="font-medium text-gray-700">{item.ad.leads}건</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">지출</span>{' '}
-                        <span className="font-medium text-gray-700">${item.ad.spend.toFixed(0)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">리드/일</span>{' '}
-                        <span className="font-medium text-gray-700">{item.leadsPerDay.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">시청</span>{' '}
-                        <span className="font-medium text-gray-700">
-                          {item.ad.avg_watch_time ? `${item.ad.avg_watch_time.toFixed(1)}s` : '-'}
-                        </span>
-                      </div>
-                    </div>
+                {/* Metrics grid */}
+                <div className="grid grid-cols-4 gap-x-2 gap-y-1 text-[11px]">
+                  <div>
+                    <span className="text-gray-400">CPL</span>{' '}
+                    <span className="font-medium text-gray-700">
+                      {item.ad.leads > 0 ? `$${item.ad.cpl.toFixed(1)}` : '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">CTR</span>{' '}
+                    <span className="font-medium text-gray-700">{item.ad.ctr.toFixed(2)}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">리드</span>{' '}
+                    <span className="font-medium text-gray-700">{item.ad.leads}건</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">지출</span>{' '}
+                    <span className="font-medium text-gray-700">${item.ad.spend.toFixed(0)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">노출</span>{' '}
+                    <span className="font-medium text-gray-700">{item.ad.impressions.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">클릭</span>{' '}
+                    <span className="font-medium text-gray-700">{item.ad.clicks.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">리드/일</span>{' '}
+                    <span className="font-medium text-gray-700">{item.leadsPerDay.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">시청</span>{' '}
+                    <span className="font-medium text-gray-700">
+                      {item.ad.avg_watch_time ? `${item.ad.avg_watch_time.toFixed(1)}s` : '-'}
+                    </span>
                   </div>
                 </div>
               </motion.div>
