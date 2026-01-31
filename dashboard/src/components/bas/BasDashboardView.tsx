@@ -274,10 +274,10 @@ function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clien
   const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
   const [selectedAd, setSelectedAd] = useState<MetaAdData | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortField, setSortField] = useState<SortField>('spend')
+  const [sortField, setSortField] = useState<SortField>('leads')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [activeAdIds, setActiveAdIds] = useState<Set<string> | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
 
   // Fetch ad ON/OFF status
   useEffect(() => {
