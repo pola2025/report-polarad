@@ -213,7 +213,8 @@ function ScoreGauge({ score, size = 56 }: { score: number; size?: number }) {
   const r = (size - 8) / 2
   const circ = 2 * Math.PI * r
   const offset = circ - (score / 100) * circ
-  const color = score >= 50 ? '#10b981' : score >= 30 ? '#f59e0b' : '#ef4444'
+  // 리스크 기준 색상: 높을수록 위험(빨강), 낮을수록 안전(녹색)
+  const color = score >= 70 ? '#ef4444' : score >= 45 ? '#f59e0b' : '#10b981'
   return (
     <svg width={size} height={size} className="flex-shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={4} />
@@ -707,8 +708,8 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                 className={`bg-white rounded-xl border p-4 ${cfg.border}`}
               >
                 <div className="flex items-start gap-3">
-                  {/* Score gauge */}
-                  <ScoreGauge score={item.score} />
+                  {/* Risk gauge */}
+                  <ScoreGauge score={item.risk.compositeRisk} />
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">

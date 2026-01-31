@@ -155,18 +155,32 @@ function KillSwitchAlert({ ads, clientSlug, onNavigate }: { ads: MetaAdData[]; c
         </button>
       </div>
       <div className="space-y-1.5">
-        {killAds.slice(0, 5).map((ad) => (
-          <div key={ad.ad_id} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold flex-shrink-0">KILL</span>
-              <span className="text-xs text-gray-800 truncate">{ad.ad_name}</span>
+        {killAds.slice(0, 5).map((ad) => {
+          // 광고명에서 세트명 분리: "광고명 (세트명)" → 광고명, 세트명
+          const nameMatch = ad.ad_name.match(/^(.+?)\s*\((.+)\)$/)
+          const adDisplayName = nameMatch ? nameMatch[1] : ad.ad_name
+          const adsetName = nameMatch ? nameMatch[2] : null
+          return (
+          <div key={ad.ad_id} className="flex items-start justify-between bg-white/60 rounded-lg px-3 py-2 gap-2">
+            <div className="flex items-start gap-2 min-w-0">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold flex-shrink-0 mt-0.5">KILL</span>
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-gray-900">{adDisplayName}</div>
+                {adsetName && (
+                  <div className="text-[10px] text-gray-500 truncate">세트: {adsetName}</div>
+                )}
+                {ad.campaign_name && (
+                  <div className="text-[10px] text-gray-400 truncate">캠페인: {ad.campaign_name}</div>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
+            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0 mt-0.5">
               <span>${ad.spend.toFixed(0)}</span>
               <span>0건</span>
             </div>
           </div>
-        ))}
+          )
+        })}
         {killAds.length > 5 && (
           <p className="text-[11px] text-red-500 pl-2">외 {killAds.length - 5}개 더...</p>
         )}
@@ -363,8 +377,7 @@ const ADS_VIEW_TABS: { id: AdsViewMode; label: string; emoji: string }[] = [
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
-function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clientSlug: string; daily?: MetaDailyData[] }) {
-  const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
+function AdsDetailSection({ ads, clientSlug, daily, adsViewMode, setAdsViewMode }: { ads: MetaAdData[]; clientSlug: string; daily?: MetaDailyData[]; adsViewMode: AdsViewMode; setAdsViewMode: (mode: AdsViewMode) => void }) {
   const [selectedAd, setSelectedAd] = useState<MetaAdData | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('leads')
@@ -1056,6 +1069,7 @@ export function BasDashboardView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
 
   // 필터 상태
   const compareMode = (searchParams.get('compare') as 'none' | 'weekly' | 'monthly') || 'none'
@@ -1337,7 +1351,7 @@ export function BasDashboardView({
                 <KillSwitchAlert
                   ads={ads}
                   clientSlug={clientSlug}
-                  onNavigate={() => { setActiveTab('ads-detail') }}
+                  onNavigate={() => { setActiveTab('ads-detail'); setAdsViewMode('efficiency') }}
                 />
 
                 {/* 일별 성과 카드 */}
@@ -1463,7 +1477,7 @@ export function BasDashboardView({
             )}
 
             {activeTab === 'ads-detail' && (
-              <AdsDetailSection ads={ads} clientSlug={clientSlug} daily={daily} />
+              <AdsDetailSection ads={ads} clientSlug={clientSlug} daily={daily} adsViewMode={adsViewMode} setAdsViewMode={setAdsViewMode} />
             )}
 
             {activeTab === 'reports' && (
