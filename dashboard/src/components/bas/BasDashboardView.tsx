@@ -49,6 +49,7 @@ import { BasPerformanceHeatmap } from './BasPerformanceHeatmap'
 import { BasAdBubbleMap } from './BasAdBubbleMap'
 import { BasCampaignTreemap } from './BasCampaignTreemap'
 import { BasAdRadarChart } from './BasAdRadarChart'
+import { BasAdEfficiencyReport } from './BasAdEfficiencyReport'
 
 // BAS API
 import {
@@ -260,15 +261,16 @@ function PeriodDataSection({
 type SortField = 'ad_name' | 'impressions' | 'clicks' | 'ctr' | 'spend' | 'leads' | 'cpl' | 'avg_watch_time' | 'days_count'
 type SortDir = 'asc' | 'desc'
 
-type AdsViewMode = 'table' | 'bubble' | 'treemap'
+type AdsViewMode = 'table' | 'bubble' | 'treemap' | 'efficiency'
 
 const ADS_VIEW_TABS: { id: AdsViewMode; label: string; emoji: string }[] = [
   { id: 'table', label: '테이블', emoji: '📋' },
   { id: 'bubble', label: '버블맵', emoji: '🫧' },
   { id: 'treemap', label: '트리맵', emoji: '🗺️' },
+  { id: 'efficiency', label: '효율분석', emoji: '📊' },
 ]
 
-function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
+function AdsDetailSection({ ads, clientSlug, daily }: { ads: MetaAdData[]; clientSlug: string; daily?: MetaDailyData[] }) {
   const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
   const [selectedAd, setSelectedAd] = useState<MetaAdData | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -394,6 +396,11 @@ function AdsDetailSection({ ads }: { ads: MetaAdData[] }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* 효율분석 뷰 */}
+      {adsViewMode === 'efficiency' && (
+        <BasAdEfficiencyReport ads={ads} clientSlug={clientSlug} dailyData={daily} />
       )}
 
       {/* 테이블 뷰 (기존) */}
@@ -1292,7 +1299,7 @@ export function BasDashboardView({
             )}
 
             {activeTab === 'ads-detail' && (
-              <AdsDetailSection ads={ads} />
+              <AdsDetailSection ads={ads} clientSlug={clientSlug} daily={daily} />
             )}
 
             {activeTab === 'reports' && (

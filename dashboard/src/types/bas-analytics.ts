@@ -61,3 +61,48 @@ export function getCplStatusBgColor(status: CplStatus): string {
     case 'danger': return 'bg-red-50'
   }
 }
+
+// ─── CFO 위험신호 프레임워크 타입 ───
+
+/** 5개 팩터 각각 0-100 (높을수록 위험) */
+export interface AdRiskFactors {
+  burnRate: number      // 지출 대비 리드 효율 위험도
+  cplTrend: number      // CPL 추이 악화 정도
+  pipeline: number      // 파이프라인 건강도 (WPV 기반)
+  stability: number     // 리드 안정성
+  fatigue: number       // 광고 피로도
+}
+
+/** 광고별 리스크 스코어 종합 */
+export interface AdRiskScore {
+  factors: AdRiskFactors
+  compositeRisk: number           // 가중합산 0-100
+  killSwitch: boolean             // 즉시 OFF 대상
+  killSwitchReason?: string       // Kill Switch 사유
+  metaAllocationShare: number     // Meta 예산 배분 비율 (0-1)
+  wpv: number                     // Weighted Pipeline Value
+  wpvEfficiency: number           // WPV / spend
+}
+
+/** WPV 가중치: 리드 상태별 파이프라인 가치 */
+export const WPV_WEIGHTS: Record<string, number> = {
+  '접수': 1,
+  '부재': 1,
+  '통화완료': 3,
+  '수강등록': 10,
+}
+
+/** CFO 리스크 팩터 가중치 (합=1) */
+export const CFO_RISK_WEIGHTS = {
+  burnRate: 0.25,
+  cplTrend: 0.25,
+  pipeline: 0.20,
+  stability: 0.15,
+  fatigue: 0.15,
+} as const
+
+/** 목표 CPL (USD) */
+export const TARGET_CPL = 20
+
+/** Kill Switch 지출 임계값 (USD): target × 1.5 */
+export const KILL_SWITCH_SPEND_THRESHOLD = 30
