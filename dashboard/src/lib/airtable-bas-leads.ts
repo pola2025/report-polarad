@@ -98,7 +98,7 @@ export async function fetchBasLeads(options: FetchLeadsOptions = {}): Promise<{
   if (search) {
     // 이름 또는 연락처에서 검색
     filters.push(
-      `OR(FIND('${search}',{이름})>0,FIND('${search}',{연락처})>0,FIND('${search}',{name})>0,FIND('${search}',{phone})>0,FIND('${search}',{Name})>0,FIND('${search}',{Phone})>0)`
+      `OR(FIND('${search}',{이름})>0,FIND('${search}',{연락처})>0)`
     )
   }
 
