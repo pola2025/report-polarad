@@ -18,6 +18,7 @@ import {
   FileText,
   Settings2,
   Users,
+  Zap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
@@ -30,6 +31,7 @@ import type {
   MetaAdData,
 } from '@/types/meta-analytics'
 import type { BasDashboardData } from '@/types/bas-analytics'
+import { KILL_SWITCH_SPEND_THRESHOLD } from '@/types/bas-analytics'
 
 // BAS 전용 컴포넌트
 import { BasKPICard } from './BasKPICard'
@@ -81,6 +83,97 @@ const TABS: TabDef[] = [
   { id: 'ads-management', label: '광고관리', icon: Settings2 },
   { id: 'lead-management', label: '리드관리', icon: Users },
 ]
+
+// --- Kill Switch 알림 (개요 탭) ---
+
+function KillSwitchAlert({ ads, clientSlug, onNavigate }: { ads: MetaAdData[]; clientSlug: string; onNavigate: () => void }) {
+  const [activeAdIds, setActiveAdIds] = useState<Set<string> | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const res = await fetch(`/api/meta/ads-status?clientSlug=${clientSlug}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const ids = new Set<string>()
+        for (const campaign of data.campaigns || []) {
+          for (const adset of campaign.adsets || []) {
+            for (const ad of adset.ads || []) {
+              if (ad.is_active) ids.add(ad.id)
+            }
+          }
+        }
+        if (!cancelled) setActiveAdIds(ids)
+      } catch { /* silent */ }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [clientSlug])
+
+  const killAds = useMemo(() => {
+    if (activeAdIds === null) return []
+    const activeAds = ads.filter((ad) => activeAdIds.has(ad.ad_id))
+    const totalSpend = activeAds.reduce((s, a) => s + a.spend, 0)
+
+    return activeAds.filter((ad) => {
+      // Rule 1: spend >= threshold AND leads = 0
+      if (ad.spend >= KILL_SWITCH_SPEND_THRESHOLD && ad.leads === 0) return true
+      // Rule 2: allocation > 30% AND leads = 0 AND spend > $15
+      const share = totalSpend > 0 ? ad.spend / totalSpend : 0
+      if (share > 0.3 && ad.leads === 0 && ad.spend > 15) return true
+      return false
+    })
+  }, [ads, activeAdIds])
+
+  const dailyWaste = useMemo(
+    () => killAds.reduce((s, ad) => s + ad.spend / Math.max(ad.days_count, 1), 0),
+    [killAds],
+  )
+
+  if (killAds.length === 0) return null
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+            <Zap className="w-4 h-4 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-red-800">Kill Switch 감지</h3>
+            <p className="text-xs text-red-600">
+              {killAds.length}개 광고 · 일 약 ${dailyWaste.toFixed(1)} 낭비 추정
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onNavigate}
+          className="text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          효율분석 보기
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {killAds.slice(0, 5).map((ad) => (
+          <div key={ad.ad_id} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold flex-shrink-0">KILL</span>
+              <span className="text-xs text-gray-800 truncate">{ad.ad_name}</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
+              <span>${ad.spend.toFixed(0)}</span>
+              <span>0건</span>
+            </div>
+          </div>
+        ))}
+        {killAds.length > 5 && (
+          <p className="text-[11px] text-red-500 pl-2">외 {killAds.length - 5}개 더...</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // --- 내부 기간별 데이터 테이블 ---
 type ViewMode = 'monthly' | 'weekly' | 'daily'
@@ -1238,6 +1331,13 @@ export function BasDashboardView({
                   warnings={executiveSummary.warnings}
                   actions={executiveSummary.actions}
                   summaryText={executiveSummary.summaryText}
+                />
+
+                {/* Kill Switch 경고 */}
+                <KillSwitchAlert
+                  ads={ads}
+                  clientSlug={clientSlug}
+                  onNavigate={() => { setActiveTab('ads-detail') }}
                 />
 
                 {/* 일별 성과 카드 */}
