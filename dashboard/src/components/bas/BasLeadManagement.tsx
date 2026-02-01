@@ -585,6 +585,11 @@ function LeadCard({
             )}
           </div>
           <p className="text-xs text-gray-400 mt-0.5">{lead.phone}</p>
+          {(lead.ad_name || lead.campaign) && (
+            <p className="text-[10px] text-gray-300 truncate max-w-[160px]" title={lead.ad_name || lead.campaign}>
+              {lead.ad_name || lead.campaign}
+            </p>
+          )}
         </div>
         <button
           onClick={onDetail}
@@ -669,23 +674,30 @@ function LeadTable({
               <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                 {/* 이름 + 배지 */}
                 <td className="px-3 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onDetail(lead)}
-                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors truncate max-w-[72px]"
-                      title={lead.name}
-                    >
-                      {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '…' : lead.name) : '(없음)'}
-                    </button>
-                    {lead.submission_count > 1 && (
-                      <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full whitespace-nowrap">
-                        재신청 ({lead.submission_count}회)
-                      </span>
-                    )}
-                    {lead.blacklisted && (
-                      <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[10px] font-medium rounded-full">
-                        BL
-                      </span>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => onDetail(lead)}
+                        className="font-medium text-gray-900 hover:text-blue-600 transition-colors truncate max-w-[72px]"
+                        title={lead.name}
+                      >
+                        {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '…' : lead.name) : '(없음)'}
+                      </button>
+                      {lead.submission_count > 1 && (
+                        <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full whitespace-nowrap">
+                          재신청 ({lead.submission_count}회)
+                        </span>
+                      )}
+                      {lead.blacklisted && (
+                        <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[10px] font-medium rounded-full">
+                          BL
+                        </span>
+                      )}
+                    </div>
+                    {(lead.ad_name || lead.campaign) && (
+                      <p className="text-[10px] text-gray-400 truncate max-w-[140px] mt-0.5" title={lead.ad_name || lead.campaign}>
+                        {lead.ad_name || lead.campaign}
+                      </p>
                     )}
                   </div>
                 </td>
