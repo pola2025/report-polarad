@@ -153,80 +153,82 @@ function ChangeCard({
   )
 }
 
-// === 일별 바 차트 ===
+// === 일별 바 차트 (고정 px 높이) ===
 function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
   const maxCount = Math.max(...daily.map(d => d.count), 1)
-  // Y축 눈금: 최대값 기준 적절한 간격
-  const yStep = maxCount <= 5 ? 1 : maxCount <= 10 ? 2 : Math.ceil(maxCount / 5)
-  const yMax = Math.ceil(maxCount / yStep) * yStep || yStep
-  const yTicks = Array.from({ length: Math.floor(yMax / yStep) + 1 }, (_, i) => i * yStep)
+  const CHART_H = 160 // 차트 영역 고정 높이 px
+  const BAR_MIN = 20  // 1건 이상일 때 최소 바 높이 px
 
   return (
-    <div>
-      <div className="flex">
-        {/* Y축 라벨 */}
-        <div className="flex flex-col justify-between h-40 sm:h-48 pr-2 py-0.5">
-          {[...yTicks].reverse().map(v => (
-            <span key={v} className="text-[10px] text-gray-400 leading-none text-right min-w-[16px]">
-              {v}
-            </span>
+    <div className="space-y-2">
+      {/* Y축 최대값 표시 */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-gray-400">최대 {maxCount}건</span>
+        <span className="text-[10px] text-gray-400">
+          합계 {daily.reduce((s, d) => s + d.count, 0)}건 / 30일
+        </span>
+      </div>
+
+      {/* 차트 */}
+      <div className="relative" style={{ height: `${CHART_H}px` }}>
+        {/* 가로 기준선 */}
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="border-t border-dashed border-gray-100 w-full" />
           ))}
         </div>
 
-        {/* 차트 영역 */}
-        <div className="flex-1 relative">
-          {/* 가로 그리드라인 */}
-          {yTicks.map(v => (
-            <div
-              key={v}
-              className="absolute left-0 right-0 border-t border-gray-100"
-              style={{ bottom: `${(v / yMax) * 100}%` }}
-            />
-          ))}
+        {/* 바 영역 */}
+        <div className="absolute inset-0 flex items-end gap-[3px]">
+          {daily.map((d, i) => {
+            const barH = d.count > 0
+              ? Math.max(BAR_MIN, Math.round((d.count / maxCount) * (CHART_H - 20)))
+              : 4
+            const isToday = i === daily.length - 1
+            const isWeekend = [0, 6].includes(new Date(d.date + 'T00:00:00').getDay())
+            const dayNames = ['일','월','화','수','목','금','토']
+            const dayName = dayNames[new Date(d.date + 'T00:00:00').getDay()]
 
-          {/* 바 */}
-          <div className="flex items-end gap-[3px] h-40 sm:h-48 relative z-10">
-            {daily.map((d, i) => {
-              const height = yMax > 0 ? (d.count / yMax) * 100 : 0
-              const isToday = i === daily.length - 1
-              const isWeekend = [0, 6].includes(new Date(d.date).getDay())
+            return (
+              <div
+                key={d.date}
+                className="flex-1 flex flex-col items-center justify-end group cursor-pointer relative"
+                style={{ height: '100%' }}
+              >
+                {/* 숫자 라벨 - 항상 표시 (0은 제외) */}
+                {d.count > 0 && (
+                  <span className={`text-[10px] font-semibold mb-0.5 ${
+                    isToday ? 'text-blue-600' : 'text-gray-500'
+                  }`}>
+                    {d.count}
+                  </span>
+                )}
 
-              return (
+                {/* 바 */}
                 <div
-                  key={d.date}
-                  className="flex-1 flex flex-col items-center justify-end group relative"
-                >
-                  {/* 숫자 라벨 (0이 아닌 경우) */}
-                  {d.count > 0 && (
-                    <span className="text-[9px] text-gray-500 font-medium mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {d.count}
-                    </span>
-                  )}
-                  {/* 툴팁 */}
-                  <div className="absolute bottom-full mb-4 hidden group-hover:block z-20">
-                    <div className="bg-gray-900 text-white text-[10px] rounded-md px-2.5 py-1.5 whitespace-nowrap shadow-lg">
-                      <p className="font-medium">{d.date.slice(5)} ({['일','월','화','수','목','금','토'][new Date(d.date).getDay()]})</p>
-                      <p className="mt-0.5">{d.count}건 접수</p>
-                    </div>
+                  className={`w-full rounded-t transition-all ${
+                    isToday ? 'bg-blue-500' :
+                    d.count === 0 ? 'bg-gray-100' :
+                    isWeekend ? 'bg-blue-200' : 'bg-blue-400'
+                  } group-hover:brightness-75`}
+                  style={{ height: `${barH}px` }}
+                />
+
+                {/* 툴팁 */}
+                <div className="absolute bottom-full mb-1 hidden group-hover:block z-20 pointer-events-none">
+                  <div className="bg-gray-900 text-white text-[10px] rounded-md px-2.5 py-1.5 whitespace-nowrap shadow-lg">
+                    <p className="font-medium">{d.date.slice(5)} ({dayName})</p>
+                    <p className="mt-0.5">{d.count}건 접수</p>
                   </div>
-                  {/* 바 */}
-                  <div
-                    className={`w-full rounded-t-sm transition-all cursor-pointer ${
-                      isToday ? 'bg-blue-500' :
-                      isWeekend ? (d.count > 0 ? 'bg-blue-200' : 'bg-gray-100') :
-                      d.count === 0 ? 'bg-gray-50' : 'bg-blue-400'
-                    } group-hover:brightness-90`}
-                    style={{ height: `${Math.max(height, d.count > 0 ? 8 : 1)}%` }}
-                  />
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
       {/* X축 라벨 */}
-      <div className="flex items-center mt-1.5 ml-6">
+      <div className="flex items-center gap-[3px]">
         {daily.map((d, i) => (
           <div key={d.date} className="flex-1 text-center">
             {i % 7 === 0 || i === daily.length - 1 ? (
