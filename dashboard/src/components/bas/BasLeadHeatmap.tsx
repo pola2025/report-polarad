@@ -11,38 +11,56 @@ interface BasLeadHeatmapProps {
 
 interface HeatmapCell {
   date: string
-  dayOfWeek: number // 0=월, 1=화, ..., 6=일
+  dayOfWeek: number
   dayLabel: string
   count: number
   spend?: number
   impressions?: number
+  avg_watch_time?: number
 }
 
 interface WeekRow {
   weekLabel: string
-  cells: (HeatmapCell | null)[] // 7 slots (월~일)
+  cells: (HeatmapCell | null)[]
 }
 
 const DAY_HEADERS = ['월', '화', '수', '목', '금', '토', '일']
 const DAY_HEADER_COLORS = [
-  'text-gray-500',
-  'text-gray-500',
-  'text-gray-500',
-  'text-gray-500',
-  'text-gray-500',
-  'text-blue-500',
-  'text-red-500',
+  'text-gray-500', 'text-gray-500', 'text-gray-500', 'text-gray-500', 'text-gray-500',
+  'text-blue-500', 'text-red-500',
 ]
 
-// 리드 건수 기반 블루 그라디언트
 function cellColor(count: number, max: number): string {
-  if (count === 0) return 'bg-gray-100 text-gray-300'
+  if (count === 0) return 'bg-gray-100'
   const ratio = count / (max || 1)
-  if (ratio >= 0.8) return 'bg-blue-700 text-white'
-  if (ratio >= 0.6) return 'bg-blue-500 text-white'
-  if (ratio >= 0.4) return 'bg-blue-400 text-white'
-  if (ratio >= 0.2) return 'bg-blue-300 text-blue-900'
-  return 'bg-blue-100 text-blue-800'
+  if (ratio >= 0.8) return 'bg-blue-700'
+  if (ratio >= 0.6) return 'bg-blue-500'
+  if (ratio >= 0.4) return 'bg-blue-400'
+  if (ratio >= 0.2) return 'bg-blue-300'
+  return 'bg-blue-100'
+}
+
+function cellTextColor(count: number, max: number): string {
+  if (count === 0) return 'text-gray-300'
+  const ratio = count / (max || 1)
+  if (ratio >= 0.4) return 'text-white'
+  return 'text-blue-900'
+}
+
+// 시청시간 포맷 (초 → "0:12")
+function fmtWatch(sec?: number): string {
+  if (!sec) return '-'
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// 숫자 축약 (1200 → 1.2k)
+function fmtNum(n?: number): string {
+  if (n == null) return '-'
+  if (n >= 10000) return `${(n / 10000).toFixed(1)}만`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return n.toLocaleString()
 }
 
 export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
@@ -55,10 +73,9 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
 
     sorted.forEach((d) => {
       const date = new Date(d.date + 'T00:00:00')
-      const jsDay = date.getDay() // 0=일, 1=월, ...
-      const dayIdx = jsDay === 0 ? 6 : jsDay - 1 // 월=0, ..., 일=6
+      const jsDay = date.getDay()
+      const dayIdx = jsDay === 0 ? 6 : jsDay - 1
 
-      // ISO 주차 계산
       const startOfYear = new Date(date.getFullYear(), 0, 1)
       const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
       const weekNum = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7)
@@ -70,6 +87,7 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
         count: d.count,
         spend: d.spend,
         impressions: d.impressions,
+        avg_watch_time: d.avg_watch_time,
       }
 
       const wKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
@@ -78,15 +96,12 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
       }
       weekMap.get(wKey)![dayIdx] = cell
 
-      if (d.count > 0) {
-        dayBuckets[dayIdx].push(d.count)
-      }
+      if (d.count > 0) dayBuckets[dayIdx].push(d.count)
     })
 
     const weekRows: WeekRow[] = Array.from(weekMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, cells]) => {
-        // 주 라벨: 해당 주의 첫 번째 유효 셀 날짜에서 추출
         const firstCell = cells.find(c => c !== null)
         const label = firstCell ? firstCell.date.slice(5, 10) : ''
         return { weekLabel: label, cells }
@@ -131,11 +146,11 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
   if (daily.length === 0) return null
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 lg:p-6 space-y-4 lg:space-y-5">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 lg:p-5 space-y-3 lg:space-y-4">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 lg:w-9 lg:h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <Grid3X3 className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <Grid3X3 className="w-4 h-4 text-white" />
         </div>
         <div>
           <h3 className="font-bold text-gray-900 text-sm lg:text-base">리드 접수 히트맵</h3>
@@ -146,12 +161,15 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
       {/* 히트맵 그리드 */}
       <div className="relative">
         {/* 요일 헤더 */}
-        <div className="grid gap-1 lg:gap-1.5 mb-1" style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}>
+        <div
+          className="grid gap-[2px] lg:gap-1 mb-[2px] lg:mb-1"
+          style={{ gridTemplateColumns: '28px repeat(7, 1fr)' }}
+        >
           <div />
           {DAY_HEADERS.map((day, idx) => (
             <div
               key={day}
-              className={`text-center text-[10px] lg:text-xs font-medium py-1 ${DAY_HEADER_COLORS[idx]}`}
+              className={`text-center text-[9px] lg:text-[11px] font-medium py-0.5 ${DAY_HEADER_COLORS[idx]}`}
             >
               {day}
             </div>
@@ -162,10 +180,10 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
         {weeks.map((week, wIdx) => (
           <div
             key={`week-${wIdx}`}
-            className="grid gap-1 lg:gap-1.5 mb-1 lg:mb-1.5"
-            style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}
+            className="grid gap-[2px] lg:gap-1 mb-[2px] lg:mb-1"
+            style={{ gridTemplateColumns: '28px repeat(7, 1fr)' }}
           >
-            <div className="flex items-center justify-end pr-1 text-[10px] lg:text-xs text-gray-400 font-medium">
+            <div className="flex items-center justify-end pr-0.5 text-[8px] lg:text-[10px] text-gray-400 font-medium">
               {week.weekLabel}
             </div>
             {week.cells.map((cell, dIdx) => {
@@ -173,9 +191,9 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                 return (
                   <div
                     key={`empty-${wIdx}-${dIdx}`}
-                    className="aspect-square rounded lg:rounded-lg bg-gray-50 flex items-center justify-center"
+                    className="rounded bg-gray-50 flex items-center justify-center h-7 lg:h-[52px]"
                   >
-                    <span className="text-[8px] lg:text-[9px] text-gray-200">-</span>
+                    <span className="text-[7px] lg:text-[8px] text-gray-200">-</span>
                   </div>
                 )
               }
@@ -184,34 +202,58 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                 return (
                   <div
                     key={`zero-${wIdx}-${dIdx}`}
-                    className="aspect-square rounded lg:rounded-lg bg-gray-100 flex items-center justify-center"
+                    className="rounded bg-gray-100 flex items-center justify-center h-7 lg:h-[52px]"
                   >
-                    <span className="text-[8px] lg:text-[9px] text-gray-300">0</span>
+                    <span className="text-[7px] lg:text-[8px] text-gray-300">0</span>
                   </div>
                 )
               }
 
-              const colorClass = cellColor(cell.count, maxCount)
+              const bg = cellColor(cell.count, maxCount)
+              const textMain = cellTextColor(cell.count, maxCount)
+              const textSub = cell.count / (maxCount || 1) >= 0.4
+                ? 'text-white/70'
+                : 'text-blue-700/60'
 
               return (
                 <motion.div
                   key={`cell-${wIdx}-${dIdx}`}
-                  initial={{ opacity: 0, scale: 0.8 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: wIdx * 0.04 + dIdx * 0.02 }}
-                  className={`aspect-square rounded lg:rounded-lg ${colorClass} flex items-center justify-center cursor-pointer transition-all duration-150 hover:scale-110 hover:z-10 hover:shadow-lg relative group`}
+                  transition={{ delay: wIdx * 0.03 + dIdx * 0.015 }}
+                  className={`rounded ${bg} cursor-pointer transition-all duration-150 hover:scale-105 hover:z-10 hover:shadow-md relative group h-7 lg:h-[52px] flex flex-col items-center justify-center`}
                 >
-                  <span className="font-bold text-[9px] lg:text-xs">
+                  {/* 모바일: 리드수만 */}
+                  <span className={`lg:hidden font-bold text-[9px] ${textMain}`}>
                     {cell.count}
                   </span>
 
+                  {/* PC: 멀티 메트릭 */}
+                  <div className="hidden lg:flex flex-col items-center justify-center w-full gap-0 leading-none">
+                    <span className={`font-extrabold text-sm ${textMain}`}>
+                      {cell.count}
+                    </span>
+                    <div className={`flex flex-col items-center gap-0 ${textSub}`}>
+                      <span className="text-[7px] leading-tight">
+                        {fmtNum(cell.impressions)}
+                      </span>
+                      <span className="text-[7px] leading-tight">
+                        {fmtWatch(cell.avg_watch_time)}
+                      </span>
+                      <span className="text-[7px] leading-tight">
+                        {cell.spend != null ? `${fmtNum(cell.spend)}원` : '-'}
+                      </span>
+                    </div>
+                  </div>
+
                   {/* 툴팁 */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white px-2.5 py-1.5 rounded-lg text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-lg">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-gray-800 text-white px-2 py-1.5 rounded-lg text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-lg">
                     <div className="font-medium">{cell.dayLabel}</div>
                     <div className="mt-0.5 space-y-0.5 text-gray-300">
                       <div>리드: {cell.count}건</div>
-                      {cell.spend != null && <div>지출: {Math.round(cell.spend).toLocaleString()}원</div>}
                       {cell.impressions != null && <div>노출: {cell.impressions.toLocaleString()}회</div>}
+                      {cell.avg_watch_time != null && <div>시청: {fmtWatch(cell.avg_watch_time)}</div>}
+                      {cell.spend != null && <div>지출: {Math.round(cell.spend).toLocaleString()}원</div>}
                       {cell.spend != null && cell.count > 0 && (
                         <div>CPL: {Math.round(cell.spend / cell.count).toLocaleString()}원</div>
                       )}
@@ -225,27 +267,32 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
         ))}
       </div>
 
-      {/* 범례 */}
+      {/* PC 범례: 셀 내부 표시 의미 */}
+      <div className="hidden lg:flex items-center gap-4 text-[9px] text-gray-400">
+        <span>셀 표시: <strong className="text-gray-600">리드수</strong> / 노출 / 시청시간 / 지출</span>
+      </div>
+
+      {/* 색상 범례 */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-gray-400">적음</span>
+          <span className="text-[9px] text-gray-400">적음</span>
           <div className="flex gap-0.5">
             {['bg-blue-100', 'bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-700'].map((c, i) => (
-              <div key={i} className={`w-4 lg:w-5 h-2.5 lg:h-3 ${c} rounded`} />
+              <div key={i} className={`w-3 lg:w-4 h-2 lg:h-2.5 ${c} rounded`} />
             ))}
           </div>
-          <span className="text-[10px] text-gray-400">많음</span>
+          <span className="text-[9px] text-gray-400">많음</span>
         </div>
-        <div className="text-[10px] text-gray-400">리드 접수 건수 기준</div>
+        <div className="text-[9px] text-gray-400">리드 접수 건수 기준</div>
       </div>
 
       {/* 요일별 평균 */}
-      <div className="grid grid-cols-7 gap-1 lg:gap-2">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1.5">
         {dayAverages.map((avg, idx) => {
           if (avg === 0) return (
-            <div key={idx} className="text-center bg-gray-50 rounded-lg py-1.5 lg:py-2 border border-gray-100">
-              <div className="text-[9px] lg:text-[10px] text-gray-500">{DAY_HEADERS[idx]}</div>
-              <div className="text-[11px] lg:text-sm font-bold text-gray-300">-</div>
+            <div key={idx} className="text-center bg-gray-50 rounded py-1 lg:py-1.5 border border-gray-100">
+              <div className="text-[8px] lg:text-[9px] text-gray-500">{DAY_HEADERS[idx]}</div>
+              <div className="text-[10px] lg:text-xs font-bold text-gray-300">-</div>
             </div>
           )
 
@@ -255,9 +302,9 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
             : { text: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-100' }
 
           return (
-            <div key={idx} className={`text-center ${colorStyle.bg} rounded-lg py-1.5 lg:py-2 border ${colorStyle.border}`}>
-              <div className="text-[9px] lg:text-[10px] text-gray-500">{DAY_HEADERS[idx]}</div>
-              <div className={`text-[11px] lg:text-sm font-bold ${colorStyle.text}`}>
+            <div key={idx} className={`text-center ${colorStyle.bg} rounded py-1 lg:py-1.5 border ${colorStyle.border}`}>
+              <div className="text-[8px] lg:text-[9px] text-gray-500">{DAY_HEADERS[idx]}</div>
+              <div className={`text-[10px] lg:text-xs font-bold ${colorStyle.text}`}>
                 {avg.toFixed(1)}
               </div>
             </div>
@@ -268,16 +315,16 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
       {/* Auto-Insight */}
       {insightText && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 lg:p-4 border border-blue-100"
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100"
         >
-          <div className="flex items-start gap-2 lg:gap-3">
-            <div className="w-6 h-6 lg:w-7 lg:h-7 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-blue-600" />
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 bg-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
+              <Info className="w-3 h-3 text-blue-600" />
             </div>
-            <div className="text-xs lg:text-sm text-blue-800">
+            <div className="text-[11px] lg:text-xs text-blue-800">
               <span className="font-bold">Auto-Insight:</span> {insightText}
             </div>
           </div>

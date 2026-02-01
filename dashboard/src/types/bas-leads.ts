@@ -89,6 +89,7 @@ export interface DailyLeadWithMeta {
   by_status: Record<LeadStatus, number>
   spend?: number         // Meta 지출 (원)
   impressions?: number   // Meta 노출수
+  avg_watch_time?: number // 평균 시청 시간 (초)
 }
 
 // === 리드 트렌드 API 응답 ===

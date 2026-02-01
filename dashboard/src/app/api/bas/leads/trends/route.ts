@@ -102,22 +102,32 @@ export async function GET(request: NextRequest) {
     try {
       const metaRecords = await fetchAirtableData('bas', startDate, endDate, 'meta')
       // 날짜별 spend/impressions 집계
-      const metaByDate = new Map<string, { spend: number; impressions: number }>()
+      const metaByDate = new Map<string, { spend: number; impressions: number; watchTimeSum: number; watchTimeCount: number }>()
       for (const rec of metaRecords) {
         const d = rec.date
         if (!metaByDate.has(d)) {
-          metaByDate.set(d, { spend: 0, impressions: 0 })
+          metaByDate.set(d, { spend: 0, impressions: 0, watchTimeSum: 0, watchTimeCount: 0 })
         }
         const entry = metaByDate.get(d)!
         entry.spend += rec.spend || 0
         entry.impressions += rec.impressions || 0
+        if (rec.avg_watch_time && rec.avg_watch_time > 0) {
+          entry.watchTimeSum += rec.avg_watch_time
+          entry.watchTimeCount++
+        }
       }
 
-      dailyEnriched = daily.map(d => ({
-        ...d,
-        spend: metaByDate.get(d.date)?.spend,
-        impressions: metaByDate.get(d.date)?.impressions,
-      }))
+      dailyEnriched = daily.map(d => {
+        const meta = metaByDate.get(d.date)
+        return {
+          ...d,
+          spend: meta?.spend,
+          impressions: meta?.impressions,
+          avg_watch_time: meta && meta.watchTimeCount > 0
+            ? Math.round(meta.watchTimeSum / meta.watchTimeCount)
+            : undefined,
+        }
+      })
     } catch (e) {
       console.warn('Meta data merge failed, using daily without enrichment:', e)
       dailyEnriched = daily.map(d => ({ ...d }))
