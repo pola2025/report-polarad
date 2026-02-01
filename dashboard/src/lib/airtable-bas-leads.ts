@@ -159,8 +159,14 @@ export async function fetchBasLeads(options: FetchLeadsOptions = {}): Promise<{
 export async function getBasLeadSummary(): Promise<BasLeadSummary> {
   const { leads: allLeads } = await fetchBasLeads({ pageSize: 10000 })
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayNew = allLeads.filter(l => (l.created_at || '').startsWith(today)).length
+  // KST 기준 오늘 날짜
+  const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const today = nowKST.toISOString().split('T')[0]
+  const todayNew = allLeads.filter(l => {
+    if (!l.created_at) return false
+    const kst = new Date(new Date(l.created_at).getTime() + 9 * 60 * 60 * 1000)
+    return kst.toISOString().split('T')[0] === today
+  }).length
 
   const byStatus: Record<LeadStatus, number> = {
     '접수': 0,

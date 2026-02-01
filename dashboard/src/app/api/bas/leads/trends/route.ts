@@ -17,10 +17,22 @@ import type {
 } from '@/types/bas-leads'
 import type { LeadStatus } from '@/types/bas-leads'
 
-function dateOnly(d: Date): string {
-  return d.toISOString().split('T')[0]
+// KST (UTC+9) 기준 날짜 문자열 반환
+function toKSTDate(input: string | Date): string {
+  const d = typeof input === 'string' ? new Date(input) : input
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  return kst.toISOString().split('T')[0]
 }
 
+// n일 전 KST 날짜 문자열
+function daysAgoKST(n: number): string {
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  kst.setDate(kst.getDate() - n)
+  return kst.toISOString().split('T')[0]
+}
+
+// n일 전 UTC Date (비교용)
 function daysAgo(n: number): Date {
   const d = new Date()
   d.setDate(d.getDate() - n)
@@ -39,9 +51,9 @@ export async function GET() {
     // === 1. 일별 접수 추이 (최근 30일) ===
     const dailyMap = new Map<string, DailyLeadCount>()
 
-    // 30일 날짜 틀 생성
+    // 30일 날짜 틀 생성 (KST 기준)
     for (let i = 29; i >= 0; i--) {
-      const d = dateOnly(daysAgo(i))
+      const d = daysAgoKST(i)
       dailyMap.set(d, {
         date: d,
         count: 0,
@@ -50,7 +62,7 @@ export async function GET() {
     }
 
     for (const lead of validLeads) {
-      const date = (lead.created_at || '').split('T')[0]
+      const date = toKSTDate(lead.created_at || '')
       if (dailyMap.has(date)) {
         const entry = dailyMap.get(date)!
         entry.count++

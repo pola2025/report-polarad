@@ -153,11 +153,22 @@ function ChangeCard({
   )
 }
 
-// === 일별 바 차트 (고정 px 높이) ===
+// === 일별 바 차트 (고정 px 높이, 색상 계층화) ===
 function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
   const maxCount = Math.max(...daily.map(d => d.count), 1)
   const CHART_H = 160 // 차트 영역 고정 높이 px
   const BAR_MIN = 20  // 1건 이상일 때 최소 바 높이 px
+
+  // 건수 기반 색상 (진한색=많은날, 옅은색=적은날)
+  function barColor(count: number, isToday: boolean, isWeekend: boolean): string {
+    if (isToday) return 'bg-blue-500'
+    if (count === 0) return 'bg-gray-100'
+    const ratio = count / maxCount
+    if (isWeekend) {
+      return ratio > 0.6 ? 'bg-blue-400' : ratio > 0.3 ? 'bg-blue-300' : 'bg-blue-200'
+    }
+    return ratio > 0.6 ? 'bg-blue-600' : ratio > 0.3 ? 'bg-blue-400' : 'bg-blue-300'
+  }
 
   return (
     <div className="space-y-2">
@@ -206,11 +217,7 @@ function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
 
                 {/* 바 */}
                 <div
-                  className={`w-full rounded-t transition-all ${
-                    isToday ? 'bg-blue-500' :
-                    d.count === 0 ? 'bg-gray-100' :
-                    isWeekend ? 'bg-blue-200' : 'bg-blue-400'
-                  } group-hover:brightness-75`}
+                  className={`w-full rounded-t transition-all ${barColor(d.count, isToday, isWeekend)} group-hover:brightness-75`}
                   style={{ height: `${barH}px` }}
                 />
 
