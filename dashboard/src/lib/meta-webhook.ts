@@ -297,9 +297,13 @@ export function sendLeadNotification(fields: AirtableLeadFields, isResubmission:
     `이름: ${fields.name}`,
     `연락처: ${fields.phone}`,
   ]
+  if (fields.campaign) lines.push(`광고명: ${fields.campaign}`)
+  if (fields.platform) {
+    const platformLabel = fields.platform === 'fb' ? 'Facebook' : fields.platform === 'ig' ? 'Instagram' : fields.platform
+    lines.push(`플랫폼: ${platformLabel}`)
+  }
   if (fields.email) lines.push(`이메일: ${fields.email}`)
   if (fields.message) {
-    // 문의내용은 200자까지만
     const truncated = fields.message.length > 200
       ? fields.message.slice(0, 200) + '...'
       : fields.message

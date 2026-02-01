@@ -69,7 +69,7 @@ jobs:
                 console.log('Updated (resubmission '+cnt+'): '+name+' '+phone);
 
                 // 텔레그램: 재접수
-                const tgText='<b>[BAS 리드 재접수 ('+cnt+'회차)]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n캠페인: '+campaign:'')+'\\n접수일: '+date;
+                const tgText='<b>[BAS 리드 재접수 ('+cnt+'회차)]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n광고명: '+campaign:'')+'\\n접수일: '+date;
                 await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML'})});
               } else {
                 // 신규
@@ -81,7 +81,7 @@ jobs:
                 console.log('Created: '+name+' '+phone);
 
                 // 텔레그램: 신규
-                const tgText='<b>[BAS 리드 신규]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n캠페인: '+campaign:'')+(platform?'\\n플랫폼: '+(platform==='fb'?'Facebook':platform==='ig'?'Instagram':platform):'')+'\\n접수일: '+date;
+                const tgText='<b>[BAS 리드 신규]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n광고명: '+campaign:'')+(platform?'\\n플랫폼: '+(platform==='fb'?'Facebook':platform==='ig'?'Instagram':platform):'')+'\\n접수일: '+date;
                 await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML'})});
               }
             }
