@@ -210,6 +210,18 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
     }
   }
 
+  // === 담당자 삭제 ===
+  const deleteStaff = async (staffId: string) => {
+    try {
+      const res = await fetch(`/api/bas/staff/${staffId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setStaff(prev => prev.filter(s => s.id !== staffId))
+      }
+    } catch (err) {
+      console.error('deleteStaff error:', err)
+    }
+  }
+
   // === 로딩 화면 ===
   if (loading && leads.length === 0) {
     return (
@@ -346,6 +358,7 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
           onClose={() => setShowStaffModal(false)}
           onAdd={addStaff}
           onToggle={toggleStaffActive}
+          onDelete={deleteStaff}
         />
       )}
     </div>
@@ -1010,11 +1023,13 @@ function StaffModal({
   onClose,
   onAdd,
   onToggle,
+  onDelete,
 }: {
   staff: BasStaff[]
   onClose: () => void
   onAdd: (name: string) => void
   onToggle: (id: string, isActive: boolean) => void
+  onDelete: (id: string) => void
 }) {
   const [newName, setNewName] = useState('')
 
@@ -1064,16 +1079,24 @@ function StaffModal({
                   <span className={`text-sm ${s.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
                     {s.name}
                   </span>
-                  <button
-                    onClick={() => onToggle(s.id, s.is_active)}
-                    className={`text-xs px-2 py-1 rounded-lg transition-colors ${
-                      s.is_active
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-green-600 hover:bg-green-50'
-                    }`}
-                  >
-                    {s.is_active ? '비활성화' : '활성화'}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onToggle(s.id, s.is_active)}
+                      className={`text-xs px-2 py-1 rounded-lg transition-colors ${
+                        s.is_active
+                          ? 'text-amber-600 hover:bg-amber-50'
+                          : 'text-green-600 hover:bg-green-50'
+                      }`}
+                    >
+                      {s.is_active ? '비활성화' : '활성화'}
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`'${s.name}' 담당자를 삭제하시겠습니까?`)) onDelete(s.id) }}
+                      className="text-xs px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 </div>
               ))}
               {staff.length === 0 && (

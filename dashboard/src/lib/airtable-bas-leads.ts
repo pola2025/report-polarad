@@ -431,3 +431,21 @@ export async function updateBasStaff(
 
   return mapRecordToStaff(data)
 }
+
+export async function deleteBasStaff(recordId: string): Promise<boolean> {
+  if (!STAFF_TABLE_ID) return false
+
+  const url = `${BASE_URL}/${STAFF_TABLE_ID}/${recordId}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers,
+  })
+  const data = await res.json()
+
+  if (data.error) {
+    console.error('deleteBasStaff error:', data.error)
+    return false
+  }
+
+  return true
+}
