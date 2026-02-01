@@ -57,6 +57,41 @@ export interface BasLeadSummary {
   by_campaign: CampaignLeadStats[]
 }
 
+// === 일별 접수 추이 ===
+export interface DailyLeadCount {
+  date: string           // YYYY-MM-DD
+  count: number
+  by_status: Record<LeadStatus, number>
+}
+
+// === 주간 변화율 ===
+export interface WeeklyChange {
+  current_week: number   // 이번 주 접수량
+  previous_week: number  // 지난 주 접수량
+  change_rate: number    // 변화율 % (양수=증가, 음수=감소)
+}
+
+// === 캠페인 성과 (확장) ===
+export interface CampaignPerformance {
+  campaign: string
+  total: number
+  by_status: Record<LeadStatus, number>
+  conversion_rate: number       // 수강등록 전환율 %
+  call_rate: number             // 통화완료율 %
+  recent_7d: number             // 최근 7일 접수량
+  trend: 'up' | 'down' | 'flat' // 최근 추세
+}
+
+// === 리드 트렌드 API 응답 ===
+export interface BasLeadTrends {
+  daily: DailyLeadCount[]             // 최근 30일 일별 데이터
+  weekly_change: WeeklyChange         // 주간 변화율
+  monthly_change: WeeklyChange        // 월간 변화율 (같은 구조 재활용)
+  campaigns: CampaignPerformance[]    // 캠페인 성과
+  total_valid: number                 // 유효 리드 (비블랙리스트)
+  avg_daily: number                   // 일평균 접수량 (최근 30일)
+}
+
 // === API 응답: 리드 목록 ===
 export interface BasLeadsResponse {
   leads: BasLead[]

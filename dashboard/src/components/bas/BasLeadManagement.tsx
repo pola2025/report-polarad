@@ -27,6 +27,7 @@ import type {
   BasLeadSummary,
   LeadStatus,
 } from '@/types/bas-leads'
+import { BasLeadStats } from './BasLeadStats'
 
 // === 상태 배지 색상 ===
 const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; icon: typeof Clock }> = {
@@ -297,6 +298,9 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
     <div className="space-y-4 sm:space-y-6">
       {/* === 요약 카드 === */}
       {summary && <SummaryCards summary={summary} />}
+
+      {/* === 접수 추이 + 캠페인 성과 === */}
+      <BasLeadStats />
 
       {/* === 필터 바 === */}
       <FilterBar
