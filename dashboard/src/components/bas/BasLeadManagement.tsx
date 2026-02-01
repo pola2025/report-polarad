@@ -619,7 +619,7 @@ function LeadCard({
 
       {/* 접수일 */}
       <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400">
-        <span>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('ko-KR') : '-'}</span>
+        <span>{lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}</span>
         {lead.notes && (
           <span className="flex items-center gap-0.5">
             <MessageSquare className="w-3 h-3" />
@@ -736,8 +736,8 @@ function LeadTable({
                 </td>
 
                 {/* 접수일 */}
-                <td className="px-4 py-3 text-gray-500 text-xs">
-                  {lead.created_at ? new Date(lead.created_at).toLocaleDateString('ko-KR') : '-'}
+                <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                  {lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                 </td>
 
                 {/* 횟수 */}
