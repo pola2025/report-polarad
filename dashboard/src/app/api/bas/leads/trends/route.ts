@@ -3,15 +3,18 @@
  * GET /api/bas/leads/trends
  *
  * 일별 접수추이, 주간/월간 변화율, 캠페인 성과
+ * 날짜 파라미터: startDate, endDate (YYYY-MM-DD)
  */
 
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { fetchBasLeads } from '@/lib/airtable-bas-leads'
+import { fetchAirtableData } from '@/lib/airtable'
 import type {
   BasLeadTrends,
   DailyLeadCount,
+  DailyLeadWithMeta,
   WeeklyChange,
   CampaignPerformance,
 } from '@/types/bas-leads'
@@ -32,6 +35,13 @@ function daysAgoKST(n: number): string {
   return kst.toISOString().split('T')[0]
 }
 
+// KST 기준 오늘 날짜
+function todayKST(): string {
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  return kst.toISOString().split('T')[0]
+}
+
 // n일 전 UTC Date (비교용)
 function daysAgo(n: number): Date {
   const d = new Date()
@@ -40,22 +50,34 @@ function daysAgo(n: number): Date {
   return d
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = request.nextUrl
+    const startDate = searchParams.get('startDate') || daysAgoKST(29)
+    const endDate = searchParams.get('endDate') || todayKST()
+
     const { leads: allLeads } = await fetchBasLeads({ pageSize: 10000 })
 
     // 블랙리스트 제외한 유효 리드
     const validLeads = allLeads.filter(l => !l.blacklisted)
 
     const now = new Date()
-    // === 1. 일별 접수 추이 (최근 30일) ===
+
+    // === 날짜 범위 계산 ===
+    const rangeStart = new Date(startDate + 'T00:00:00')
+    const rangeEnd = new Date(endDate + 'T23:59:59')
+    const rangeDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+    // === 1. 일별 접수 추이 (요청 기간) ===
     const dailyMap = new Map<string, DailyLeadCount>()
 
-    // 30일 날짜 틀 생성 (KST 기준)
-    for (let i = 29; i >= 0; i--) {
-      const d = daysAgoKST(i)
-      dailyMap.set(d, {
-        date: d,
+    // 날짜 틀 생성 (KST 기준)
+    for (let i = rangeDays - 1; i >= 0; i--) {
+      const d = new Date(rangeStart)
+      d.setDate(d.getDate() + i)
+      const dateStr = d.toISOString().split('T')[0]
+      dailyMap.set(dateStr, {
+        date: dateStr,
         count: 0,
         by_status: { '접수': 0, '통화완료': 0, '부재': 0, '수강등록': 0 },
       })
@@ -73,7 +95,33 @@ export async function GET() {
       }
     }
 
-    const daily = Array.from(dailyMap.values())
+    const daily = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+    // === 1-b. Meta 데이터 병합 (daily_enriched) ===
+    let dailyEnriched: DailyLeadWithMeta[] = []
+    try {
+      const metaRecords = await fetchAirtableData('bas', startDate, endDate, 'meta')
+      // 날짜별 spend/impressions 집계
+      const metaByDate = new Map<string, { spend: number; impressions: number }>()
+      for (const rec of metaRecords) {
+        const d = rec.date
+        if (!metaByDate.has(d)) {
+          metaByDate.set(d, { spend: 0, impressions: 0 })
+        }
+        const entry = metaByDate.get(d)!
+        entry.spend += rec.spend || 0
+        entry.impressions += rec.impressions || 0
+      }
+
+      dailyEnriched = daily.map(d => ({
+        ...d,
+        spend: metaByDate.get(d.date)?.spend,
+        impressions: metaByDate.get(d.date)?.impressions,
+      }))
+    } catch (e) {
+      console.warn('Meta data merge failed, using daily without enrichment:', e)
+      dailyEnriched = daily.map(d => ({ ...d }))
+    }
 
     // === 2. 주간 변화율 ===
     const thisWeekStart = daysAgo(6) // 최근 7일
@@ -169,16 +217,18 @@ export async function GET() {
       .sort((a, b) => b.total - a.total)
 
     // === 5. 일평균 ===
-    const totalLast30 = daily.reduce((sum, d) => sum + d.count, 0)
+    const totalInRange = daily.reduce((sum, d) => sum + d.count, 0)
     const daysWithData = daily.filter(d => d.count > 0).length || 1
 
     const trends: BasLeadTrends = {
       daily,
+      daily_enriched: dailyEnriched,
       weekly_change: weeklyChange,
       monthly_change: monthlyChange,
       campaigns,
       total_valid: validLeads.length,
-      avg_daily: Math.round((totalLast30 / daysWithData) * 10) / 10,
+      avg_daily: Math.round((totalInRange / daysWithData) * 10) / 10,
+      date_range: { start: startDate, end: endDate },
     }
 
     return NextResponse.json(trends)

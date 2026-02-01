@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   TrendingUp,
   TrendingDown,
@@ -11,25 +11,85 @@ import {
   ChevronUp,
   ArrowUpRight,
   ArrowDownRight,
+  Search,
+  Calendar,
 } from 'lucide-react'
 import type { BasLeadTrends, CampaignPerformance } from '@/types/bas-leads'
+import { BasLeadHeatmap } from './BasLeadHeatmap'
+
+// KST 기준 n일전 날짜
+function daysAgoStr(n: number): string {
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  kst.setDate(kst.getDate() - n)
+  return kst.toISOString().split('T')[0]
+}
+
+function todayStr(): string {
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  return kst.toISOString().split('T')[0]
+}
+
+type QuickPreset = '7d' | '30d' | '90d'
 
 export function BasLeadStats() {
   const [trends, setTrends] = useState<BasLeadTrends | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCampaigns, setShowCampaigns] = useState(false)
 
-  useEffect(() => {
-    fetch('/api/bas/leads/trends')
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setTrends(data)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+  // 날짜 필터 state (로컬 관리, URL params X)
+  const [activePreset, setActivePreset] = useState<QuickPreset>('30d')
+  const [startDate, setStartDate] = useState(daysAgoStr(29))
+  const [endDate, setEndDate] = useState(todayStr())
+  const [draftStart, setDraftStart] = useState(daysAgoStr(29))
+  const [draftEnd, setDraftEnd] = useState(todayStr())
+
+  const fetchTrends = useCallback(async (start: string, end: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/bas/leads/trends?startDate=${start}&endDate=${end}`)
+      const data = await res.json()
+      if (!data.error) setTrends(data)
+    } catch (e) {
+      console.error('Failed to fetch trends:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  if (loading) {
+  // 초기 로딩
+  useEffect(() => {
+    fetchTrends(startDate, endDate)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const applyPreset = (preset: QuickPreset) => {
+    const days = preset === '7d' ? 6 : preset === '30d' ? 29 : 89
+    const newStart = daysAgoStr(days)
+    const newEnd = todayStr()
+    setActivePreset(preset)
+    setStartDate(newStart)
+    setEndDate(newEnd)
+    setDraftStart(newStart)
+    setDraftEnd(newEnd)
+    fetchTrends(newStart, newEnd)
+  }
+
+  const applyCustomRange = () => {
+    setActivePreset(
+      draftStart === daysAgoStr(6) && draftEnd === todayStr() ? '7d'
+      : draftStart === daysAgoStr(29) && draftEnd === todayStr() ? '30d'
+      : draftStart === daysAgoStr(89) && draftEnd === todayStr() ? '90d'
+      : '30d' // fallback
+    )
+    setStartDate(draftStart)
+    setEndDate(draftEnd)
+    fetchTrends(draftStart, draftEnd)
+  }
+
+  const isDirty = draftStart !== startDate || draftEnd !== endDate
+
+  if (loading && !trends) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-2 text-gray-400">
@@ -42,8 +102,68 @@ export function BasLeadStats() {
 
   if (!trends) return null
 
+  const periodLabel = activePreset === '7d' ? '최근 7일'
+    : activePreset === '30d' ? '최근 30일'
+    : activePreset === '90d' ? '최근 90일'
+    : `${startDate} ~ ${endDate}`
+
   return (
     <div className="space-y-4">
+      {/* 날짜 필터 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+          {/* 퀵 프리셋 */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-xs font-medium text-gray-500 flex-shrink-0">기간:</span>
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+              {(['7d', '30d', '90d'] as const).map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => applyPreset(preset)}
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    activePreset === preset && !isDirty
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {preset === '7d' ? '7일' : preset === '30d' ? '30일' : '90일'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 커스텀 날짜 */}
+          <div className="flex items-center gap-1 w-full sm:w-auto">
+            <input
+              type="date"
+              value={draftStart}
+              onChange={(e) => setDraftStart(e.target.value)}
+              className="flex-1 sm:flex-none px-2 py-1.5 text-xs border border-gray-200 rounded-md min-w-0"
+            />
+            <span className="text-xs text-gray-400 flex-shrink-0">~</span>
+            <input
+              type="date"
+              value={draftEnd}
+              onChange={(e) => setDraftEnd(e.target.value)}
+              className="flex-1 sm:flex-none px-2 py-1.5 text-xs border border-gray-200 rounded-md min-w-0"
+            />
+            <button
+              onClick={applyCustomRange}
+              disabled={!isDirty}
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex-shrink-0 ${
+                isDirty
+                  ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <Search className="h-3 w-3" />
+              조회
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* KPI 변화율 카드 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <ChangeCard
@@ -78,10 +198,16 @@ export function BasLeadStats() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-4 h-4 text-gray-500" />
-          <h3 className="text-sm font-semibold text-gray-900">일별 접수 추이 (최근 30일)</h3>
+          <h3 className="text-sm font-semibold text-gray-900">일별 접수 추이 ({periodLabel})</h3>
+          {loading && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
         </div>
         <DailyChart daily={trends.daily} />
       </div>
+
+      {/* 리드 히트맵 */}
+      {trends.daily_enriched && trends.daily_enriched.length > 0 && (
+        <BasLeadHeatmap daily={trends.daily_enriched} />
+      )}
 
       {/* 캠페인 성과 */}
       <div className="bg-white rounded-xl border border-gray-200">
@@ -176,7 +302,7 @@ function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-gray-400">최대 {maxCount}건</span>
         <span className="text-[10px] text-gray-400">
-          합계 {daily.reduce((s, d) => s + d.count, 0)}건 / 30일
+          합계 {daily.reduce((s, d) => s + d.count, 0)}건 / {daily.length}일
         </span>
       </div>
 
