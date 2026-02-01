@@ -17,6 +17,9 @@ import {
   CheckCircle2,
   Clock,
   PhoneOff,
+  Pencil,
+  Trash2,
+  Check,
 } from 'lucide-react'
 import type {
   BasLead,
@@ -171,6 +174,50 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
       }
     } catch (err) {
       console.error('addNote error:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // === 메모 수정 ===
+  const editNote = async (noteIndex: number, content: string) => {
+    if (!selectedLead || !noteAuthor.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/bas/leads/${selectedLead.id}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteIndex, content, author: noteAuthor }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedLead(data.lead)
+        setLeads(prev => prev.map(l => l.id === data.lead.id ? data.lead : l))
+      }
+    } catch (err) {
+      console.error('editNote error:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // === 메모 삭제 ===
+  const deleteNote = async (noteIndex: number) => {
+    if (!selectedLead) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/bas/leads/${selectedLead.id}/notes`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteIndex }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedLead(data.lead)
+        setLeads(prev => prev.map(l => l.id === data.lead.id ? data.lead : l))
+      }
+    } catch (err) {
+      console.error('deleteNote error:', err)
     } finally {
       setSaving(false)
     }
@@ -348,6 +395,8 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
           onStaffChange={(assigned_staff) => updateLead(selectedLead.id, { assigned_staff })}
           onBlacklist={(blacklisted) => updateLead(selectedLead.id, { blacklisted })}
           onAddNote={addNote}
+          onEditNote={editNote}
+          onDeleteNote={deleteNote}
         />
       )}
 
@@ -813,6 +862,8 @@ function LeadDetailSlide({
   onStaffChange,
   onBlacklist,
   onAddNote,
+  onEditNote,
+  onDeleteNote,
 }: {
   lead: BasLead
   relatedLeads: BasLead[]
@@ -827,7 +878,11 @@ function LeadDetailSlide({
   onStaffChange: (staff: string) => void
   onBlacklist: (blacklisted: boolean) => void
   onAddNote: () => void
+  onEditNote: (noteIndex: number, content: string) => void
+  onDeleteNote: (noteIndex: number) => void
 }) {
+  const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null)
+  const [editingNoteContent, setEditingNoteContent] = useState('')
   return (
     <>
       {/* 배경 오버레이 */}
@@ -1009,9 +1064,73 @@ function LeadDetailSlide({
             {lead.notes ? (
               <div className="bg-gray-50 rounded-lg p-3 max-h-60 overflow-y-auto">
                 {lead.notes.split('\n').filter(Boolean).map((line, i) => (
-                  <p key={i} className="text-xs text-gray-700 py-1 border-b border-gray-100 last:border-0">
-                    {line}
-                  </p>
+                  <div key={i} className="group flex items-start gap-1 py-1.5 border-b border-gray-100 last:border-0">
+                    {editingNoteIndex === i ? (
+                      <div className="flex-1 flex gap-1">
+                        <input
+                          type="text"
+                          value={editingNoteContent}
+                          onChange={e => setEditingNoteContent(e.target.value)}
+                          className="flex-1 text-xs border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && editingNoteContent.trim()) {
+                              onEditNote(i, editingNoteContent.trim())
+                              setEditingNoteIndex(null)
+                            }
+                            if (e.key === 'Escape') setEditingNoteIndex(null)
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (editingNoteContent.trim()) {
+                              onEditNote(i, editingNoteContent.trim())
+                              setEditingNoteIndex(null)
+                            }
+                          }}
+                          disabled={saving}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setEditingNoteIndex(null)}
+                          className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="flex-1 text-xs text-gray-700">{line}</p>
+                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              // 메모 본문만 추출: [2026-01-31 14:00] 작성자: 내용 → 내용
+                              const match = line.match(/^\[.*?\]\s*.*?:\s*(.+?)(\s*\(수정됨\))?$/)
+                              setEditingNoteContent(match ? match[1] : line)
+                              setEditingNoteIndex(i)
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="수정"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('이 메모를 삭제하시겠습니까?')) {
+                                onDeleteNote(i)
+                              }
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (

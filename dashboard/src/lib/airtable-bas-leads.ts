@@ -324,6 +324,73 @@ export async function addBasLeadNote(
 }
 
 // ===========================
+// 메모 수정 (인덱스 기반)
+// ===========================
+export async function updateBasLeadNote(
+  recordId: string,
+  noteIndex: number,
+  newContent: string,
+  author: string
+): Promise<BasLead | null> {
+  const current = await getBasLead(recordId)
+  if (!current || !current.notes) return null
+
+  const lines = current.notes.split('\n').filter(Boolean)
+  if (noteIndex < 0 || noteIndex >= lines.length) return null
+
+  // 타임스탬프 보존, 내용만 교체: [2026-01-31 14:00] 작성자: 새내용
+  const now = new Date()
+  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  lines[noteIndex] = `[${timestamp}] ${author}: ${newContent} (수정됨)`
+
+  const url = `${BASE_URL}/${LEADS_TABLE_ID}/${recordId}`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      fields: { notes: lines.join('\n'), last_updated_by: author },
+    }),
+  })
+  const data = await res.json()
+  if (data.error) {
+    console.error('updateBasLeadNote error:', data.error)
+    return null
+  }
+  return mapRecordToLead(data)
+}
+
+// ===========================
+// 메모 삭제 (인덱스 기반)
+// ===========================
+export async function deleteBasLeadNote(
+  recordId: string,
+  noteIndex: number
+): Promise<BasLead | null> {
+  const current = await getBasLead(recordId)
+  if (!current || !current.notes) return null
+
+  const lines = current.notes.split('\n').filter(Boolean)
+  if (noteIndex < 0 || noteIndex >= lines.length) return null
+
+  lines.splice(noteIndex, 1)
+
+  const url = `${BASE_URL}/${LEADS_TABLE_ID}/${recordId}`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      fields: { notes: lines.join('\n') },
+    }),
+  })
+  const data = await res.json()
+  if (data.error) {
+    console.error('deleteBasLeadNote error:', data.error)
+    return null
+  }
+  return mapRecordToLead(data)
+}
+
+// ===========================
 // 중복 리드 검색 (같은 전화번호)
 // ===========================
 export async function findDuplicateLeads(phone: string): Promise<BasLead[]> {
