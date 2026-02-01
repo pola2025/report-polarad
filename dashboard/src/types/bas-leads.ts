@@ -38,6 +38,14 @@ export interface BasStaff {
   is_active: boolean
 }
 
+// === 캠페인별 리드 통계 ===
+export interface CampaignLeadStats {
+  campaign: string
+  total: number
+  by_status: Record<LeadStatus, number>
+  conversion_rate: number   // 수강등록 / total * 100
+}
+
 // === API 요약 ===
 export interface BasLeadSummary {
   total: number
@@ -46,6 +54,7 @@ export interface BasLeadSummary {
   conversion_rate: number   // 수강등록 / 전체 * 100
   blacklisted: number
   duplicates: number        // submission_count > 1 건수
+  by_campaign: CampaignLeadStats[]
 }
 
 // === API 응답: 리드 목록 ===

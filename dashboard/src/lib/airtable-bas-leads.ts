@@ -11,6 +11,7 @@ import type {
   BasStaff,
   LeadStatus,
   BasLeadSummary,
+  CampaignLeadStats,
 } from '@/types/bas-leads'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
@@ -182,6 +183,35 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
   const total = allLeads.length
   const conversionRate = total > 0 ? Math.round((byStatus['수강등록'] / total) * 1000) / 10 : 0
 
+  // 캠페인별 통계
+  const campaignMap = new Map<string, { total: number; by_status: Record<LeadStatus, number> }>()
+  for (const lead of allLeads) {
+    const campaign = lead.campaign || '(캠페인 미지정)'
+    if (!campaignMap.has(campaign)) {
+      campaignMap.set(campaign, {
+        total: 0,
+        by_status: { '접수': 0, '통화완료': 0, '부재': 0, '수강등록': 0 },
+      })
+    }
+    const entry = campaignMap.get(campaign)!
+    entry.total++
+    const s = lead.status as LeadStatus
+    if (entry.by_status[s] !== undefined) {
+      entry.by_status[s]++
+    }
+  }
+
+  const byCampaign: CampaignLeadStats[] = Array.from(campaignMap.entries())
+    .map(([campaign, data]) => ({
+      campaign,
+      total: data.total,
+      by_status: data.by_status,
+      conversion_rate: data.total > 0
+        ? Math.round((data.by_status['수강등록'] / data.total) * 1000) / 10
+        : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+
   return {
     total,
     today_new: todayNew,
@@ -189,6 +219,7 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
     conversion_rate: conversionRate,
     blacklisted,
     duplicates,
+    by_campaign: byCampaign,
   }
 }
 

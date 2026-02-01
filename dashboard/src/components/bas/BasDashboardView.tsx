@@ -46,6 +46,7 @@ import { BasExportButton } from './BasExportButton'
 import { BasReportHistory } from './BasReportHistory'
 import { BasLeadManagement } from './BasLeadManagement'
 import { BasConversionFunnel } from './BasConversionFunnel'
+import { BasEnrollmentFunnel } from './BasEnrollmentFunnel'
 import { BasBudgetGauge } from './BasBudgetGauge'
 import { BasPerformanceHeatmap } from './BasPerformanceHeatmap'
 import { BasAdBubbleMap } from './BasAdBubbleMap'
@@ -1458,6 +1459,11 @@ export function BasDashboardView({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                   <BasConversionFunnel summary={summary} ads={ads} />
                   <BasBudgetGauge summary={summary} daily={daily} />
+                </div>
+
+                {/* 수강 전환 퍼널 (리드 상태 기반) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                  <BasEnrollmentFunnel />
                 </div>
 
                 {/* 비교 분석 섹션 */}

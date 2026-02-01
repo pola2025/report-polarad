@@ -44,7 +44,7 @@ export function BasConversionFunnel({ summary, ads }: BasConversionFunnelProps) 
 
   // 전환율 계산
   const ctr = total_impressions > 0 ? (total_clicks / total_impressions) * 100 : 0
-  const vtr = total_clicks > 0 ? (total_video_views / total_clicks) * 100 : 0
+  const vtr = total_impressions > 0 ? (total_video_views / total_impressions) * 100 : 0
   const cvr = total_clicks > 0 ? (total_leads / total_clicks) * 100 : 0
   const cpm = total_impressions > 0 ? (total_spend / total_impressions) * 1000 : 0
   const cpc = total_clicks > 0 ? total_spend / total_clicks : 0
@@ -52,22 +52,14 @@ export function BasConversionFunnel({ summary, ads }: BasConversionFunnelProps) 
 
   // 이탈 수
   const dropImprToClick = total_impressions - total_clicks
-  const dropClickToVideo = total_clicks - total_video_views
   const dropVideoToLead = total_video_views - total_leads
 
   // 가장 큰 이탈 구간
-  const maxDropSection =
-    dropImprToClick >= dropClickToVideo && dropImprToClick >= dropVideoToLead
-      ? '노출→클릭'
-      : dropClickToVideo >= dropVideoToLead
-        ? '클릭→비디오'
-        : '비디오→리드'
+  const maxDropSection = dropImprToClick >= dropVideoToLead ? '노출→클릭' : '비디오→리드'
   const maxDropPct =
     maxDropSection === '노출→클릭'
       ? ((dropImprToClick / total_impressions) * 100).toFixed(1)
-      : maxDropSection === '클릭→비디오'
-        ? ((dropClickToVideo / total_clicks) * 100).toFixed(1)
-        : ((dropVideoToLead / total_video_views) * 100).toFixed(1)
+      : ((dropVideoToLead / total_video_views) * 100).toFixed(1)
 
   // 캠페인별 전환율 (campaign_name 기준 그룹핑)
   const campaignStats = useMemo(() => {
@@ -141,9 +133,9 @@ export function BasConversionFunnel({ summary, ads }: BasConversionFunnelProps) 
     },
   ]
 
-  const connectors = [
+  const connectors: { label: string; dropCount: number | null; color: string }[] = [
     { label: `CTR ${ctr.toFixed(2)}%`, dropCount: dropImprToClick, color: 'text-amber-600' },
-    { label: `${vtr.toFixed(1)}%`, dropCount: dropClickToVideo, color: 'text-amber-600' },
+    { label: `VTR ${vtr.toFixed(1)}%`, dropCount: null, color: 'text-blue-600' },
     { label: `CVR ${cvr.toFixed(2)}%`, dropCount: dropVideoToLead, color: 'text-green-600' },
   ]
 
@@ -250,9 +242,13 @@ export function BasConversionFunnel({ summary, ads }: BasConversionFunnelProps) 
                   <span className={`text-xs font-bold ${connectors[idx].color}`}>
                     {connectors[idx].label}
                   </span>
-                  <span className="text-[10px] text-gray-400">
-                    ({formatNumber(connectors[idx].dropCount)} 이탈)
-                  </span>
+                  {connectors[idx].dropCount !== null ? (
+                    <span className="text-[10px] text-gray-400">
+                      ({formatNumber(connectors[idx].dropCount)} 이탈)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-gray-400">(노출 대비)</span>
+                  )}
                 </div>
               </motion.div>
             )}
