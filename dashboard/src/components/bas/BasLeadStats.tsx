@@ -156,43 +156,77 @@ function ChangeCard({
 // === 일별 바 차트 ===
 function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
   const maxCount = Math.max(...daily.map(d => d.count), 1)
+  // Y축 눈금: 최대값 기준 적절한 간격
+  const yStep = maxCount <= 5 ? 1 : maxCount <= 10 ? 2 : Math.ceil(maxCount / 5)
+  const yMax = Math.ceil(maxCount / yStep) * yStep || yStep
+  const yTicks = Array.from({ length: Math.floor(yMax / yStep) + 1 }, (_, i) => i * yStep)
 
   return (
     <div>
-      {/* 차트 */}
-      <div className="flex items-end gap-[2px] h-32 sm:h-40">
-        {daily.map((d, i) => {
-          const height = maxCount > 0 ? (d.count / maxCount) * 100 : 0
-          const isToday = i === daily.length - 1
-          const isWeekend = [0, 6].includes(new Date(d.date).getDay())
+      <div className="flex">
+        {/* Y축 라벨 */}
+        <div className="flex flex-col justify-between h-40 sm:h-48 pr-2 py-0.5">
+          {[...yTicks].reverse().map(v => (
+            <span key={v} className="text-[10px] text-gray-400 leading-none text-right min-w-[16px]">
+              {v}
+            </span>
+          ))}
+        </div>
 
-          return (
+        {/* 차트 영역 */}
+        <div className="flex-1 relative">
+          {/* 가로 그리드라인 */}
+          {yTicks.map(v => (
             <div
-              key={d.date}
-              className="flex-1 flex flex-col items-center justify-end group relative"
-            >
-              {/* 툴팁 */}
-              <div className="absolute bottom-full mb-1 hidden group-hover:block z-10">
-                <div className="bg-gray-900 text-white text-[10px] rounded-md px-2 py-1 whitespace-nowrap shadow-lg">
-                  <p className="font-medium">{d.date.slice(5)}</p>
-                  <p>{d.count}건</p>
+              key={v}
+              className="absolute left-0 right-0 border-t border-gray-100"
+              style={{ bottom: `${(v / yMax) * 100}%` }}
+            />
+          ))}
+
+          {/* 바 */}
+          <div className="flex items-end gap-[3px] h-40 sm:h-48 relative z-10">
+            {daily.map((d, i) => {
+              const height = yMax > 0 ? (d.count / yMax) * 100 : 0
+              const isToday = i === daily.length - 1
+              const isWeekend = [0, 6].includes(new Date(d.date).getDay())
+
+              return (
+                <div
+                  key={d.date}
+                  className="flex-1 flex flex-col items-center justify-end group relative"
+                >
+                  {/* 숫자 라벨 (0이 아닌 경우) */}
+                  {d.count > 0 && (
+                    <span className="text-[9px] text-gray-500 font-medium mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {d.count}
+                    </span>
+                  )}
+                  {/* 툴팁 */}
+                  <div className="absolute bottom-full mb-4 hidden group-hover:block z-20">
+                    <div className="bg-gray-900 text-white text-[10px] rounded-md px-2.5 py-1.5 whitespace-nowrap shadow-lg">
+                      <p className="font-medium">{d.date.slice(5)} ({['일','월','화','수','목','금','토'][new Date(d.date).getDay()]})</p>
+                      <p className="mt-0.5">{d.count}건 접수</p>
+                    </div>
+                  </div>
+                  {/* 바 */}
+                  <div
+                    className={`w-full rounded-t-sm transition-all cursor-pointer ${
+                      isToday ? 'bg-blue-500' :
+                      isWeekend ? (d.count > 0 ? 'bg-blue-200' : 'bg-gray-100') :
+                      d.count === 0 ? 'bg-gray-50' : 'bg-blue-400'
+                    } group-hover:brightness-90`}
+                    style={{ height: `${Math.max(height, d.count > 0 ? 8 : 1)}%` }}
+                  />
                 </div>
-              </div>
-              {/* 바 */}
-              <div
-                className={`w-full rounded-t transition-all ${
-                  isToday ? 'bg-blue-500' :
-                  isWeekend ? 'bg-gray-200' :
-                  d.count === 0 ? 'bg-gray-100' : 'bg-blue-300'
-                } ${d.count > 0 ? 'min-h-[2px]' : ''} group-hover:opacity-80`}
-                style={{ height: `${Math.max(height, d.count > 0 ? 2 : 0)}%` }}
-              />
-            </div>
-          )
-        })}
+              )
+            })}
+          </div>
+        </div>
       </div>
-      {/* X축 라벨 (7일 간격) */}
-      <div className="flex items-center mt-1.5">
+
+      {/* X축 라벨 */}
+      <div className="flex items-center mt-1.5 ml-6">
         {daily.map((d, i) => (
           <div key={d.date} className="flex-1 text-center">
             {i % 7 === 0 || i === daily.length - 1 ? (
