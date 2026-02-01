@@ -306,7 +306,7 @@ export function sendLeadNotification(fields: AirtableLeadFields, isResubmission:
   if (fields.email) lines.push(`이메일: ${fields.email}`)
   lines.push(`접수일: ${fields.created_at}`)
   lines.push('')
-  lines.push('<a href="https://report.polarad.co.kr/?client=bas">리드관리 바로가기</a>')
+  lines.push('<a href="https://report.polarad.co.kr/?client=bas&tab=lead-management">리드관리 바로가기</a>')
 
   return sendTelegram(lines.join('\n'))
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import {
   TrendingUp,
   DollarSign,
@@ -1063,13 +1063,19 @@ export function BasDashboardView({
   dateRange,
 }: BasDashboardViewProps) {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  // URL → 탭 상태 동기화
+  const tabFromUrl = (searchParams.get('tab') as TabId) || 'overview'
+  const viewFromUrl = (searchParams.get('view') as AdsViewMode) || 'table'
 
   // 데이터 상태
   const [dashData, setDashData] = useState<BasDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>('table')
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl)
+  const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>(viewFromUrl)
 
   // 필터 상태
   const compareMode = (searchParams.get('compare') as 'none' | 'weekly' | 'monthly') || 'none'
@@ -1155,9 +1161,30 @@ export function BasDashboardView({
     loadData()
   }, [loadData])
 
-  // 탭 변경 핸들러
+  // 탭 변경 핸들러 (URL 동기화)
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === 'overview') {
+      params.delete('tab')
+    } else {
+      params.set('tab', tab)
+    }
+    params.delete('view')
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  // 광고상세 하위 뷰 변경 핸들러
+  const handleAdsViewChange = (view: AdsViewMode) => {
+    setAdsViewMode(view)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'ads-detail')
+    if (view === 'table') {
+      params.delete('view')
+    } else {
+      params.set('view', view)
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   // 로딩 상태
@@ -1351,7 +1378,7 @@ export function BasDashboardView({
                 <KillSwitchAlert
                   ads={ads}
                   clientSlug={clientSlug}
-                  onNavigate={() => { setActiveTab('ads-detail'); setAdsViewMode('efficiency') }}
+                  onNavigate={() => { handleTabChange('ads-detail'); handleAdsViewChange('efficiency') }}
                 />
 
                 {/* 일별 성과 카드 */}
@@ -1477,7 +1504,7 @@ export function BasDashboardView({
             )}
 
             {activeTab === 'ads-detail' && (
-              <AdsDetailSection ads={ads} clientSlug={clientSlug} daily={daily} adsViewMode={adsViewMode} setAdsViewMode={setAdsViewMode} />
+              <AdsDetailSection ads={ads} clientSlug={clientSlug} daily={daily} adsViewMode={adsViewMode} setAdsViewMode={handleAdsViewChange} />
             )}
 
             {activeTab === 'reports' && (

@@ -53,7 +53,7 @@ jobs:
               const platform=f['플랫폼']||'';
               const seminarDate=f['신청일']||'';
 
-              const DASH='https://report.polarad.co.kr/?client=bas';
+              const DASH='https://report.polarad.co.kr/?client=bas&tab=lead-management';
 
               if(existing){
                 // 재접수: submission_count 증가
