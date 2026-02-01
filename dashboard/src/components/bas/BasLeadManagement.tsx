@@ -570,7 +570,9 @@ function LeadCard({
       <div className="flex items-start justify-between mb-2">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-gray-900">{lead.name || '(이름 없음)'}</span>
+            <span className="font-semibold text-sm text-gray-900" title={lead.name}>
+              {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '…' : lead.name) : '(없음)'}
+            </span>
             {lead.submission_count > 1 && (
               <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full">
                 재신청 ({lead.submission_count}회)
@@ -651,7 +653,7 @@ function LeadTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-3 font-medium text-gray-500">이름</th>
+              <th className="text-left px-3 py-3 font-medium text-gray-500 w-[100px]">이름</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">연락처</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">상태</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">담당자</th>
@@ -666,13 +668,14 @@ function LeadTable({
             {leads.map(lead => (
               <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                 {/* 이름 + 배지 */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => onDetail(lead)}
-                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                      className="font-medium text-gray-900 hover:text-blue-600 transition-colors truncate max-w-[72px]"
+                      title={lead.name}
                     >
-                      {lead.name || '(이름 없음)'}
+                      {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '…' : lead.name) : '(없음)'}
                     </button>
                     {lead.submission_count > 1 && (
                       <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full whitespace-nowrap">
