@@ -187,7 +187,7 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
             className="grid gap-[2px] lg:gap-[5px] mb-[2px] lg:mb-[5px]"
             style={{ gridTemplateColumns: '32px repeat(7, 1fr)' }}
           >
-            <div className="flex items-center justify-end pr-1 text-[8px] lg:text-xs text-gray-500 font-semibold">
+            <div className="flex items-center justify-end pr-1 text-[9px] lg:text-sm text-gray-800 font-bold">
               {week.weekLabel}
             </div>
             {week.cells.map((cell, dIdx) => {
@@ -195,7 +195,7 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                 return (
                   <div
                     key={`empty-${wIdx}-${dIdx}`}
-                    className="rounded-md bg-gray-50 flex items-center justify-center h-7 lg:h-[76px]"
+                    className="rounded-md bg-gray-50 flex items-center justify-center h-7 lg:h-[92px]"
                   >
                     <span className="text-[7px] lg:text-[9px] text-gray-200">-</span>
                   </div>
@@ -203,12 +203,20 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
               }
 
               if (cell.count === 0) {
+                const hasMeta = cell.impressions != null || cell.spend != null
                 return (
                   <div
                     key={`zero-${wIdx}-${dIdx}`}
-                    className="rounded-md bg-gray-100 flex items-center justify-center h-7 lg:h-[76px]"
+                    className={`rounded-md ${hasMeta ? 'bg-gray-200' : 'bg-gray-100'} flex flex-col items-center justify-center h-7 lg:h-[92px]`}
                   >
-                    <span className="text-[8px] lg:text-sm text-gray-300 font-bold">0</span>
+                    <span className={`font-bold ${hasMeta ? 'text-[9px] lg:text-lg text-gray-500' : 'text-[8px] lg:text-sm text-gray-300'}`}>0</span>
+                    {hasMeta && (
+                      <div className="hidden lg:flex flex-col items-center mt-0.5 text-gray-500" style={{ fontSize: '12.5px', lineHeight: 1.45 }}>
+                        <span>노출 {cell.impressions != null ? cell.impressions.toLocaleString() : '-'}</span>
+                        <span>시간 {fmtWatch(cell.avg_watch_time)}</span>
+                        <span>금액 {cell.spend != null ? `$${Math.round(cell.spend).toLocaleString()}` : '-'}</span>
+                      </div>
+                    )}
                   </div>
                 )
               }
@@ -223,7 +231,7 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: wIdx * 0.03 + dIdx * 0.015 }}
-                  className={`rounded-md ${bg} cursor-pointer transition-all duration-150 hover:scale-105 hover:z-10 hover:shadow-md relative group h-7 lg:h-[76px] flex flex-col items-center justify-center`}
+                  className={`rounded-md ${bg} cursor-pointer transition-all duration-150 hover:scale-105 hover:z-10 hover:shadow-md relative group h-7 lg:h-[92px] flex flex-col items-center justify-center`}
                 >
                   {/* 모바일: 리드수만 */}
                   <span className={`lg:hidden font-bold text-[9px] ${mainCls}`}>
@@ -232,10 +240,10 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
 
                   {/* PC: 리드수(크게) + 노출/시간/금액 (라벨 포함) */}
                   <div className="hidden lg:flex flex-col items-center justify-center w-full leading-none">
-                    <span className={`font-extrabold ${mainCls}`} style={{ fontSize: '22px', lineHeight: 1 }}>
+                    <span className={`font-extrabold ${mainCls}`} style={{ fontSize: '26px', lineHeight: 1 }}>
                       {cell.count}
                     </span>
-                    <div className={`flex flex-col items-center mt-0.5 ${subCls}`} style={{ fontSize: '11px', lineHeight: 1.4 }}>
+                    <div className={`flex flex-col items-center mt-1 ${subCls}`} style={{ fontSize: '12.5px', lineHeight: 1.45 }}>
                       <span>
                         노출 {cell.impressions != null ? cell.impressions.toLocaleString() : '-'}
                       </span>
@@ -243,7 +251,7 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                         시간 {fmtWatch(cell.avg_watch_time)}
                       </span>
                       <span>
-                        금액 {cell.spend != null ? Math.round(cell.spend).toLocaleString() : '-'}
+                        금액 {cell.spend != null ? `$${Math.round(cell.spend).toLocaleString()}` : '-'}
                       </span>
                     </div>
                   </div>
@@ -255,9 +263,9 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                       <div>리드: {cell.count}건</div>
                       {cell.impressions != null && <div>노출: {cell.impressions.toLocaleString()}회</div>}
                       {cell.avg_watch_time != null && <div>시청: {fmtWatch(cell.avg_watch_time)}</div>}
-                      {cell.spend != null && <div>지출: {Math.round(cell.spend).toLocaleString()}원</div>}
+                      {cell.spend != null && <div>지출: ${Math.round(cell.spend).toLocaleString()}</div>}
                       {cell.spend != null && cell.count > 0 && (
-                        <div>CPL: {Math.round(cell.spend / cell.count).toLocaleString()}원</div>
+                        <div>CPL: ${Math.round(cell.spend / cell.count).toLocaleString()}</div>
                       )}
                     </div>
                     <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
