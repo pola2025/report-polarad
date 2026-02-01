@@ -228,8 +228,8 @@ async function loadExistingRecords(
       // 나라똔: date + campaign_name + device
       key = `${r.fields.date}|${r.fields.campaign_name || ''}|${r.fields.device || ''}`
     } else {
-      // HEA: date + device (campaign_name 없음)
-      key = `${r.fields.date}||${r.fields.device || ''}`
+      // HEA: date + campaign_name + device
+      key = `${r.fields.date}|${r.fields.campaign_name || ''}|${r.fields.device || ''}`
     }
     map.set(key, r)
   }
@@ -368,8 +368,9 @@ async function backfillClient(
         ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
       key = `${date}|${campaignName}|${device}`
     } else {
-      // HEA 판교: 기본 필드만 (date, device, impressions, clicks, spend, source)
-      key = `${date}||${device}`
+      // HEA 판교: 캠페인 레벨 (campaign_name 포함)
+      fields.campaign_name = campaignName
+      key = `${date}|${campaignName}|${device}`
     }
 
     // 분류: create / update / skip
