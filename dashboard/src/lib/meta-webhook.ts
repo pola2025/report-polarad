@@ -297,19 +297,16 @@ export function sendLeadNotification(fields: AirtableLeadFields, isResubmission:
     `이름: ${fields.name}`,
     `연락처: ${fields.phone}`,
   ]
+  if (fields.message) lines.push(`참석희망일: ${fields.message}`)
   if (fields.campaign) lines.push(`광고명: ${fields.campaign}`)
   if (fields.platform) {
     const platformLabel = fields.platform === 'fb' ? 'Facebook' : fields.platform === 'ig' ? 'Instagram' : fields.platform
     lines.push(`플랫폼: ${platformLabel}`)
   }
   if (fields.email) lines.push(`이메일: ${fields.email}`)
-  if (fields.message) {
-    const truncated = fields.message.length > 200
-      ? fields.message.slice(0, 200) + '...'
-      : fields.message
-    lines.push(`내용: ${truncated}`)
-  }
   lines.push(`접수일: ${fields.created_at}`)
+  lines.push('')
+  lines.push('<a href="https://report.polarad.co.kr/?client=bas">리드관리 바로가기</a>')
 
   return sendTelegram(lines.join('\n'))
 }

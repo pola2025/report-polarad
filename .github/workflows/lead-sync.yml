@@ -51,10 +51,9 @@ jobs:
               const date=fmtDate(f['접수일']);
               const campaign=f['캠페인네임']||'';
               const platform=f['플랫폼']||'';
-              const extras=[];
-              if(f['하시는일'])extras.push('하시는일: '+f['하시는일']);
-              if(f['지역'])extras.push('지역: '+f['지역']);
-              const message=extras.join('\\n');
+              const seminarDate=f['신청일']||'';
+
+              const DASH='https://report.polarad.co.kr/?client=bas';
 
               if(existing){
                 // 재접수: submission_count 증가
@@ -64,25 +63,25 @@ jobs:
                 await fetch('https://api.airtable.com/v0/'+NEW_BASE+'/'+NEW_TABLE+'/'+existing.id,{
                   method:'PATCH',
                   headers:{Authorization:'Bearer '+AIRTABLE_KEY,'Content-Type':'application/json'},
-                  body:JSON.stringify({fields:{status:'접수',submission_count:cnt,submission_history:hist,previous_status:ef.status||'',previous_staff:ef.assigned_staff||'',previous_date:date,'문의내용':message,last_updated_by:'sync'}})
+                  body:JSON.stringify({fields:{status:'접수',submission_count:cnt,submission_history:hist,previous_status:ef.status||'',previous_staff:ef.assigned_staff||'',previous_date:date,'참석희망일':seminarDate,last_updated_by:'sync'}})
                 });
                 console.log('Updated (resubmission '+cnt+'): '+name+' '+phone);
 
                 // 텔레그램: 재접수
-                const tgText='<b>[BAS 리드 재접수 ('+cnt+'회차)]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n광고명: '+campaign:'')+'\\n접수일: '+date;
-                await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML'})});
+                const tgText='<b>[BAS 리드 재접수 ('+cnt+'회차)]</b>\\n이름: '+name+'\\n연락처: '+phone+(seminarDate?'\\n참석희망일: '+seminarDate:'')+(campaign?'\\n광고명: '+campaign:'')+'\\n접수일: '+date+'\\n\\n<a href=\"'+DASH+'\">리드관리 바로가기</a>';
+                await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML',disable_web_page_preview:true})});
               } else {
                 // 신규
                 await fetch('https://api.airtable.com/v0/'+NEW_BASE+'/'+NEW_TABLE,{
                   method:'POST',
                   headers:{Authorization:'Bearer '+AIRTABLE_KEY,'Content-Type':'application/json'},
-                  body:JSON.stringify({fields:{'이름':name,'연락처':f['연락처']||'','접수일':date,'문의내용':message,status:'접수',submission_count:1,first_submission_date:date,source:'make_sync',campaign:campaign,platform:platform}})
+                  body:JSON.stringify({fields:{'이름':name,'연락처':f['연락처']||'','접수일':date,'참석희망일':seminarDate,status:'접수',submission_count:1,first_submission_date:date,source:'make_sync',campaign:campaign,platform:platform}})
                 });
                 console.log('Created: '+name+' '+phone);
 
                 // 텔레그램: 신규
-                const tgText='<b>[BAS 리드 신규]</b>\\n이름: '+name+'\\n연락처: '+phone+(campaign?'\\n광고명: '+campaign:'')+(platform?'\\n플랫폼: '+(platform==='fb'?'Facebook':platform==='ig'?'Instagram':platform):'')+'\\n접수일: '+date;
-                await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML'})});
+                const tgText='<b>[BAS 리드 신규]</b>\\n이름: '+name+'\\n연락처: '+phone+(seminarDate?'\\n참석희망일: '+seminarDate:'')+(campaign?'\\n광고명: '+campaign:'')+(platform?'\\n플랫폼: '+(platform==='fb'?'Facebook':platform==='ig'?'Instagram':platform):'')+'\\n접수일: '+date+'\\n\\n<a href=\"'+DASH+'\">리드관리 바로가기</a>';
+                await fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:tgText,parse_mode:'HTML',disable_web_page_preview:true})});
               }
             }
             console.log('Sync complete');
