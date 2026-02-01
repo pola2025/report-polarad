@@ -11,7 +11,6 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Search,
 } from 'lucide-react';
 import type { BrandSearchUploadResponse } from '@/types/brand-search';
 
@@ -23,8 +22,6 @@ interface Client {
 }
 
 export default function BrandSearchUploadPage() {
-  const [adminKey, setAdminKey] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -33,11 +30,9 @@ export default function BrandSearchUploadPage() {
   const [result, setResult] = useState<BrandSearchUploadResponse | null>(null);
 
   // 클라이언트 목록 조회
-  const fetchClients = useCallback(async (key: string) => {
+  const fetchClients = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/clients', {
-        headers: { 'x-admin-key': key },
-      });
+      const res = await fetch('/api/admin/clients');
       if (res.ok) {
         const data = await res.json();
         // brand_search 타입만 필터
@@ -45,34 +40,14 @@ export default function BrandSearchUploadPage() {
           (c: Client) => c.naver_type === 'brand_search'
         );
         setClients(brandSearchClients);
-        return true;
       }
-      return false;
     } catch {
-      return false;
+      // ignore
     }
   }, []);
 
-  // 로그인
-  const handleLogin = async () => {
-    const success = await fetchClients(adminKey);
-    if (success) {
-      localStorage.setItem('polarad_admin_key', adminKey);
-      setIsAuthenticated(true);
-    } else {
-      alert('관리자 키가 올바르지 않습니다.');
-    }
-  };
-
-  // 저장된 키 확인
   useEffect(() => {
-    const savedKey = localStorage.getItem('polarad_admin_key');
-    if (savedKey) {
-      setAdminKey(savedKey);
-      fetchClients(savedKey).then((success) => {
-        if (success) setIsAuthenticated(true);
-      });
-    }
+    fetchClients();
   }, [fetchClients]);
 
   // 파일 선택
@@ -106,9 +81,6 @@ export default function BrandSearchUploadPage() {
 
       const res = await fetch('/api/admin/upload/brand-search', {
         method: 'POST',
-        headers: {
-          'x-admin-key': adminKey,
-        },
         body: formData,
       });
 
@@ -133,37 +105,6 @@ export default function BrandSearchUploadPage() {
       setUploading(false);
     }
   };
-
-  // 인증 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="w-5 h-5" />
-              관리자 인증
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="관리자 키를 입력하세요"
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-neutral-50">

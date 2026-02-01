@@ -788,6 +788,47 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     return lines
   }, [scored, killSwitchAds, dailyWaste])
 
+  // Detailed creative analysis report
+  const detailedReport = useMemo(() => {
+    if (scored.length === 0) return null
+
+    const totalLeads = scored.reduce((s, e) => s + e.ad.leads, 0)
+    const totalImpressions = scored.reduce((s, e) => s + e.ad.impressions, 0)
+    const totalClicks = scored.reduce((s, e) => s + e.ad.clicks, 0)
+    const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+    const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0
+    const watchTimeAds = scored.filter((s) => (s.ad.avg_watch_time || 0) > 0)
+    const avgWatch = watchTimeAds.length > 0
+      ? watchTimeAds.reduce((s, e) => s + (e.ad.avg_watch_time || 0), 0) / watchTimeAds.length
+      : 0
+    const bestWatch = watchTimeAds.length > 0
+      ? [...watchTimeAds].sort((a, b) => (b.ad.avg_watch_time || 0) - (a.ad.avg_watch_time || 0))[0]
+      : null
+    const bestCpl = scored.filter((s) => s.ad.leads > 0).sort((a, b) => a.ad.cpl - b.ad.cpl)[0] || null
+    const bestCtr = [...scored].sort((a, b) => b.ad.ctr - a.ad.ctr)[0]
+    const worstCpl = scored.filter((s) => s.ad.leads > 0).sort((a, b) => b.ad.cpl - a.ad.cpl)[0] || null
+
+    // Kill switch deep analysis
+    const killAnalysis = killSwitchAds.map((ks) => {
+      const watchRank = watchTimeAds.length > 0
+        ? [...watchTimeAds].sort((a, b) => (b.ad.avg_watch_time || 0) - (a.ad.avg_watch_time || 0)).findIndex((w) => w.ad.ad_id === ks.ad.ad_id) + 1
+        : null
+      const ctrRank = [...scored].sort((a, b) => b.ad.ctr - a.ad.ctr).findIndex((s) => s.ad.ad_id === ks.ad.ad_id) + 1
+      return { ...ks, watchRank, ctrRank }
+    })
+
+    // Recommendation distribution
+    const keepAds = scored.filter((s) => s.recommendation === 'keep')
+    const watchAds = scored.filter((s) => s.recommendation === 'watch')
+    const offAds = scored.filter((s) => s.recommendation === 'off')
+
+    return {
+      totalLeads, totalImpressions, totalClicks, avgCtr, avgCpl, avgWatch,
+      bestWatch, bestCpl, bestCtr, worstCpl, killAnalysis,
+      keepAds, watchAds, offAds,
+    }
+  }, [scored, totalSpend, killSwitchAds])
+
   // Loading: 광고 상태 + 리드 데이터 모두 완료될 때까지 대기
   if (statusLoading || !leadsLoaded) {
     return (
@@ -825,7 +866,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
                 <DollarSign className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-semibold text-gray-800">소진예산 배분</span>
               </div>
-              {activeCampaigns.length >= 2 && (
+              {activeCampaigns.length >= 1 && (
                 <div className="relative">
                   <select
                     value={selectedCampaignId}
@@ -1267,6 +1308,105 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
               )
             })}
           </ul>
+
+          {/* Detailed Report */}
+          {detailedReport && (
+            <div className="mt-3 pt-3 border-t border-violet-200/60 space-y-3">
+              <p className="text-xs font-semibold text-violet-800">광고 소재 종합 분석</p>
+
+              {/* Overview stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: '평균 CPL', value: detailedReport.avgCpl > 0 ? `$${detailedReport.avgCpl.toFixed(1)}` : '-' },
+                  { label: '평균 CTR', value: `${detailedReport.avgCtr.toFixed(2)}%` },
+                  { label: '평균 시청', value: detailedReport.avgWatch > 0 ? `${detailedReport.avgWatch.toFixed(1)}s` : '-' },
+                  { label: '총 리드', value: `${detailedReport.totalLeads}건` },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-white/60 rounded-lg px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-violet-500">{stat.label}</div>
+                    <div className="text-xs font-bold text-violet-900">{stat.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Kill Switch deep analysis */}
+              {detailedReport.killAnalysis.length > 0 && (
+                <div className="bg-red-50/80 rounded-lg p-2.5 border border-red-200/60">
+                  <p className="text-[11px] font-bold text-red-800 mb-1.5">Kill Switch 대상 심층 분석</p>
+                  {detailedReport.killAnalysis.map((ks) => (
+                    <div key={ks.ad.ad_id} className="mb-2 last:mb-0">
+                      <p className="text-[11px] font-semibold text-red-900 truncate" title={ks.ad.ad_name}>
+                        {ks.ad.ad_name}
+                      </p>
+                      <div className="text-[10px] text-red-700 space-y-0.5 mt-0.5">
+                        <p>지출 ${ks.ad.spend.toFixed(1)} / 노출 {ks.ad.impressions.toLocaleString()} / 클릭 {ks.ad.clicks} / 리드 {ks.ad.leads}건</p>
+                        {(ks.ad.avg_watch_time || 0) > 0 && (
+                          <p>
+                            평균 시청 <span className="font-bold">{ks.ad.avg_watch_time?.toFixed(1)}s</span>
+                            {ks.watchRank && ks.watchRank <= 3 && (
+                              <span className="ml-1 text-amber-700 font-semibold">
+                                (전체 {ks.watchRank}위 — 관심도는 높으나 전환 실패)
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <p>CTR {ks.ad.ctr.toFixed(2)}% (전체 {ks.ctrRank}위) / D+{ks.ageDays}</p>
+                        <p className="text-red-600 font-medium mt-0.5">
+                          {(ks.ad.avg_watch_time || 0) >= detailedReport!.avgWatch && detailedReport!.avgWatch > 0
+                            ? '→ 영상 관심도↑ 전환 동선 문제 가능성. CTA/랜딩페이지 점검 권장'
+                            : '→ 노출 대비 반응 부족. 소재 교체 또는 타겟 재설정 검토'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Top/Bottom performers */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {detailedReport.bestCpl && (
+                  <div className="bg-emerald-50/80 rounded-lg p-2 border border-emerald-200/60">
+                    <p className="text-[10px] text-emerald-600 font-medium">최고 CPL 효율</p>
+                    <p className="text-[11px] font-semibold text-emerald-900 truncate" title={detailedReport.bestCpl.ad.ad_name}>
+                      {detailedReport.bestCpl.ad.ad_name}
+                    </p>
+                    <p className="text-[10px] text-emerald-700">
+                      CPL ${detailedReport.bestCpl.ad.cpl.toFixed(1)} / 리드 {detailedReport.bestCpl.ad.leads}건 / CTR {detailedReport.bestCpl.ad.ctr.toFixed(2)}%
+                    </p>
+                  </div>
+                )}
+                {detailedReport.bestWatch && (
+                  <div className="bg-blue-50/80 rounded-lg p-2 border border-blue-200/60">
+                    <p className="text-[10px] text-blue-600 font-medium">최장 시청 시간</p>
+                    <p className="text-[11px] font-semibold text-blue-900 truncate" title={detailedReport.bestWatch.ad.ad_name}>
+                      {detailedReport.bestWatch.ad.ad_name}
+                    </p>
+                    <p className="text-[10px] text-blue-700">
+                      시청 {detailedReport.bestWatch.ad.avg_watch_time?.toFixed(1)}s / 리드 {detailedReport.bestWatch.ad.leads}건 / CTR {detailedReport.bestWatch.ad.ctr.toFixed(2)}%
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Distribution summary */}
+              <div className="text-[10px] text-violet-600 leading-relaxed bg-white/50 rounded-lg p-2">
+                <p>
+                  <span className="font-semibold">소재 분포:</span>{' '}
+                  유지 {detailedReport.keepAds.length}개 · 관찰 {detailedReport.watchAds.length}개 · 중단 {detailedReport.offAds.length}개
+                </p>
+                {detailedReport.worstCpl && detailedReport.bestCpl && detailedReport.worstCpl.ad.ad_id !== detailedReport.bestCpl.ad.ad_id && (
+                  <p className="mt-0.5">
+                    CPL 편차 ${detailedReport.bestCpl.ad.cpl.toFixed(1)} ~ ${detailedReport.worstCpl.ad.cpl.toFixed(1)} —{' '}
+                    {detailedReport.worstCpl.ad.cpl / detailedReport.bestCpl.ad.cpl > 3
+                      ? '극단적 편차, 비효율 소재 예산 재배분 시급'
+                      : detailedReport.worstCpl.ad.cpl / detailedReport.bestCpl.ad.cpl > 2
+                        ? '편차 큼, 하위 소재 예산 축소 검토'
+                        : '편차 보통, 전반적 효율 양호'}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
     </div>

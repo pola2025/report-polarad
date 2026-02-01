@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
@@ -16,12 +17,6 @@ const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
 // 키워드 통계 테이블 설정
 const AIRTABLE_KEYWORD_STATS_BASE_ID = 'appC3XKBcYgZBTETn' // 클라이언트와 같은 Base 사용
 const AIRTABLE_KEYWORD_STATS_TABLE_ID = 'tblF5ybDTlumOY8oY'
-
-// 관리자 키 검증
-function isAdmin(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key')
-  return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
-}
 
 // Airtable에서 클라이언트 목록 조회
 async function getClientsFromAirtable() {
@@ -51,7 +46,7 @@ async function getClientFromAirtable(clientIdOrSlug: string) {
 
 // GET: 키워드 통계 조회
 export async function GET(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -147,7 +142,7 @@ export async function GET(request: NextRequest) {
 
 // POST: 키워드 통계 입력 (단일 또는 일괄)
 export async function POST(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -304,7 +299,7 @@ export async function POST(request: NextRequest) {
 
 // DELETE: 키워드 통계 삭제
 export async function DELETE(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

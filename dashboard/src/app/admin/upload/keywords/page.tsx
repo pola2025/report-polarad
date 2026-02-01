@@ -45,8 +45,6 @@ export default function KeywordsUploadPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [adminKey, setAdminKey] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [newKeywordInput, setNewKeywordInput] = useState('')
 
   // 기간 필터
@@ -83,21 +81,9 @@ export default function KeywordsUploadPage() {
     return month <= startMonth && month >= endMonth
   })
 
-  useEffect(() => {
-    const savedKey = localStorage.getItem('polarad_admin_key')
-    if (savedKey) {
-      setAdminKey(savedKey)
-      setIsAuthenticated(true)
-    }
-  }, [])
-
   const fetchClients = useCallback(async () => {
-    if (!adminKey) return
-
     try {
-      const response = await fetch('/api/admin/clients', {
-        headers: { 'x-admin-key': adminKey },
-      })
+      const response = await fetch('/api/admin/clients')
 
       if (response.ok) {
         const data = await response.json()
@@ -106,17 +92,15 @@ export default function KeywordsUploadPage() {
     } catch (error) {
       console.error('클라이언트 조회 실패:', error)
     }
-  }, [adminKey])
+  }, [])
 
   const fetchKeywords = useCallback(async () => {
-    if (!adminKey || !selectedClient) return
+    if (!selectedClient) return
 
     setLoading(true)
     try {
       const params = new URLSearchParams({ clientId: selectedClient })
-      const response = await fetch(`/api/admin/keywords?${params}`, {
-        headers: { 'x-admin-key': adminKey },
-      })
+      const response = await fetch(`/api/admin/keywords?${params}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -147,27 +131,17 @@ export default function KeywordsUploadPage() {
     } finally {
       setLoading(false)
     }
-  }, [adminKey, selectedClient])
+  }, [selectedClient])
 
   useEffect(() => {
-    if (adminKey) {
-      fetchClients()
-    }
-  }, [adminKey, fetchClients])
+    fetchClients()
+  }, [fetchClients])
 
   useEffect(() => {
     if (selectedClient) {
       fetchKeywords()
     }
   }, [selectedClient, fetchKeywords])
-
-  const handleLogin = () => {
-    if (adminKey) {
-      localStorage.setItem('polarad_admin_key', adminKey)
-      setIsAuthenticated(true)
-      fetchClients()
-    }
-  }
 
   // 새 키워드 추가
   const addNewKeyword = () => {
@@ -220,7 +194,6 @@ export default function KeywordsUploadPage() {
       try {
         await fetch(`/api/admin/keywords?id=${id}`, {
           method: 'DELETE',
-          headers: { 'x-admin-key': adminKey },
         })
       } catch (error) {
         console.error('삭제 실패:', error)
@@ -275,7 +248,6 @@ export default function KeywordsUploadPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({ records }),
       })
@@ -294,34 +266,6 @@ export default function KeywordsUploadPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  // 인증 전 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>관리자 로그인</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="관리자 키 입력"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   // 합계 계산

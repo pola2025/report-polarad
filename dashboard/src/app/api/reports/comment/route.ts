@@ -7,15 +7,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createReportComment, getReport, getReportComment } from '@/lib/airtable'
 import type { ReportCommentInsert } from '@/types/report'
-
-// 관리자 키 검증
-function isAdmin(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key')
-  return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
-}
+import { isAdminRequest } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

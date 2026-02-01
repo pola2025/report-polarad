@@ -9,18 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { activateClient, getClientById } from '@/lib/client-status'
 import { sendTelegramMessage } from '@/lib/telegram'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 const ADMIN_CHAT_ID = '-1003394139746'
 
 export async function POST(request: NextRequest) {
-  // 관리자 키 검증
-  const adminKey =
-    request.headers.get('x-admin-key') ||
-    (await request.clone().json().catch(() => ({}))).adminKey
-
-  const expectedAdminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
-
-  if (expectedAdminKey && adminKey !== expectedAdminKey) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

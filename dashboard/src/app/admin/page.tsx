@@ -59,8 +59,6 @@ export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [status, setStatus] = useState<SystemStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [adminKey, setAdminKey] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // 모달 상태
   const [showAddModal, setShowAddModal] = useState(false)
@@ -85,15 +83,11 @@ export default function AdminPage() {
   })
 
   const fetchData = useCallback(async () => {
-    if (!adminKey) return
-
     setLoading(true)
     try {
-      const headers = { 'x-admin-key': adminKey }
-
       const [clientsRes, statusRes] = await Promise.all([
-        fetch('/api/admin/clients', { headers }),
-        fetch('/api/admin/status', { headers }),
+        fetch('/api/admin/clients'),
+        fetch('/api/admin/status'),
       ])
 
       if (clientsRes.ok) {
@@ -105,35 +99,16 @@ export default function AdminPage() {
         const statusData = await statusRes.json()
         setStatus(statusData)
       }
-
-      setIsAuthenticated(true)
     } catch (error) {
       console.error('데이터 조회 실패:', error)
     } finally {
       setLoading(false)
     }
-  }, [adminKey])
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem('polarad_admin_key')
-    if (savedKey) {
-      setAdminKey(savedKey)
-      setIsAuthenticated(true) // 저장된 키가 있으면 바로 인증 상태로
-    }
   }, [])
 
   useEffect(() => {
-    if (adminKey) {
-      fetchData()
-    }
-  }, [adminKey, fetchData])
-
-  const handleLogin = () => {
-    if (adminKey) {
-      localStorage.setItem('polarad_admin_key', adminKey)
-      fetchData()
-    }
-  }
+    fetchData()
+  }, [fetchData])
 
   const handleAddClient = async () => {
     if (!newClient.name) {
@@ -146,7 +121,6 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify(newClient),
       })
@@ -196,7 +170,6 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({
           clientId: selectedClient.id,
@@ -244,34 +217,6 @@ export default function AdminPage() {
       setIsBackfilling(false)
       fetchData()
     }
-  }
-
-  // 인증 전 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>관리자 로그인</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="관리자 키 입력"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (

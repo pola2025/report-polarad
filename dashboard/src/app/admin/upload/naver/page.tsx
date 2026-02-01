@@ -35,24 +35,10 @@ export default function NaverUploadPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
-  const [adminKey, setAdminKey] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem('polarad_admin_key')
-    if (savedKey) {
-      setAdminKey(savedKey)
-      setIsAuthenticated(true)
-    }
-  }, [])
 
   const fetchClients = useCallback(async () => {
-    if (!adminKey) return
-
     try {
-      const response = await fetch('/api/admin/clients', {
-        headers: { 'x-admin-key': adminKey },
-      })
+      const response = await fetch('/api/admin/clients')
 
       if (response.ok) {
         const data = await response.json()
@@ -61,21 +47,11 @@ export default function NaverUploadPage() {
     } catch (error) {
       console.error('클라이언트 조회 실패:', error)
     }
-  }, [adminKey])
+  }, [])
 
   useEffect(() => {
-    if (adminKey) {
-      fetchClients()
-    }
-  }, [adminKey, fetchClients])
-
-  const handleLogin = () => {
-    if (adminKey) {
-      localStorage.setItem('polarad_admin_key', adminKey)
-      setIsAuthenticated(true)
-      fetchClients()
-    }
-  }
+    fetchClients()
+  }, [fetchClients])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -105,7 +81,6 @@ export default function NaverUploadPage() {
 
       const response = await fetch('/api/admin/upload/naver', {
         method: 'POST',
-        headers: { 'x-admin-key': adminKey },
         body: formData,
       })
 
@@ -124,34 +99,6 @@ export default function NaverUploadPage() {
     } finally {
       setUploading(false)
     }
-  }
-
-  // 인증 전 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>관리자 로그인</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="관리자 키 입력"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (

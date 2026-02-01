@@ -6,18 +6,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
 const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
 const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
-
-// 관리자 키 검증
-function isAdmin(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key') || request.nextUrl.searchParams.get('adminKey')
-  const serverAdminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
-  return adminKey === serverAdminKey
-}
 
 // Airtable에서 클라이언트 목록 조회
 async function fetchClientsFromAirtable() {
@@ -70,7 +64,7 @@ async function fetchClientsFromAirtable() {
 
 // GET: 클라이언트 목록 조회
 export async function GET(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -123,7 +117,7 @@ export async function GET(request: NextRequest) {
 
 // POST: 새 클라이언트 생성 → Airtable에 저장
 export async function POST(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -209,7 +203,7 @@ export async function POST(request: NextRequest) {
 
 // PUT: 클라이언트 수정 → Airtable 업데이트
 export async function PUT(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

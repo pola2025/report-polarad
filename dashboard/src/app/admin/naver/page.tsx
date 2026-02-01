@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
 import {
@@ -29,8 +29,6 @@ export default function NaverAnalyticsAdminPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [adminKey, setAdminKey] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // 기간 설정
   const [startDate, setStartDate] = useState('')
@@ -41,12 +39,6 @@ export default function NaverAnalyticsAdminPage() {
 
   // 초기화
   useEffect(() => {
-    const savedKey = localStorage.getItem('polarad_admin_key')
-    if (savedKey) {
-      setAdminKey(savedKey)
-      setIsAuthenticated(true)
-    }
-
     // 기본 날짜 설정 (최근 30일)
     const end = new Date()
     const start = new Date()
@@ -57,12 +49,8 @@ export default function NaverAnalyticsAdminPage() {
 
   // 클라이언트 목록 조회
   const fetchClients = useCallback(async () => {
-    if (!adminKey) return
-
     try {
-      const response = await fetch('/api/admin/clients', {
-        headers: { 'x-admin-key': adminKey },
-      })
+      const response = await fetch('/api/admin/clients')
 
       if (response.ok) {
         const result = await response.json()
@@ -71,17 +59,15 @@ export default function NaverAnalyticsAdminPage() {
     } catch (error) {
       console.error('클라이언트 조회 실패:', error)
     }
-  }, [adminKey])
+  }, [])
 
   useEffect(() => {
-    if (adminKey) {
-      fetchClients()
-    }
-  }, [adminKey, fetchClients])
+    fetchClients()
+  }, [fetchClients])
 
   // 데이터 조회
   const fetchData = useCallback(async () => {
-    if (!adminKey || !selectedClientId || !startDate || !endDate) return
+    if (!selectedClientId || !startDate || !endDate) return
 
     setLoading(true)
     try {
@@ -91,9 +77,7 @@ export default function NaverAnalyticsAdminPage() {
         endDate,
       })
 
-      const response = await fetch(`/api/naver/analytics?${params}`, {
-        headers: { 'x-admin-key': adminKey },
-      })
+      const response = await fetch(`/api/naver/analytics?${params}`)
 
       if (response.ok) {
         const result = await response.json()
@@ -104,21 +88,13 @@ export default function NaverAnalyticsAdminPage() {
     } finally {
       setLoading(false)
     }
-  }, [adminKey, selectedClientId, startDate, endDate])
+  }, [selectedClientId, startDate, endDate])
 
   useEffect(() => {
     if (selectedClientId && startDate && endDate) {
       fetchData()
     }
   }, [selectedClientId, startDate, endDate, fetchData])
-
-  const handleLogin = () => {
-    if (adminKey) {
-      localStorage.setItem('polarad_admin_key', adminKey)
-      setIsAuthenticated(true)
-      fetchClients()
-    }
-  }
 
   // 기간 프리셋
   const setPeriodPreset = (days: number) => {
@@ -212,34 +188,6 @@ export default function NaverAnalyticsAdminPage() {
       </CardContent>
     </Card>
   )
-
-  // 인증 전 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>관리자 로그인</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="관리자 키 입력"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

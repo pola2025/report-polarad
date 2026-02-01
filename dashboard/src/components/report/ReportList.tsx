@@ -44,15 +44,7 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
         // 관리자와 클라이언트 모두 같은 API 사용 (clientSlug 기반)
         const url = `/api/reports?${params}`
 
-        const headers: Record<string, string> = {}
-        if (isAdmin) {
-          const adminKey = localStorage.getItem('polarad_admin_key')
-          if (adminKey) {
-            headers['x-admin-key'] = adminKey
-          }
-        }
-
-        const res = await fetch(url, { headers })
+        const res = await fetch(url)
         const json = await res.json()
 
         if (json.success) {

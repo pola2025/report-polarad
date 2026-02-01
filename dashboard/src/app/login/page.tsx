@@ -1,30 +1,204 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Loader2, ShieldCheck } from 'lucide-react'
 
 /**
- * Meta OAuth 로그인 페이지
+ * 통합 로그인 페이지
  *
- * - Meta 로그인 버튼 표시
- * - 에러 메시지 표시
+ * - 관리자 로그인: adminKey + TOTP (redirect 파라미터가 있을 때)
+ * - Meta OAuth 로그인: 기존 Meta 계정 연결
  */
 function LoginContent() {
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
-  const [errorDescription, setErrorDescription] = useState<string | null>(null)
+  const router = useRouter()
 
+  const redirect = searchParams.get('redirect')
+  const isAdminLogin = !!redirect
+  const errorParam = searchParams.get('error')
+  const descParam = searchParams.get('description')
+
+  // ─── Admin Login State ──────────────────────────
+  const [adminKey, setAdminKey] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [adminError, setAdminError] = useState('')
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [totpEnabled, setTotpEnabled] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(isAdminLogin)
+
+  // ─── Meta OAuth Error State ─────────────────────
+  const [metaError, setMetaError] = useState<string | null>(null)
+  const [metaErrorDescription, setMetaErrorDescription] = useState<string | null>(null)
+
+  // 이미 로그인되어 있는지 확인 (관리자 모드)
   useEffect(() => {
-    const errorParam = searchParams.get('error')
-    const descParam = searchParams.get('description')
+    if (!isAdminLogin) return
 
-    if (errorParam) {
-      setError(getErrorMessage(errorParam))
-      setErrorDescription(descParam || null)
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/admin/verify')
+        const data = await res.json()
+        if (res.ok) {
+          router.replace(redirect!)
+          return
+        }
+        if (data.totpEnabled) {
+          setTotpEnabled(true)
+        }
+      } catch {
+        // 세션 없음
+      }
+      setCheckingSession(false)
     }
-  }, [searchParams])
+    checkSession()
+  }, [isAdminLogin, redirect, router])
 
+  // Meta OAuth 에러 표시
+  useEffect(() => {
+    if (errorParam) {
+      setMetaError(getErrorMessage(errorParam))
+      setMetaErrorDescription(descParam || null)
+    }
+  }, [errorParam, descParam])
+
+  const handleAdminLogin = async () => {
+    setAdminError('')
+    setAdminLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          totpEnabled
+            ? { totpCode }
+            : { adminKey, totpCode: totpCode || undefined }
+        ),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        localStorage.removeItem('polarad_admin_key')
+        router.replace(redirect || '/')
+        return
+      }
+
+      setAdminError(data.error || '인증에 실패했습니다.')
+    } catch {
+      setAdminError('서버에 연결할 수 없습니다.')
+    } finally {
+      setAdminLoading(false)
+    }
+  }
+
+  // 세션 확인 중 로딩
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+      </div>
+    )
+  }
+
+  // ─── 관리자 로그인 UI ────────────────────────────
+  if (isAdminLogin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <Image
+                src="/images/logo.png"
+                alt="Polarad"
+                width={40}
+                height={40}
+                className="rounded-lg"
+              />
+              <CardTitle>Polarad Report 관리자</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {totpEnabled ? (
+                /* ─── TOTP 인증 모드 ─── */
+                <div>
+                  <label
+                    htmlFor="totpCode"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    <ShieldCheck className="inline h-4 w-4 mr-1" />
+                    인증 코드 (Google Authenticator)
+                  </label>
+                  <input
+                    id="totpCode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="6자리 코드"
+                    value={totpCode}
+                    onChange={(e) =>
+                      setTotpCode(e.target.value.replace(/\D/g, ''))
+                    }
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#F5A623] focus:border-transparent text-center text-2xl tracking-[0.5em] font-mono"
+                    autoComplete="one-time-code"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                /* ─── 관리자 키 폴백 모드 ─── */
+                <div>
+                  <label
+                    htmlFor="adminKey"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    관리자 키
+                  </label>
+                  <input
+                    id="adminKey"
+                    type="password"
+                    placeholder="관리자 키 입력"
+                    value={adminKey}
+                    onChange={(e) => setAdminKey(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#F5A623] focus:border-transparent"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
+              {/* 에러 메시지 */}
+              {adminError && (
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">
+                  {adminError}
+                </p>
+              )}
+
+              {/* 로그인 버튼 */}
+              <Button
+                onClick={handleAdminLogin}
+                disabled={adminLoading || (totpEnabled ? totpCode.length !== 6 : !adminKey)}
+                className="w-full bg-[#F5A623] hover:bg-[#E09000] disabled:opacity-50"
+              >
+                {adminLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                로그인
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ─── Meta OAuth 로그인 UI (기존) ─────────────────
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       {/* 헤더 */}
@@ -60,7 +234,7 @@ function LoginContent() {
             </div>
 
             {/* 에러 메시지 */}
-            {error && (
+            {metaError && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start gap-3">
                   <svg
@@ -77,9 +251,9 @@ function LoginContent() {
                     />
                   </svg>
                   <div>
-                    <p className="text-sm font-medium text-red-800">{error}</p>
-                    {errorDescription && (
-                      <p className="text-sm text-red-600 mt-1">{errorDescription}</p>
+                    <p className="text-sm font-medium text-red-800">{metaError}</p>
+                    {metaErrorDescription && (
+                      <p className="text-sm text-red-600 mt-1">{metaErrorDescription}</p>
                     )}
                   </div>
                 </div>
@@ -150,7 +324,7 @@ function LoginContent() {
 
       {/* 푸터 */}
       <footer className="py-4 text-center text-xs text-neutral-400">
-        © 2024 Polarad. All rights reserved.
+        &copy; 2024 Polarad. All rights reserved.
       </footer>
     </div>
   )

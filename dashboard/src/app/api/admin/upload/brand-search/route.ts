@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parseBrandSearchCSV } from '@/lib/brand-search-parser';
 import { AIRTABLE_CONFIG } from '@/lib/airtable';
 import type { BrandSearchUploadResponse } from '@/types/brand-search';
+import { isAdminRequest } from '@/lib/admin-auth';
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!;
@@ -46,10 +47,7 @@ async function getClientFromAirtable(clientIdOrSlug: string) {
 export async function POST(request: NextRequest) {
   try {
     // Admin 인증 확인
-    const adminKey = request.headers.get('x-admin-key');
-    const envAdminKey = process.env.NEXT_PUBLIC_ADMIN_KEY;
-
-    if (!adminKey || adminKey !== envAdminKey) {
+    if (!(await isAdminRequest(request))) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' } as BrandSearchUploadResponse,
         { status: 401 }

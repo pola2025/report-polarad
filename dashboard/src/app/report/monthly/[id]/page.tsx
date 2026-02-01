@@ -28,21 +28,15 @@ export default function MonthlyReportPage() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    // 관리자 모드 확인
-    const adminKey = localStorage.getItem('polarad_admin_key')
-    setIsAdmin(!!adminKey)
+    // 관리자 모드 확인 (쿠키 기반)
+    fetch('/api/auth/admin/verify')
+      .then(res => setIsAdmin(res.ok))
+      .catch(() => setIsAdmin(false))
 
     // 리포트 데이터 로드
     async function loadReport() {
       try {
-        const headers: Record<string, string> = {}
-        if (adminKey) {
-          headers['x-admin-key'] = adminKey
-        }
-
-        const response = await fetch(`/api/reports/monthly/${reportId}`, {
-          headers,
-        })
+        const response = await fetch(`/api/reports/monthly/${reportId}`)
 
         if (!response.ok) {
           const errorData = await response.json()

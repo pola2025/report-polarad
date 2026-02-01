@@ -26,7 +26,6 @@ export function AdminCommentSection({
 
     setIsSaving(true)
     try {
-      const adminKey = localStorage.getItem('polarad_admin_key') || ''
       const method = comment ? 'PUT' : 'POST'
       const url = comment
         ? `/api/reports/comment/${comment.id}`
@@ -36,7 +35,6 @@ export function AdminCommentSection({
         method,
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({
           report_id: reportId,

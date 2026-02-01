@@ -16,6 +16,7 @@ import {
   countNarattonLeads,
 } from '@/lib/airtable'
 import type { ReportWithComment, MonthlyReportData } from '@/types/report'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 // 클라이언트별 환율 설정
 // ⚠️ CRITICAL: Airtable에 이미 KRW로 저장되어 있음!
@@ -41,8 +42,7 @@ export async function GET(
     }
 
     // 비공개 리포트는 관리자만 접근 가능
-    const adminKey = request.headers.get('x-admin-key')
-    const isAdmin = adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
+    const isAdmin = await isAdminRequest(request)
 
     if (report.status !== 'published' && !isAdmin) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })

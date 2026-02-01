@@ -56,6 +56,12 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
   const [blacklistOnly, setBlacklistOnly] = useState(false)
   const [duplicatesOnly, setDuplicatesOnly] = useState(false)
 
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 100
+
   // UI states
   const [selectedLead, setSelectedLead] = useState<BasLead | null>(null)
   const [relatedLeads, setRelatedLeads] = useState<BasLead[]>([])
@@ -76,6 +82,7 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
       if (searchQuery) params.set('search', searchQuery)
       if (blacklistOnly) params.set('blacklisted', 'true')
       if (duplicatesOnly) params.set('duplicatesOnly', 'true')
+      params.set('page', String(page))
 
       const [leadsRes, staffRes] = await Promise.all([
         fetch(`/api/bas/leads?${params.toString()}`),
@@ -87,6 +94,8 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
       const leadsData = await leadsRes.json()
       setLeads(leadsData.leads || [])
       setSummary(leadsData.summary || null)
+      setHasMore(leadsData.hasMore || false)
+      setTotal(leadsData.total || 0)
 
       if (staffRes.ok) {
         const staffData = await staffRes.json()
@@ -98,7 +107,7 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, staffFilter, searchQuery, blacklistOnly, duplicatesOnly])
+  }, [statusFilter, staffFilter, searchQuery, blacklistOnly, duplicatesOnly, page])
 
   useEffect(() => {
     loadData()
@@ -233,15 +242,15 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
       {/* === 필터 바 === */}
       <FilterBar
         statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
+        setStatusFilter={(v) => { setStatusFilter(v); setPage(1) }}
         staffFilter={staffFilter}
-        setStaffFilter={setStaffFilter}
+        setStaffFilter={(v) => { setStaffFilter(v); setPage(1) }}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={(v) => { setSearchQuery(v); setPage(1) }}
         blacklistOnly={blacklistOnly}
-        setBlacklistOnly={setBlacklistOnly}
+        setBlacklistOnly={(v) => { setBlacklistOnly(v); setPage(1) }}
         duplicatesOnly={duplicatesOnly}
-        setDuplicatesOnly={setDuplicatesOnly}
+        setDuplicatesOnly={(v) => { setDuplicatesOnly(v); setPage(1) }}
         staffList={activeStaff}
         onRefresh={loadData}
         onManageStaff={() => setShowStaffModal(true)}
@@ -281,6 +290,35 @@ export function BasLeadManagement({ clientSlug }: BasLeadManagementProps) {
           />
         )}
       </div>
+
+      {/* === 페이지네이션 === */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3">
+          <p className="text-sm text-gray-500">
+            전체 <span className="font-semibold text-gray-900">{total.toLocaleString()}</span>건 중{' '}
+            <span className="font-semibold text-gray-900">{((page - 1) * PAGE_SIZE) + 1}~{Math.min(page * PAGE_SIZE, total)}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              이전
+            </button>
+            <span className="text-sm text-gray-600 min-w-[60px] text-center">
+              {page} / {Math.ceil(total / PAGE_SIZE)}
+            </span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasMore}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              다음
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* === 리드 상세 슬라이드 === */}
       {showDetail && selectedLead && (

@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   XCircle,
   Users,
-  Shield,
   Plus,
   Edit,
 } from 'lucide-react'
@@ -132,8 +131,6 @@ export default function AdminClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [stats, setStats] = useState<Stats>({ pending: 0, active: 0, suspended: 0, expired: 0 })
   const [loading, setLoading] = useState(true)
-  const [adminKey, setAdminKey] = useState('')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -148,14 +145,12 @@ export default function AdminClientsPage() {
   const [formLoading, setFormLoading] = useState(false)
 
   const fetchData = useCallback(async () => {
-    if (!adminKey) return
-
     setLoading(true)
     try {
       const url =
         statusFilter === 'all'
-          ? `/api/admin/clients?adminKey=${adminKey}`
-          : `/api/admin/clients?adminKey=${adminKey}&status=${statusFilter}`
+          ? `/api/admin/clients`
+          : `/api/admin/clients?status=${statusFilter}`
 
       const res = await fetch(url)
 
@@ -163,28 +158,17 @@ export default function AdminClientsPage() {
         const data = await res.json()
         setClients(data.clients || [])
         setStats(data.stats || { pending: 0, active: 0, suspended: 0, expired: 0 })
-      } else if (res.status === 401) {
-        setIsAuthenticated(false)
-        alert('인증이 필요합니다.')
       }
     } catch (error) {
       console.error('Error fetching clients:', error)
     } finally {
       setLoading(false)
     }
-  }, [adminKey, statusFilter])
+  }, [statusFilter])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchData()
-    }
-  }, [isAuthenticated, fetchData])
-
-  const handleLogin = () => {
-    if (adminKey) {
-      setIsAuthenticated(true)
-    }
-  }
+    fetchData()
+  }, [fetchData])
 
   const handleApprove = async (client: Client) => {
     setSelectedClient(client)
@@ -201,7 +185,6 @@ export default function AdminClientsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: selectedClient.id,
-          adminKey,
           approvedBy: 'admin',
         }),
       })
@@ -237,7 +220,6 @@ export default function AdminClientsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: selectedClient.id,
-          adminKey,
           reason: suspendReason,
         }),
       })
@@ -267,7 +249,6 @@ export default function AdminClientsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: client.id,
-          adminKey,
         }),
       })
 
@@ -353,7 +334,6 @@ export default function AdminClientsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({
           client_name: formData.client_name,
@@ -402,7 +382,6 @@ export default function AdminClientsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({
           airtable_record_id: selectedClient.airtable_record_id,
@@ -437,42 +416,6 @@ export default function AdminClientsPage() {
     } finally {
       setFormLoading(false)
     }
-  }
-
-  // 인증 화면
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              관리자 인증
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  관리자 키
-                </label>
-                <input
-                  type="password"
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="관리자 키를 입력하세요"
-                />
-              </div>
-              <Button onClick={handleLogin} className="w-full">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (

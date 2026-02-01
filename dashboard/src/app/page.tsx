@@ -86,15 +86,14 @@ function DashboardContent() {
   const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | null
 
   // 관리자 인증 상태
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [adminKey, setAdminKey] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientSlug, setSelectedClientSlug] = useState<string>('')
 
   // 실제 사용할 clientSlug (URL 파라미터 또는 관리자가 선택한 것)
   const clientSlug = clientSlugFromUrl || selectedClientSlug
   const isClientView = !!clientSlugFromUrl // URL에서 온 경우만 클라이언트 뷰
-  const isAdminView = !clientSlugFromUrl && isAuthenticated // 관리자가 선택한 경우
+  const isAdminView = !clientSlugFromUrl && isAuthenticated === true // 관리자가 선택한 경우
 
   const [data, setData] = useState<DashboardData | null>(null)
   const [clientInfo, setClientInfo] = useState<{
@@ -164,12 +163,10 @@ function DashboardContent() {
     return { start: formatDate(start), end: formatDate(end) }
   })
 
-  // 관리자 키 확인 및 클라이언트 목록 조회
-  const fetchClients = useCallback(async (key: string) => {
+  // 관리자 세션 확인 및 클라이언트 목록 조회
+  const fetchClients = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/clients', {
-        headers: { 'x-admin-key': key },
-      })
+      const response = await fetch('/api/admin/clients')
       if (response.ok) {
         const result = await response.json()
         setClients(result.clients || [])
@@ -181,35 +178,26 @@ function DashboardContent() {
     }
   }, [])
 
-  // 초기화: 저장된 관리자 키 확인
+  // 초기화: 세션 확인
   useEffect(() => {
     if (clientSlugFromUrl) {
       // URL에 클라이언트 슬러그가 있으면 바로 로딩
       setLoading(true)
+      setIsAuthenticated(false)
     } else {
-      // 관리자 모드: 저장된 키 확인
-      const savedKey = localStorage.getItem('polarad_admin_key')
-      if (savedKey) {
-        setAdminKey(savedKey)
-        fetchClients(savedKey).then(success => {
-          if (success) {
+      // 관리자 모드: 세션 확인 (쿠키 자동 전송)
+      fetch('/api/auth/admin/verify')
+        .then(res => {
+          if (res.ok) {
             setIsAuthenticated(true)
+            return fetchClients()
           }
+          setIsAuthenticated(false)
+          return false
         })
-      }
+        .catch(() => setIsAuthenticated(false))
     }
   }, [clientSlugFromUrl, fetchClients])
-
-  // 관리자 로그인
-  const handleLogin = async () => {
-    const success = await fetchClients(adminKey)
-    if (success) {
-      localStorage.setItem('polarad_admin_key', adminKey)
-      setIsAuthenticated(true)
-    } else {
-      alert('관리자 키가 올바르지 않습니다.')
-    }
-  }
 
   // 클라이언트 정보 조회
   useEffect(() => {
@@ -415,39 +403,23 @@ function DashboardContent() {
     fetchGa4Data()
   }, [activeTab, clientSlug, clientInfo?.ga?.enabled, dateRange])
 
-  // 관리자 로그인 화면 (URL에 클라이언트 슬러그 없고, 인증 안 됨)
-  if (!clientSlugFromUrl && !isAuthenticated) {
+  // 관리자 인증 확인 중 로딩 (깜빡임 방지)
+  if (!clientSlugFromUrl && isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <Image
-                src="/images/logo.png"
-                alt="Polarad"
-                width={40}
-                height={40}
-                className="rounded-lg"
-              />
-              <CardTitle>Polarad Report 관리자</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="관리자 키 입력"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#F5A623] focus:border-transparent"
-              />
-              <Button onClick={handleLogin} className="w-full bg-[#F5A623] hover:bg-[#E09000]">
-                로그인
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
+      </div>
+    )
+  }
+
+  // 관리자 인증 실패 → 로그인 페이지로 리다이렉트
+  if (!clientSlugFromUrl && isAuthenticated === false) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login?redirect=/'
+    }
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
       </div>
     )
   }

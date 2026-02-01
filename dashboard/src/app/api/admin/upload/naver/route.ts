@@ -9,17 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendNaverUploadNotification } from '@/lib/telegram'
 import { AIRTABLE_CONFIG } from '@/lib/airtable'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
 const AIRTABLE_CLIENTS_BASE_ID = 'appC3XKBcYgZBTETn'
 const AIRTABLE_CLIENTS_TABLE_ID = 'tblwQBbsMyg00qi8F'
-
-// 관리자 키 검증
-function isAdmin(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key')
-  return adminKey === (process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY)
-}
 
 // Airtable에서 클라이언트 조회 (UUID 또는 slug로)
 async function getClientFromAirtable(clientIdOrSlug: string) {
@@ -104,7 +99,7 @@ function parseCSV(csvText: string): string[][] {
 
 // POST: CSV 업로드 및 파싱
 export async function POST(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -312,7 +307,7 @@ export async function POST(request: NextRequest) {
 
 // GET: 네이버 광고 데이터 조회 (Airtable)
 export async function GET(request: NextRequest) {
-  if (!isAdmin(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
