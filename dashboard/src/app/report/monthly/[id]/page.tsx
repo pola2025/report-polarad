@@ -247,11 +247,11 @@ export default function MonthlyReportPage() {
             meta: {
               impressions: totalImpressions,
               clicks: totalClicks,
-              leads: totalLeads,
+              leads: report.client?.meta_metric_type === 'video' ? 0 : totalLeads,
               spend: totalSpend, // 이미 KRW
               ctr: avgCtr,
               cpc: avgCpc,
-              cpl: avgCpl,
+              cpl: report.client?.meta_metric_type === 'video' ? 0 : avgCpl,
               videoViews: meta.videoViews,
               avgWatchTime: meta.avgWatchTime,
               campaigns: meta.campaigns,
