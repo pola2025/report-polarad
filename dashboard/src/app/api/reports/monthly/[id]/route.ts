@@ -145,7 +145,9 @@ export async function GET(
       }
       existing.impressions += row.impressions || 0
       existing.clicks += row.clicks || 0
-      existing.leads += row.leads || 0
+      // 나라똔: 트래픽 캠페인 leads는 홈페이지 리드와 중복이므로 제외
+      const isTrafficCampaign = row.campaign_name?.includes('트래픽')
+      existing.leads += (clientSlug === 'naratton' && isTrafficCampaign) ? 0 : (row.leads || 0)
       existing.spend += row.spend || 0
       existing.videoViews += row.video_views || 0
       if (row.avg_watch_time && row.avg_watch_time > 0) {
