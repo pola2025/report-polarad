@@ -75,8 +75,8 @@ export async function GET(request: NextRequest) {
     const resolvedSlug = clientSlug && AIRTABLE_CONFIG[clientSlug] ? clientSlug : null
 
     // ===== 전체 광고 데이터 집계 (Airtable - Meta + Naver 통합) =====
-    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string; video_views?: number; avg_watch_time?: number}> = []
-    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number; video_views?: number; avg_watch_time?: number}> = []
+    let metaCurrentData: Array<{impressions: number; clicks: number; leads?: number; spend: number; date: string; video_views?: number; avg_watch_time?: number; campaign_name?: string}> = []
+    let metaPreviousData: Array<{impressions: number; clicks: number; leads?: number; spend: number; video_views?: number; avg_watch_time?: number; campaign_name?: string}> = []
     let naverCurrentData: Array<{impressions: number; clicks: number; spend: number; date: string}> = []
     let naverPreviousData: Array<{impressions: number; clicks: number; spend: number}> = []
 
@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
           date: r.date,
           video_views: r.video_views,
           avg_watch_time: r.avg_watch_time,
+          campaign_name: r.campaign_name,
         }))
 
       // Naver 데이터 필터링 (source = 'naver_place' 또는 'naver_brand_search')
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest) {
           spend: r.spend,
           video_views: r.video_views,
           avg_watch_time: r.avg_watch_time,
+          campaign_name: r.campaign_name,
         }))
 
       // 이전 기간 Naver 데이터
@@ -147,7 +149,9 @@ export async function GET(request: NextRequest) {
     metaCurrentData.forEach(row => {
       metaCurrentPeriod.impressions += row.impressions || 0
       metaCurrentPeriod.clicks += row.clicks || 0
-      metaCurrentPeriod.leads += row.leads || 0
+      // 나라똔: 트래픽 캠페인 leads는 홈페이지 리드와 중복이므로 제외
+      const isTrafficCampaign = row.campaign_name?.includes('트래픽')
+      metaCurrentPeriod.leads += (resolvedSlug === 'naratton' && isTrafficCampaign) ? 0 : (row.leads || 0)
       metaCurrentPeriod.spend += row.spend || 0
       metaCurrentPeriod.video_views += row.video_views || 0
       // 가중 평균 시청시간 (video_views 기준)
@@ -177,7 +181,8 @@ export async function GET(request: NextRequest) {
     metaPreviousData.forEach(row => {
       metaPreviousPeriod.impressions += row.impressions || 0
       metaPreviousPeriod.clicks += row.clicks || 0
-      metaPreviousPeriod.leads += row.leads || 0
+      const isTrafficCampaign = row.campaign_name?.includes('트래픽')
+      metaPreviousPeriod.leads += (resolvedSlug === 'naratton' && isTrafficCampaign) ? 0 : (row.leads || 0)
       metaPreviousPeriod.spend += row.spend || 0
       metaPreviousPeriod.video_views += row.video_views || 0
       const views = row.video_views || 0
@@ -236,11 +241,13 @@ export async function GET(request: NextRequest) {
     const metaDailyMap = new Map<string, { impressions: number; clicks: number; spend: number; leads: number }>()
     metaCurrentData.forEach(row => {
       const existing = metaDailyMap.get(row.date) || { impressions: 0, clicks: 0, spend: 0, leads: 0 }
+      const isTrafficCampaign = row.campaign_name?.includes('트래픽')
+      const leadsToAdd = (resolvedSlug === 'naratton' && isTrafficCampaign) ? 0 : (row.leads || 0)
       metaDailyMap.set(row.date, {
         impressions: existing.impressions + (row.impressions || 0),
         clicks: existing.clicks + (row.clicks || 0),
         spend: existing.spend + (row.spend || 0),
-        leads: existing.leads + (row.leads || 0),
+        leads: existing.leads + leadsToAdd,
       })
     })
 

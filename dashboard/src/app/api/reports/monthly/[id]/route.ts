@@ -231,7 +231,7 @@ export async function GET(
       naverDailyMap.set(row.date, dailyExisting)
 
       // keyword
-      const keyword = row.keywords || '_unknown_'
+      const keyword = row.keywords || '브랜드검색'
       const kwExisting = keywordMap.get(keyword) || {
         keyword,
         impressions: 0,
@@ -249,7 +249,7 @@ export async function GET(
     }
 
     const keywordsWithMetrics = Array.from(keywordMap.values())
-      .filter((k) => k.keyword !== '_unknown_') // 브랜드검색 데이터는 키워드 분석에서 제외
+      .filter((k) => k.keyword !== 'total' && k.keyword !== '_total_' && k.keyword !== '_campaign_override_')
       .map((k) => ({
         keyword: k.keyword,
         impressions: k.impressions,
@@ -299,8 +299,13 @@ export async function GET(
       : 0
 
     // 리드 집계
-    // - 잠재고객 리드 (Meta API leads) - 빨간색
-    const totalMetaLeads = dailyData.reduce((sum, d) => sum + d.leads, 0)
+    // - 잠재고객 리드 (Meta API leads - 잠재고객캠페인만) - 빨간색
+    //   ※ 트래픽 캠페인의 leads는 홈페이지 리드와 중복되므로 제외
+    const totalMetaLeads = clientSlug === 'naratton'
+      ? campaignsWithMetrics
+          .filter(c => !c.campaign_name.includes('트래픽'))
+          .reduce((sum, c) => sum + c.leads, 0)
+      : dailyData.reduce((sum, d) => sum + d.leads, 0)
     // - 트래픽 리드 (홈페이지 리드상세 테이블에서 집계) - 녹색
     let totalHomepageLeads = 0
     if (clientSlug === 'naratton') {
