@@ -51,8 +51,14 @@ export async function GET(
     // 2. 코멘트 조회
     const comment = await getReportComment(id)
 
-    // 3. 클라이언트 정보 조회
-    const client = await getAirtableClient(report.client_id)
+    // 3. 클라이언트 정보 조회 (client_id로 먼저 시도, 실패 시 slug 매핑으로 재시도)
+    let client = await getAirtableClient(report.client_id)
+    if (!client) {
+      const fallbackSlug = getClientSlugById(report.client_id)
+      if (fallbackSlug) {
+        client = await getAirtableClient(fallbackSlug)
+      }
+    }
 
     // ReportWithComment 형식으로 변환
     const reportWithComment: ReportWithComment = {
@@ -62,6 +68,7 @@ export async function GET(
         client_name: client.client_name,
         slug: client.slug,
         meta_metric_type: client.meta_metric_type,  // video: H.E.A 판교, lead: 나라똔
+        naver_fixed_budget: client.naver_fixed_budget,
       } : undefined,
     }
 
@@ -304,6 +311,11 @@ export async function GET(
       }
     }
 
+    // 네이버 월정액 (월간 리포트만 적용, 주간 리포트 제외)
+    const naverFixedBudget = report.report_type === 'monthly'
+      ? (client?.naver_fixed_budget || 0)
+      : 0
+
     const responseData: MonthlyReportData = {
       report: reportWithComment,
       meta: {
@@ -316,6 +328,7 @@ export async function GET(
       },
       naver: {
         keywords: keywordsWithMetrics,
+        fixedBudget: naverFixedBudget > 0 ? naverFixedBudget : undefined,
       },
     }
 

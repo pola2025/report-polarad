@@ -36,6 +36,7 @@ interface ChannelComparisonSectionProps {
   usdToKrw?: number
   videoViews?: number
   avgWatchTime?: number
+  naverFixedBudget?: number  // 네이버 월정액 (나라똔 등)
 }
 
 const COLORS = {
@@ -49,6 +50,7 @@ export function ChannelComparisonSection({
   usdToKrw = 1500,
   videoViews = 0,
   avgWatchTime = 0,
+  naverFixedBudget = 0,
 }: ChannelComparisonSectionProps) {
   // Meta 합계 계산
   const metaTotal = {
@@ -62,11 +64,11 @@ export function ChannelComparisonSection({
   metaTotal.ctr = metaTotal.impressions > 0 ? (metaTotal.clicks / metaTotal.impressions) * 100 : 0
   metaTotal.cpc = metaTotal.clicks > 0 ? metaTotal.spend / metaTotal.clicks : 0
 
-  // 네이버 합계 계산
+  // 네이버 합계 계산 (키워드 비용 + 월정액)
   const naverTotal = {
     impressions: naverKeywords.reduce((sum, k) => sum + k.impressions, 0),
     clicks: naverKeywords.reduce((sum, k) => sum + k.clicks, 0),
-    spend: naverKeywords.reduce((sum, k) => sum + k.totalCost, 0),
+    spend: naverKeywords.reduce((sum, k) => sum + k.totalCost, 0) + naverFixedBudget,
     ctr: 0,
     cpc: 0,
   }

@@ -180,6 +180,7 @@ export interface ReportWithComment extends Report {
     client_name: string
     slug: string | null
     meta_metric_type?: 'video' | 'lead'  // video: H.E.A 판교 (리드 숨김), lead: 나라똔
+    naver_fixed_budget?: number | null  // 네이버 월정액 (나라똔: 1,320,000)
   }
 }
 
@@ -220,5 +221,6 @@ export interface MonthlyReportData {
       avgCpc: number
       avgRank: number
     }>
+    fixedBudget?: number  // 네이버 월정액 (월간 리포트 전용)
   }
 }

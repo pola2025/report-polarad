@@ -440,6 +440,7 @@ export async function getAirtableClient(clientIdOrSlug: string): Promise<{
   client_name: string
   slug: string
   meta_metric_type: 'video' | 'lead'
+  naver_fixed_budget: number | null
 } | null> {
   const url = `https://api.airtable.com/v0/${CLIENTS_BASE_ID}/${CLIENTS_TABLE_ID}`;
 
@@ -455,6 +456,7 @@ export async function getAirtableClient(clientIdOrSlug: string): Promise<{
   const record = data.records.find((r: any) =>
     r.fields.id === clientIdOrSlug ||
     r.fields.slug === clientIdOrSlug ||
+    r.fields.client_id === clientIdOrSlug ||  // client_id 필드 (h-e-a-판교 등)
     r.fields.Name === clientIdOrSlug  // 한글 이름으로도 조회 가능
   );
 
@@ -465,6 +467,7 @@ export async function getAirtableClient(clientIdOrSlug: string): Promise<{
     client_name: record.fields.Name,
     slug: record.fields.slug,
     meta_metric_type: record.fields.meta_metric_type || 'lead',  // video: H.E.A 판교, lead: 나라똔
+    naver_fixed_budget: record.fields.naver_fixed_budget || null,
   };
 }
 

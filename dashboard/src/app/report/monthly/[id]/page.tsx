@@ -107,7 +107,10 @@ export default function MonthlyReportPage() {
   // KPI 데이터 계산 (API에서 이미 KRW로 변환됨)
   const totalImpressions = meta.daily.reduce((sum, d) => sum + d.impressions, 0)
   const totalClicks = meta.daily.reduce((sum, d) => sum + d.clicks, 0)
-  const totalSpend = meta.daily.reduce((sum, d) => sum + d.spend, 0) // 이미 KRW
+  const dailySpend = meta.daily.reduce((sum, d) => sum + d.spend, 0) // 이미 KRW
+  // 네이버 월정액 추가 (월간 리포트만, 나라똔 등 정액제 클라이언트)
+  const naverFixedBudget = naver.fixedBudget || 0
+  const totalSpend = dailySpend + naverFixedBudget
   // 잠재고객 리드 (Meta API) - 빨간색
   const totalMetaLeads = meta.actualLeads ?? meta.daily.reduce((sum, d) => sum + d.leads, 0)
   // 트래픽 리드 (홈페이지) - 녹색
@@ -184,6 +187,7 @@ export default function MonthlyReportPage() {
             usdToKrw={1}
             videoViews={meta.videoViews}
             avgWatchTime={meta.avgWatchTime}
+            naverFixedBudget={naverFixedBudget}
           />
         )}
 
@@ -260,7 +264,7 @@ export default function MonthlyReportPage() {
             naver: {
               impressions: naver.keywords.reduce((sum, k) => sum + k.impressions, 0),
               clicks: naver.keywords.reduce((sum, k) => sum + k.clicks, 0),
-              spend: naver.keywords.reduce((sum, k) => sum + k.totalCost, 0),
+              spend: naver.keywords.reduce((sum, k) => sum + k.totalCost, 0) + naverFixedBudget,
               ctr: naver.keywords.length > 0
                 ? naver.keywords.reduce((sum, k) => sum + k.ctr, 0) / naver.keywords.length
                 : 0,
