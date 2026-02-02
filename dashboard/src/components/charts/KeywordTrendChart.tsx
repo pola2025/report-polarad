@@ -29,27 +29,38 @@ interface KeywordTrendChartProps {
   title?: string
 }
 
+// 키워드별 라인 색상
+const KEYWORD_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316']
+
 export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추이' }: KeywordTrendChartProps) {
-  const chartData = useMemo(() => {
-    // 월별로 집계
-    const monthlyMap = new Map<string, { pc: number; mobile: number; total: number }>()
+  const { chartData, keywords } = useMemo(() => {
+    // 고유 키워드 목록
+    const kwSet = new Set<string>()
+    data.forEach(row => kwSet.add(row.keyword))
+    const kws = Array.from(kwSet)
+
+    // 월별 + 키워드별 데이터 구축
+    const monthlyMap = new Map<string, Record<string, number>>()
 
     data.forEach((row) => {
-      const existing = monthlyMap.get(row.year_month) || { pc: 0, mobile: 0, total: 0 }
-      monthlyMap.set(row.year_month, {
-        pc: existing.pc + row.pc_searches,
-        mobile: existing.mobile + row.mobile_searches,
-        total: existing.total + row.total_searches,
-      })
+      const existing = monthlyMap.get(row.year_month) || {}
+      existing[row.keyword] = (existing[row.keyword] || 0) + row.total_searches
+      existing[`${row.keyword}_pc`] = (existing[`${row.keyword}_pc`] || 0) + row.pc_searches
+      existing[`${row.keyword}_mobile`] = (existing[`${row.keyword}_mobile`] || 0) + row.mobile_searches
+      // 합계
+      existing['_total'] = (existing['_total'] || 0) + row.total_searches
+      monthlyMap.set(row.year_month, existing)
     })
 
-    return Array.from(monthlyMap.entries())
+    const result = Array.from(monthlyMap.entries())
       .map(([month, values]) => ({
         month,
-        displayMonth: month.slice(2), // YY-MM 형식
+        displayMonth: month.slice(2),
         ...values,
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month))
+      } as Record<string, string | number>))
+      .sort((a, b) => (a.month as string).localeCompare(b.month as string))
+
+    return { chartData: result, keywords: kws }
   }, [data])
 
   if (chartData.length === 0) {
@@ -86,32 +97,28 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
                 labelFormatter={(label) => `20${label}`}
               />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="mobile"
-                name="모바일"
-                stroke="#10B981"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="pc"
-                name="PC"
-                stroke="#F59E0B"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
+              {keywords.map((kw, i) => (
+                <Line
+                  key={kw}
+                  type="monotone"
+                  dataKey={kw}
+                  name={kw}
+                  stroke={KEYWORD_COLORS[i % KEYWORD_COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  connectNulls
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* 데이터 테이블 (가로형) */}
+        {/* 데이터 테이블 (키워드별) */}
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="py-1.5 px-1 text-left font-medium text-gray-500 w-12"></th>
+                <th className="py-1.5 px-2 text-left font-medium text-gray-500 min-w-[80px]">키워드</th>
                 {chartData.map((row) => (
                   <th key={row.month} className="py-1.5 px-1 text-center font-medium text-gray-500">
                     {row.displayMonth}
@@ -120,30 +127,28 @@ export function KeywordMonthlyTrendChart({ data, title = '월별 검색량 추�
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="py-1.5 px-1 text-gray-500">PC</td>
-                {chartData.map((row) => (
-                  <td key={row.month} className="py-1.5 px-1 text-center text-orange-600">
-                    {formatNumber(row.pc)}
+              {keywords.map((kw, i) => (
+                <tr key={kw} className="border-b border-gray-100">
+                  <td className="py-1.5 px-2" style={{ color: KEYWORD_COLORS[i % KEYWORD_COLORS.length] }}>
+                    {kw}
                   </td>
-                ))}
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-1.5 px-1 text-gray-500">모바일</td>
-                {chartData.map((row) => (
-                  <td key={row.month} className="py-1.5 px-1 text-center text-green-600">
-                    {formatNumber(row.mobile)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="py-1.5 px-1 font-medium text-gray-700">합계</td>
-                {chartData.map((row) => (
-                  <td key={row.month} className="py-1.5 px-1 text-center font-medium text-gray-900">
-                    {formatNumber(row.total)}
-                  </td>
-                ))}
-              </tr>
+                  {chartData.map((row) => (
+                    <td key={row.month} className="py-1.5 px-1 text-center text-gray-700">
+                      {formatNumber((row[kw] as number) || 0)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {keywords.length > 1 && (
+                <tr>
+                  <td className="py-1.5 px-2 font-medium text-gray-700">합계</td>
+                  {chartData.map((row) => (
+                    <td key={row.month} className="py-1.5 px-1 text-center font-medium text-gray-900">
+                      {formatNumber((row['_total'] as number) || 0)}
+                    </td>
+                  ))}
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

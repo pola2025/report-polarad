@@ -192,7 +192,7 @@ export default function MonthlyReportPage() {
           <DailyTrendChart
             daily={meta.daily}
             usdToKrw={1}
-            showLeads={report.client?.slug === 'naratton' || report.client?.client_name === '나라똔'}
+            showLeads={report.client?.meta_metric_type !== 'video'}
             showClicks={true}
             channel="meta"
           />
@@ -200,17 +200,17 @@ export default function MonthlyReportPage() {
 
         {/* 요일별 성과 히트맵 - 월간 리포트에서만 표시 */}
         {report.report_type === 'monthly' && meta.daily.length > 0 && (
-          <WeekdayHeatmap daily={meta.daily} usdToKrw={1} />
+          <WeekdayHeatmap daily={meta.daily} usdToKrw={1} metricType={report.client?.meta_metric_type} />
         )}
 
         {/* 날짜별 성과 패턴 - 월간 리포트에서만 표시 */}
         {report.report_type === 'monthly' && meta.daily.length > 0 && (
-          <DateHeatmap daily={meta.daily} usdToKrw={1} />
+          <DateHeatmap daily={meta.daily} usdToKrw={1} metricType={report.client?.meta_metric_type} />
         )}
 
         {/* 일별 성과 추이 섹션 - 주간 리포트에서만 표시 */}
         {report.report_type === 'weekly' && meta.daily.length > 0 && (
-          <DailyPerformanceSection daily={meta.daily} usdToKrw={1} />
+          <DailyPerformanceSection daily={meta.daily} usdToKrw={1} metricType={report.client?.meta_metric_type} />
         )}
 
         {/* Meta 캠페인 섹션 */}
@@ -270,7 +270,7 @@ export default function MonthlyReportPage() {
               keywords: naver.keywords,
             },
             clientName: report.client?.client_name,
-            metricType: meta.videoViews && meta.videoViews > 0 ? 'video' : 'lead',
+            metricType: report.client?.meta_metric_type === 'video' ? 'video' : 'lead',
           }}
         />
 

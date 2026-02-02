@@ -14,6 +14,7 @@ interface DailyData {
 interface DateHeatmapProps {
   daily: DailyData[]
   usdToKrw?: number
+  metricType?: 'video' | 'lead'
 }
 
 // 히트 레벨 계산 (0~4)
@@ -40,7 +41,8 @@ function getHeatClass(level: number): string {
   return classes[level] || classes[0]
 }
 
-export function DateHeatmap({ daily }: DateHeatmapProps) {
+export function DateHeatmap({ daily, metricType = 'lead' }: DateHeatmapProps) {
+  const showLeads = metricType !== 'video'
   if (daily.length === 0) return null
 
   // 날짜별 데이터 맵 생성
@@ -231,7 +233,8 @@ export function DateHeatmap({ daily }: DateHeatmapProps) {
                 )
               })}
             </tr>
-            {/* 리드 행 */}
+            {/* 리드 행 - video 타입이면 숨김 */}
+            {showLeads && (
             <tr>
               <td className="py-2 px-2 text-sm font-medium text-gray-600">리드</td>
               {days.map(day => {
@@ -259,6 +262,7 @@ export function DateHeatmap({ daily }: DateHeatmapProps) {
                 )
               })}
             </tr>
+            )}
           </tbody>
         </table>
       </div>

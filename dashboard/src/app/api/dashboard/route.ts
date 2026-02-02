@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { TABLES } from '@/lib/supabase'
 import { fetchAirtableData, AIRTABLE_CONFIG, getClientIdBySlug, countNarattonLeads, fetchNarattonLeads } from '@/lib/airtable'
 import { subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { USD_TO_KRW_RATE } from '@/lib/constants'
@@ -335,33 +334,31 @@ export async function GET(request: NextRequest) {
       ? Math.round((metaPreviousPeriod.spend * exchangeRate) / metaPreviousPeriod.leads)
       : 0
 
-    // ===== 키워드 통계 데이터 (직접 fetch로 캐시 우회) =====
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    let keywordApiUrl = `${supabaseUrl}/rest/v1/${TABLES.KEYWORD_STATS}?select=*&order=year_month.asc`
-    // resolvedSlug에서 UUID 조회 (Supabase 키워드 통계 테이블은 client_id UUID 사용)
+    // ===== 키워드 통계 데이터 (Airtable에서 조회) =====
+    const KEYWORD_STATS_BASE = 'appC3XKBcYgZBTETn'
+    const KEYWORD_STATS_TABLE = 'tblF5ybDTlumOY8oY'
+    const airtableToken = process.env.AIRTABLE_API_KEY!
     const clientUuid = resolvedSlug ? getClientIdBySlug(resolvedSlug) : null
+
+    let keywordApiUrl = `https://api.airtable.com/v0/${KEYWORD_STATS_BASE}/${KEYWORD_STATS_TABLE}?sort[0][field]=year_month&sort[0][direction]=asc`
     if (clientUuid) {
-      keywordApiUrl += `&client_id=eq.${clientUuid}`
+      keywordApiUrl += `&filterByFormula=${encodeURIComponent(`{client_id}='${clientUuid}'`)}`
     }
 
     const keywordResponse = await fetch(keywordApiUrl, {
-      headers: {
-        'apikey': serviceKey,
-        'Authorization': `Bearer ${serviceKey}`,
-      },
+      headers: { 'Authorization': `Bearer ${airtableToken}` },
       cache: 'no-store',
     })
 
-    const keywordData = await keywordResponse.json()
+    const keywordResult = await keywordResponse.json()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const keywordStats = (keywordData || []).map((row: any) => ({
-      year_month: row.year_month,
-      keyword: row.keyword,
-      pc_searches: row.pc_searches || 0,
-      mobile_searches: row.mobile_searches || 0,
-      total_searches: (row.pc_searches || 0) + (row.mobile_searches || 0),
+    const keywordStats = (keywordResult.records || []).map((r: any) => ({
+      year_month: r.fields.year_month,
+      keyword: r.fields.keyword,
+      pc_searches: r.fields.pc_searches || 0,
+      mobile_searches: r.fields.mobile_searches || 0,
+      total_searches: (r.fields.pc_searches || 0) + (r.fields.mobile_searches || 0),
     }))
 
     return NextResponse.json({

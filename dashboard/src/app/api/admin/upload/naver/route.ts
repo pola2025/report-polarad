@@ -97,6 +97,9 @@ function parseCSV(csvText: string): string[][] {
   return result
 }
 
+// Vercel 서버리스 함수 타임아웃 (대량 CSV 업로드 대응)
+export const maxDuration = 120
+
 // POST: CSV 업로드 및 파싱
 export async function POST(request: NextRequest) {
   if (!(await isAdminRequest(request))) {
@@ -216,26 +219,38 @@ export async function POST(request: NextRequest) {
       }
     }))
 
-    // 1. 해당 날짜 범위의 기존 naver_place 데이터 삭제
+    // 1. 해당 날짜 범위의 기존 naver_place 데이터 삭제 (페이지네이션)
     const endDateObj = new Date(dateRange.end)
     endDateObj.setDate(endDateObj.getDate() + 1)
     const nextDay = endDateObj.toISOString().split('T')[0]
 
     const deleteFormula = `AND({date}>='${dateRange.start}', {date}<'${nextDay}', {source}='naver_place')`
-    const existingUrl = `https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?filterByFormula=${encodeURIComponent(deleteFormula)}`
 
-    const existingResponse = await fetch(existingUrl, {
-      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
-      cache: 'no-store',
-    })
-    const existingData = await existingResponse.json()
+    // 페이지네이션으로 모든 기존 레코드 수집
+    const allExistingIds: string[] = []
+    let deleteOffset: string | undefined
+
+    do {
+      let existingUrl = `https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?filterByFormula=${encodeURIComponent(deleteFormula)}&pageSize=100`
+      if (deleteOffset) existingUrl += `&offset=${deleteOffset}`
+
+      const existingResponse = await fetch(existingUrl, {
+        headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+        cache: 'no-store',
+      })
+      const existingData = await existingResponse.json()
+
+      if (existingData.records?.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        allExistingIds.push(...existingData.records.map((r: any) => r.id))
+      }
+      deleteOffset = existingData.offset
+    } while (deleteOffset)
 
     // 기존 레코드 삭제 (10개씩 배치)
-    if (existingData.records?.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const recordIds = existingData.records.map((r: any) => r.id)
-      for (let i = 0; i < recordIds.length; i += 10) {
-        const batch = recordIds.slice(i, i + 10)
+    if (allExistingIds.length > 0) {
+      for (let i = 0; i < allExistingIds.length; i += 10) {
+        const batch = allExistingIds.slice(i, i + 10)
         const deleteParams = batch.map((id: string) => `records[]=${id}`).join('&')
         await fetch(`https://api.airtable.com/v0/${airtableConfig.baseId}/${airtableConfig.tableId}?${deleteParams}`, {
           method: 'DELETE',

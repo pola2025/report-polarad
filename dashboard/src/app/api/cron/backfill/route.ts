@@ -17,6 +17,9 @@ export const maxDuration = 60
 // 텔레그램 설정
 const BACKFILL_CHAT_ID = '-1003394139746'
 
+// 환율 설정 (USD → KRW)
+const USD_TO_KRW = 1490
+
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY
 const AIRTABLE_CONFIG: Record<string, { baseId: string; tableId: string }> = {
@@ -140,6 +143,14 @@ async function fetchWithRetry(
   return lastResponse!
 }
 
+// Meta 광고 계정의 currency 조회
+async function getAccountCurrency(accessToken: string, adAccountId: string): Promise<string> {
+  const url = `https://graph.facebook.com/v21.0/act_${adAccountId}?fields=currency&access_token=${accessToken}`
+  const response = await fetchWithRetry(url)
+  const data = await response.json()
+  return data.currency || 'KRW'
+}
+
 // Meta API 호출 (클라이언트별 캠페인/광고 레벨 분기)
 async function fetchMetaData(
   accessToken: string,
@@ -200,9 +211,14 @@ async function loadExistingRecords(
   const records: AirtableRecord[] = []
   let offset = ''
 
+  // endDate + 1일 (Airtable <= 연산자 버그 우회)
+  const endDateObj = new Date(endDate)
+  endDateObj.setDate(endDateObj.getDate() + 1)
+  const nextDay = endDateObj.toISOString().split('T')[0]
+
   do {
     const formula = encodeURIComponent(
-      `AND({date}>='${startDate}', {date}<='${endDate}', {source}='meta')`
+      `AND({date}>='${startDate}', {date}<'${nextDay}', {source}='meta')`
     )
     let url = `https://api.airtable.com/v0/${baseId}/${tableId}?filterByFormula=${formula}&pageSize=100`
     if (offset) url += `&offset=${offset}`
@@ -211,7 +227,7 @@ async function loadExistingRecords(
       headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
     })
     const data = await response.json()
-    if (data.records) records.push(...data.records)
+    if (data.records) records.push(...(data.records as AirtableRecord[]))
     offset = data.offset || ''
   } while (offset)
 
@@ -314,6 +330,13 @@ async function backfillClient(
 
   const isAdLevel = AD_LEVEL_CLIENTS.includes(clientName)
 
+  // Phase 0: 광고 계정 currency 확인
+  const currency = await getAccountCurrency(accessToken, adAccountId)
+  const exchangeRate = currency === 'USD' ? USD_TO_KRW : 1
+  if (currency === 'USD') {
+    console.log(`   💱 ${clientName}: USD 계정 - 환율 ${USD_TO_KRW} 적용`)
+  }
+
   // Phase 1: Meta API 호출
   const rawData = await fetchMetaData(accessToken, adAccountId, startDate, endDate, clientName)
 
@@ -338,7 +361,7 @@ async function backfillClient(
       device,
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
-      spend: Math.round(parseFloat(row.spend) || 0),
+      spend: Math.round((parseFloat(row.spend) || 0) * exchangeRate),
       source,
     }
 

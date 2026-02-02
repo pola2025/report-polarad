@@ -198,9 +198,37 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Airtable에 레코드 생성 (10개씩 배치)
-      const airtableRecords = records.map((r: { client_id: string; year_month: string; keyword: string; pc_searches: number; mobile_searches: number; notes: string | null }) => ({
-        fields: {
+      // 기존 레코드 조회 (upsert를 위해)
+      const existingMap = new Map<string, string>() // key: client_id|year_month|keyword -> record_id
+      for (const cid of clientIds) {
+        const formula = encodeURIComponent(`{client_id}='${cid}'`)
+        let offset: string | undefined
+        do {
+          const pageUrl = `https://api.airtable.com/v0/${AIRTABLE_KEYWORD_STATS_BASE_ID}/${AIRTABLE_KEYWORD_STATS_TABLE_ID}?filterByFormula=${formula}${offset ? `&offset=${offset}` : ''}`
+          const res = await fetch(pageUrl, {
+            headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+            cache: 'no-store',
+          })
+          const page = await res.json()
+          if (page.records) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            page.records.forEach((r: any) => {
+              const key = `${r.fields.client_id}|${r.fields.year_month}|${r.fields.keyword}`
+              existingMap.set(key, r.id)
+            })
+          }
+          offset = page.offset
+        } while (offset)
+      }
+
+      // upsert: 기존 레코드가 있으면 update, 없으면 create
+      const toCreate: Array<{ fields: Record<string, unknown> }> = []
+      const toUpdate: Array<{ id: string; fields: Record<string, unknown> }> = []
+
+      for (const r of records) {
+        const key = `${r.client_id}|${r.year_month}|${r.keyword}`
+        const existingId = existingMap.get(key)
+        const fields = {
           client_id: r.client_id,
           year_month: r.year_month,
           keyword: r.keyword,
@@ -208,32 +236,54 @@ export async function POST(request: NextRequest) {
           mobile_searches: r.mobile_searches,
           notes: r.notes,
         }
-      }))
+        if (existingId) {
+          toUpdate.push({ id: existingId, fields })
+        } else {
+          toCreate.push({ fields })
+        }
+      }
 
-      let inserted = 0
-      for (let i = 0; i < airtableRecords.length; i += 10) {
-        const batch = airtableRecords.slice(i, i + 10)
-        const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_KEYWORD_STATS_BASE_ID}/${AIRTABLE_KEYWORD_STATS_TABLE_ID}`, {
+      let created = 0
+      let updated = 0
+
+      // Create (10개씩 배치)
+      for (let i = 0; i < toCreate.length; i += 10) {
+        const batch = toCreate.slice(i, i + 10)
+        const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_KEYWORD_STATS_BASE_ID}/${AIRTABLE_KEYWORD_STATS_TABLE_ID}`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: batch }),
         })
-
-        const result = await response.json()
+        const result = await res.json()
         if (result.error) {
-          console.error('Airtable insert error:', result.error)
+          console.error('Airtable create error:', result.error)
           return NextResponse.json({ error: result.error.message }, { status: 500 })
         }
-        inserted += result.records?.length || 0
+        created += result.records?.length || 0
+      }
+
+      // Update (10개씩 배치)
+      for (let i = 0; i < toUpdate.length; i += 10) {
+        const batch = toUpdate.slice(i, i + 10)
+        const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_KEYWORD_STATS_BASE_ID}/${AIRTABLE_KEYWORD_STATS_TABLE_ID}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: batch }),
+        })
+        const result = await res.json()
+        if (result.error) {
+          console.error('Airtable update error:', result.error)
+          return NextResponse.json({ error: result.error.message }, { status: 500 })
+        }
+        updated += result.records?.length || 0
       }
 
       return NextResponse.json({
         success: true,
-        message: `${inserted}건의 키워드 통계가 저장되었습니다.`,
-        count: inserted,
+        message: `신규 ${created}건, 수정 ${updated}건 저장 완료`,
+        count: created + updated,
+        created,
+        updated,
       })
     }
 

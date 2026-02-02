@@ -1067,8 +1067,10 @@ export function BasDashboardView({
   const router = useRouter()
   const pathname = usePathname()
 
-  // URL → 탭 상태 동기화
-  const tabFromUrl = (searchParams.get('tab') as TabId) || 'overview'
+  // URL → 탭 상태 동기화 (유효하지 않은 탭이면 overview로 폴백)
+  const VALID_TAB_IDS: TabId[] = ['overview', 'period', 'ads-detail', 'reports', 'ads-management', 'lead-management']
+  const rawTab = searchParams.get('tab')
+  const tabFromUrl: TabId = (rawTab && VALID_TAB_IDS.includes(rawTab as TabId)) ? rawTab as TabId : 'overview'
   const viewFromUrl = (searchParams.get('view') as AdsViewMode) || 'table'
 
   // 데이터 상태
@@ -1077,6 +1079,11 @@ export function BasDashboardView({
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl)
   const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>(viewFromUrl)
+
+  // URL 탭 변경 시 activeTab 동기화
+  useEffect(() => {
+    setActiveTab(tabFromUrl)
+  }, [tabFromUrl])
 
   // 필터 상태
   const compareMode = (searchParams.get('compare') as 'none' | 'weekly' | 'monthly') || 'none'

@@ -196,18 +196,18 @@ export function ChannelComparisonSection({
       </div>
 
       {/* 데스크톱: 도넛 차트 + 테이블 */}
-      <div className="hidden md:grid md:grid-cols-2 gap-6">
+      <div className="hidden md:grid md:grid-cols-[180px_1fr] gap-6 items-start">
         {/* 도넛 차트 */}
         <div className="flex flex-col items-center">
-          <div className="relative w-48 h-48">
+          <div className="relative w-36 h-36">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
+                  innerRadius={35}
+                  outerRadius={60}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -248,80 +248,80 @@ export function ChannelComparisonSection({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="py-3 px-4 text-left font-semibold text-gray-600">채널</th>
-                <th className="py-3 px-4 text-right font-semibold text-gray-600">노출수</th>
-                <th className="py-3 px-4 text-right font-semibold text-gray-600">클릭수</th>
-                <th className="py-3 px-4 text-right font-semibold text-gray-600">CTR</th>
-                <th className="py-3 px-4 text-right font-semibold text-gray-600">CPC</th>
+                <th className="py-2 px-2 text-left font-semibold text-gray-600 whitespace-nowrap">채널</th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">노출수</th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">클릭수</th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">CTR</th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">CPC</th>
                 {videoViews > 0 && (
-                  <th className="py-3 px-4 text-right font-semibold text-gray-600">영상조회</th>
+                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">영상조회</th>
                 )}
                 {avgWatchTime > 0 && (
-                  <th className="py-3 px-4 text-right font-semibold text-gray-600">평균시청</th>
+                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">평균시청</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {/* Meta */}
               <tr className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4">
+                <td className="py-2 px-2 whitespace-nowrap">
                   <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(24, 119, 242, 0.1)', color: COLORS.meta }}>
                     🔵 Meta
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{formatNumber(metaTotal.impressions)}</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{formatNumber(metaTotal.clicks)}</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{metaTotal.ctr.toFixed(2)}%</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">
                     {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(metaTotal.cpc)}
                   </div>
                 </td>
                 {videoViews > 0 && (
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-2 px-2 text-right whitespace-nowrap">
                     <div className="font-medium">{formatNumber(videoViews)}</div>
                   </td>
                 )}
                 {avgWatchTime > 0 && (
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-2 px-2 text-right whitespace-nowrap">
                     <div className="font-medium">{avgWatchTime.toFixed(1)}초</div>
                   </td>
                 )}
               </tr>
               {/* 네이버 */}
               <tr className="hover:bg-gray-50">
-                <td className="py-3 px-4">
+                <td className="py-2 px-2 whitespace-nowrap">
                   <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(3, 199, 90, 0.1)', color: COLORS.naver }}>
                     🟢 네이버
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{formatNumber(naverTotal.impressions)}</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{formatNumber(naverTotal.clicks)}</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{naverTotal.ctr.toFixed(2)}%</div>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">
                     {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(naverTotal.cpc)}
                   </div>
                 </td>
                 {videoViews > 0 && (
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-2 px-2 text-right whitespace-nowrap">
                     <div className="font-medium text-gray-400">-</div>
                   </td>
                 )}
                 {avgWatchTime > 0 && (
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-2 px-2 text-right whitespace-nowrap">
                     <div className="font-medium text-gray-400">-</div>
                   </td>
                 )}

@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   X,
   Plus,
-  ChevronDown,
   RefreshCw,
   Ban,
   CheckCircle2,
@@ -825,20 +824,18 @@ function LeadTable({
 
                 {/* 액션 */}
                 <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
+                  <div className="flex items-center justify-center gap-1.5">
                     <button
                       onClick={() => onDetail(lead)}
-                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                      title="상세보기"
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-blue-600 hover:bg-blue-50 transition-colors bg-white"
                     >
-                      <ChevronDown className="w-4 h-4" />
+                      상세
                     </button>
                     <button
                       onClick={() => onBlacklist(lead.id, !lead.blacklisted)}
-                      className={`p-1 transition-colors ${lead.blacklisted ? 'text-red-500 hover:text-gray-400' : 'text-gray-400 hover:text-red-500'}`}
-                      title={lead.blacklisted ? '블랙리스트 해제' : '블랙리스트 등록'}
+                      className={`text-xs border rounded-lg px-2 py-1 transition-colors ${lead.blacklisted ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' : 'border-gray-200 text-gray-500 bg-white hover:bg-red-50 hover:text-red-600'}`}
                     >
-                      <Ban className="w-4 h-4" />
+                      블랙
                     </button>
                   </div>
                 </td>

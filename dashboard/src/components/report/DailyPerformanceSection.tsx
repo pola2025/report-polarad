@@ -14,6 +14,7 @@ interface DailyData {
 interface DailyPerformanceSectionProps {
   daily: DailyData[]
   usdToKrw?: number
+  metricType?: 'video' | 'lead'
 }
 
 // 요일 변환
@@ -29,7 +30,8 @@ function formatDate(dateStr: string): string {
   return `${date.getMonth() + 1}/${date.getDate().toString().padStart(2, '0')}`
 }
 
-export function DailyPerformanceSection({ daily, usdToKrw = 1500 }: DailyPerformanceSectionProps) {
+export function DailyPerformanceSection({ daily, usdToKrw = 1500, metricType = 'lead' }: DailyPerformanceSectionProps) {
+  const showLeads = metricType !== 'video'
   if (daily.length === 0) return null
 
   // 일별 CTR 계산
@@ -122,10 +124,12 @@ export function DailyPerformanceSection({ daily, usdToKrw = 1500 }: DailyPerform
                   <p className="text-[10px] text-gray-400 leading-none mb-0.5">CTR</p>
                   <p className={`text-xs font-semibold ${day.ctr >= avgCtr ? 'text-green-600' : 'text-amber-600'}`}>{day.ctr.toFixed(2)}%</p>
                 </div>
+                {showLeads && (
                 <div className="bg-white rounded px-2 py-1.5">
                   <p className="text-[10px] text-gray-400 leading-none mb-0.5">전환</p>
                   <p className="text-xs font-semibold text-gray-700">{formatNumber(day.leads)}</p>
                 </div>
+                )}
               </div>
             </div>
           )

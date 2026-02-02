@@ -167,7 +167,7 @@ export default function WeeklyReportPage() {
 
         {/* 일별 성과 추이 섹션 */}
         {meta.daily.length > 0 && (
-          <DailyPerformanceSection daily={meta.daily} usdToKrw={1} />
+          <DailyPerformanceSection daily={meta.daily} usdToKrw={1} metricType={report.client?.meta_metric_type} />
         )}
 
         {/* Meta 캠페인 섹션 */}
@@ -227,7 +227,7 @@ export default function WeeklyReportPage() {
               keywords: naver.keywords,
             },
             clientName: report.client?.client_name,
-            metricType: meta.videoViews && meta.videoViews > 0 ? 'video' : 'lead',
+            metricType: report.client?.meta_metric_type === 'video' ? 'video' : 'lead',
           }}
         />
 

@@ -178,25 +178,22 @@ function DashboardContent() {
     }
   }, [])
 
-  // 초기화: 세션 확인
+  // 초기화: 세션 확인 (항상 관리자 인증 체크)
   useEffect(() => {
     if (clientSlugFromUrl) {
-      // URL에 클라이언트 슬러그가 있으면 바로 로딩
       setLoading(true)
-      setIsAuthenticated(false)
-    } else {
-      // 관리자 모드: 세션 확인 (쿠키 자동 전송)
-      fetch('/api/auth/admin/verify')
-        .then(res => {
-          if (res.ok) {
-            setIsAuthenticated(true)
-            return fetchClients()
-          }
-          setIsAuthenticated(false)
-          return false
-        })
-        .catch(() => setIsAuthenticated(false))
     }
+    // 관리자 인증은 항상 체크 (URL 파라미터 여부와 무관)
+    fetch('/api/auth/admin/verify')
+      .then(res => {
+        if (res.ok) {
+          setIsAuthenticated(true)
+          return fetchClients()
+        }
+        setIsAuthenticated(false)
+        return false
+      })
+      .catch(() => setIsAuthenticated(false))
   }, [clientSlugFromUrl, fetchClients])
 
   // 클라이언트 정보 조회
@@ -499,13 +496,19 @@ function DashboardContent() {
     return (
       <>
         {/* 관리자 브레드크럼 */}
-        {isAdminView && (
+        {isAuthenticated && (
           <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <button
-                    onClick={() => setSelectedClientSlug('')}
+                    onClick={() => {
+                      if (clientSlugFromUrl) {
+                        router.push('/')
+                      } else {
+                        setSelectedClientSlug('')
+                      }
+                    }}
                     className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1 transition-colors"
                   >
                     <span>←</span>
@@ -522,7 +525,7 @@ function DashboardContent() {
         <BasDashboardView
           clientSlug="bas"
           clientName={clientInfo.name}
-          isAdmin={isAdminView}
+          isAdmin={isAuthenticated === true}
           dateRange={dateRange}
         />
       </>
@@ -555,19 +558,23 @@ function DashboardContent() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              {isAdminView && (
+              {isAuthenticated && (
                 <button
                   onClick={() => {
-                    setSelectedClientSlug('')
-                    setData(null)
-                    setActiveTab('summary')
+                    if (clientSlugFromUrl) {
+                      router.push('/')
+                    } else {
+                      setSelectedClientSlug('')
+                      setData(null)
+                      setActiveTab('summary')
+                    }
                   }}
                   className="text-xs text-white/80 hover:text-white underline whitespace-nowrap"
                 >
                   클라이언트 변경
                 </button>
               )}
-              <div className={isAdminView ? '' : 'ml-auto'}>
+              <div className={isAuthenticated ? '' : 'ml-auto'}>
                 <DateRangePicker
                   startDate={dateRange.start}
                   endDate={dateRange.end}
@@ -593,12 +600,16 @@ function DashboardContent() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {isAdminView && (
+              {isAuthenticated && (
                 <button
                   onClick={() => {
-                    setSelectedClientSlug('')
-                    setData(null)
-                    setActiveTab('summary')
+                    if (clientSlugFromUrl) {
+                      router.push('/')
+                    } else {
+                      setSelectedClientSlug('')
+                      setData(null)
+                      setActiveTab('summary')
+                    }
                   }}
                   className="text-sm text-white/80 hover:text-white underline"
                 >
@@ -1803,7 +1814,7 @@ function DashboardContent() {
 
             {/* 리포트 탭 */}
             {activeTab === 'reports' && showTabs && (
-              <ReportList clientSlug={clientSlug} isAdmin={isAdminView} />
+              <ReportList clientSlug={clientSlug} isAdmin={isAuthenticated === true} />
             )}
           </>
         ) : null}

@@ -14,6 +14,7 @@ interface DailyData {
 interface WeekdayHeatmapProps {
   daily: DailyData[]
   usdToKrw?: number
+  metricType?: 'video' | 'lead'
 }
 
 // 요일 인덱스 (0=일요일 ~ 6=토요일)
@@ -43,7 +44,8 @@ function getHeatClass(level: number): string {
   return classes[level] || classes[0]
 }
 
-export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) {
+export function WeekdayHeatmap({ daily, usdToKrw = 1500, metricType = 'lead' }: WeekdayHeatmapProps) {
+  const showLeads = metricType !== 'video'
   if (daily.length === 0) return null
 
   const weekDays = [
@@ -178,7 +180,8 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
                 </td>
               ))}
             </tr>
-            {/* 리드 행 */}
+            {/* 리드 행 - video 타입이면 숨김 */}
+            {showLeads && (
             <tr>
               <td className="py-2 px-2 md:px-3 text-xs md:text-sm font-medium text-gray-600">리드</td>
               {weekdayData.map((data, i) => (
@@ -193,6 +196,7 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
                 </td>
               ))}
             </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -221,33 +225,60 @@ export function WeekdayHeatmap({ daily, usdToKrw = 1500 }: WeekdayHeatmapProps) 
       <div className="rounded-lg p-3 md:p-4 mt-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
         <p className="text-gray-700 text-xs md:text-sm font-medium mb-2">💡 인사이트:</p>
         <ul className="text-xs md:text-sm text-gray-600 mt-2 space-y-2 pl-4 md:pl-6 list-disc">
-          <li>
-            <span>최고 리드 요일: <strong>{weekDays[bestLeadIndex].name}</strong></span>
-            <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
-              리드 {leadValues[bestLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 +${(((leadValues[bestLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
-            </span>
-          </li>
-          <li>
-            <span>최저 리드 요일: <strong>{weekDays[worstLeadIndex].name}</strong></span>
-            <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
-              리드 {leadValues[worstLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 ${(((leadValues[worstLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
-            </span>
-          </li>
-          <li>
-            <span>평일 평균 리드: <strong>{weekdayAvg.leads.toFixed(1)}건</strong> / 주말: <strong>{weekendAvg.leads.toFixed(1)}건</strong></span>
-            {weekendAvg.leads > weekdayAvg.leads ? (
-              <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {weekdayAvg.leads > 0 ? ((weekendAvg.leads - weekdayAvg.leads) / weekdayAvg.leads * 100).toFixed(0) : 0}% 높음</span>
-            ) : (
-              <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {weekendAvg.leads > 0 ? ((weekdayAvg.leads - weekendAvg.leads) / weekendAvg.leads * 100).toFixed(0) : 0}% 높음</span>
-            )}
-          </li>
-          {leadMax > 0 && leadMin < leadMax && (
-            <li>
-              <span><strong>권장:</strong> 저성과 → 고성과 요일 예산 재배분</span>
-              <span className="block text-[11px] text-gray-500 mt-0.5">
-                {weekDays[worstLeadIndex].name}요일 예산을 {weekDays[bestLeadIndex].name}요일로 이동
-              </span>
-            </li>
+          {showLeads ? (
+            <>
+              <li>
+                <span>최고 리드 요일: <strong>{weekDays[bestLeadIndex].name}</strong></span>
+                <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+                  리드 {leadValues[bestLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 +${(((leadValues[bestLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
+                </span>
+              </li>
+              <li>
+                <span>최저 리드 요일: <strong>{weekDays[worstLeadIndex].name}</strong></span>
+                <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+                  리드 {leadValues[worstLeadIndex]}건{avgLeads > 0 ? `, 평균 대비 ${(((leadValues[worstLeadIndex] - avgLeads) / avgLeads) * 100).toFixed(0)}%` : ''}
+                </span>
+              </li>
+              <li>
+                <span>평일 평균 리드: <strong>{weekdayAvg.leads.toFixed(1)}건</strong> / 주말: <strong>{weekendAvg.leads.toFixed(1)}건</strong></span>
+                {weekendAvg.leads > weekdayAvg.leads ? (
+                  <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {weekdayAvg.leads > 0 ? ((weekendAvg.leads - weekdayAvg.leads) / weekdayAvg.leads * 100).toFixed(0) : 0}% 높음</span>
+                ) : (
+                  <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {weekendAvg.leads > 0 ? ((weekdayAvg.leads - weekendAvg.leads) / weekendAvg.leads * 100).toFixed(0) : 0}% 높음</span>
+                )}
+              </li>
+              {leadMax > 0 && leadMin < leadMax && (
+                <li>
+                  <span><strong>권장:</strong> 저성과 → 고성과 요일 예산 재배분</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    {weekDays[worstLeadIndex].name}요일 예산을 {weekDays[bestLeadIndex].name}요일로 이동
+                  </span>
+                </li>
+              )}
+            </>
+          ) : (
+            <>
+              <li>
+                <span>최고 클릭 요일: <strong>{weekDays[clickValues.indexOf(clickMax)].name}</strong></span>
+                <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+                  클릭 {formatValue(clickMax)}건
+                </span>
+              </li>
+              <li>
+                <span>최저 클릭 요일: <strong>{weekDays[clickValues.indexOf(clickMin)].name}</strong></span>
+                <span className="block text-[11px] text-gray-500 mt-0.5 pl-0">
+                  클릭 {formatValue(clickMin)}건
+                </span>
+              </li>
+              <li>
+                <span>평일 평균 클릭: <strong>{formatValue(Math.round(weekdayAvg.clicks))}</strong> / 주말: <strong>{formatValue(Math.round(weekendAvg.clicks))}</strong></span>
+                {weekendAvg.clicks > weekdayAvg.clicks ? (
+                  <span className="block text-[11px] text-orange-600 mt-0.5">→ 주말이 {weekdayAvg.clicks > 0 ? ((weekendAvg.clicks - weekdayAvg.clicks) / weekdayAvg.clicks * 100).toFixed(0) : 0}% 높음</span>
+                ) : (
+                  <span className="block text-[11px] text-blue-600 mt-0.5">→ 평일이 {weekendAvg.clicks > 0 ? ((weekdayAvg.clicks - weekendAvg.clicks) / weekendAvg.clicks * 100).toFixed(0) : 0}% 높음</span>
+                )}
+              </li>
+            </>
           )}
         </ul>
       </div>
