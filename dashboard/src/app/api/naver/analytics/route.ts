@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
     const rawData = airtableData
       .filter(record => {
         const kw = (record.keywords || '').toLowerCase()
-        // total, 총계, 합계 키워드 제외 (백필 시 키워드 없이 저장된 중복 데이터)
-        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '') return false
+        // total, 총계, 합계, 시스템 레코드 제외
+        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '' || kw === '_campaign_override_' || kw === '_unattributed_') return false
         return true
       })
       .map(record => ({
@@ -338,8 +338,9 @@ export async function GET(request: NextRequest) {
           : 0
     }
 
-    // 키워드별 CTR, CPC, 평균 순위 계산
+    // 키워드별 CTR, CPC, 평균 순위 계산 (_unattributed_ 보정 레코드는 키워드 목록에서 제외)
     const keywords: NaverKeywordData[] = Array.from(keywordMap.values())
+      .filter((k) => k.keyword !== '_unattributed_')
       .map((k) => ({
         ...k,
         ctr: k.impressions > 0 ? Math.round((k.clicks / k.impressions) * 10000) / 100 : 0,

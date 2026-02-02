@@ -13,6 +13,7 @@ import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
 import { BrandSearchTable } from '@/components/naver/BrandSearchTable'
+import NaverCampaignOverride from '@/components/naver/NaverCampaignOverride'
 import { MetaPeriodTable, MetaAdTable } from '@/components/meta'
 import { ReportList } from '@/components/report/ReportList'
 import type { NaverPeriodDataResponse } from '@/types/naver-analytics'
@@ -1639,6 +1640,23 @@ function DashboardContent() {
                         </Card>
                       </div>
                     </div>
+
+                    {/* 캠페인 실제 합계 입력 (place 타입만) */}
+                    {naverData?.summary && (() => {
+                      const overrideMonth = naverData.summary.date_range?.end?.substring(0, 7) || ''
+                      const monthData = naverData.monthly?.find((m: { month: string }) => m.month === overrideMonth)
+                      return (
+                        <NaverCampaignOverride
+                          csvTotals={{
+                            impressions: monthData?.impressions || 0,
+                            clicks: monthData?.clicks || 0,
+                            spend: monthData?.total_cost || 0,
+                          }}
+                          month={overrideMonth}
+                          clientSlug={clientSlug}
+                        />
+                      )
+                    })()}
 
                     {/* 선택 기간 KPI - 모바일: 2x4, 데스크톱: 4열 */}
                     <div>

@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     const rawData = airtableData
       .filter(record => {
         const kw = (record.keywords || '').toLowerCase()
-        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '') return false
+        if (kw === 'total' || kw === '총계' || kw === '합계' || kw === '' || kw === '_unattributed_') return false
         return true
       })
       .map(record => ({
