@@ -45,7 +45,7 @@ function mapRecordToLead(record: any): BasLead {
     phone: f['연락처'] || f['phone'] || f['Phone'] || '',
     email: f['이메일'] || f['email'] || f['Email'] || '',
     message: f['문의내용'] || f['message'] || '',
-    created_at: f['접수일시'] || f['접수일'] || record.createdTime || '',
+    created_at: f['접수일'] || record.createdTime || '',
     // 관리 필드
     status: f['status'] || '접수',
     assigned_staff: f['assigned_staff'] || '',
@@ -122,7 +122,7 @@ export async function fetchBasLeads(options: FetchLeadsOptions = {}): Promise<{
   do {
     const params = new URLSearchParams()
     if (formula) params.set('filterByFormula', formula)
-    params.set('sort[0][field]', '접수일시')
+    params.set('sort[0][field]', '접수일')
     params.set('sort[0][direction]', sort === 'newest' ? 'desc' : 'asc')
     if (offset) params.set('offset', offset)
     params.set('pageSize', '100')
@@ -499,8 +499,7 @@ export async function createBasLead(fields: {
         '연락처': fields.phone,
         '이메일': fields.email || '',
         '문의내용': fields.message || '',
-        '접수일': submittedDate,
-        '접수일시': submittedAt,
+        '접수일': submittedAt,
         status: '접수',
         submission_count: 1,
         first_submission_date: submittedDate,

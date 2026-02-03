@@ -99,6 +99,9 @@ interface MetaInsightRow {
 // 광고 레벨 백필이 필요한 클라이언트 (ad_id 저장)
 const AD_LEVEL_CLIENTS = ['비즈액터스쿨']
 
+// USD 그대로 저장하는 클라이언트 (환율 변환 안 함)
+const USD_RAW_CLIENTS = ['비즈액터스쿨']
+
 // Airtable 레코드 타입
 interface AirtableRecord {
   id: string
@@ -278,7 +281,8 @@ async function batchCreateRecords(
     )
     const data = await response.json()
     if (data.error) {
-      throw new Error(`Airtable 배치 생성 오류: ${data.error.message}`)
+      const errMsg = typeof data.error === 'string' ? data.error : (data.error?.message || JSON.stringify(data.error))
+      throw new Error(`Airtable 배치 생성 오류: ${errMsg}`)
     }
     created += batch.length
   }
@@ -308,7 +312,8 @@ async function batchUpdateRecords(
     )
     const data = await response.json()
     if (data.error) {
-      throw new Error(`Airtable 배치 업데이트 오류: ${data.error.message}`)
+      const errMsg = typeof data.error === 'string' ? data.error : (data.error?.message || JSON.stringify(data.error))
+      throw new Error(`Airtable 배치 업데이트 오류: ${errMsg}`)
     }
     updated += batch.length
   }
@@ -332,9 +337,12 @@ async function backfillClient(
 
   // Phase 0: 광고 계정 currency 확인
   const currency = await getAccountCurrency(accessToken, adAccountId)
-  const exchangeRate = currency === 'USD' ? USD_TO_KRW : 1
-  if (currency === 'USD') {
+  const isUsdRaw = USD_RAW_CLIENTS.includes(clientName)
+  const exchangeRate = (currency === 'USD' && !isUsdRaw) ? USD_TO_KRW : 1
+  if (currency === 'USD' && !isUsdRaw) {
     console.log(`   💱 ${clientName}: USD 계정 - 환율 ${USD_TO_KRW} 적용`)
+  } else if (currency === 'USD' && isUsdRaw) {
+    console.log(`   💵 ${clientName}: USD 계정 - USD 그대로 저장`)
   }
 
   // Phase 1: Meta API 호출
@@ -361,7 +369,9 @@ async function backfillClient(
       device,
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
-      spend: Math.round((parseFloat(row.spend) || 0) * exchangeRate),
+      spend: isUsdRaw
+        ? Math.round((parseFloat(row.spend) || 0) * 100) / 100
+        : Math.round((parseFloat(row.spend) || 0) * exchangeRate),
       source,
     }
 
@@ -427,13 +437,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // 날짜 계산 (어제~오늘)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
+  // 날짜 계산 (쿼리 파라미터 또는 어제~오늘)
+  const url = new URL(request.url)
+  const qStart = url.searchParams.get('startDate')
+  const qEnd = url.searchParams.get('endDate')
 
-  const startDate = yesterday.toISOString().split('T')[0]
-  const endDate = today.toISOString().split('T')[0]
+  let startDate: string
+  let endDate: string
+  if (qStart && qEnd) {
+    startDate = qStart
+    endDate = qEnd
+  } else {
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    startDate = yesterday.toISOString().split('T')[0]
+    endDate = today.toISOString().split('T')[0]
+  }
 
   console.log(`🔄 Cron 백필 시작: ${startDate} ~ ${endDate}`)
 

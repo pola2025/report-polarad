@@ -202,12 +202,18 @@ async function getAccountCurrency(accessToken, adAccountId) {
   return data.currency || 'KRW';
 }
 
+// USD 그대로 저장하는 클라이언트
+const USD_RAW_CLIENTS = ['비즈액터스쿨'];
+
 // Meta 데이터를 Airtable 형식으로 변환
-function transformMetaData(rawData, includeLeads = true, currency = 'KRW') {
-  // USD인 경우 환율 적용
-  const exchangeRate = currency === 'USD' ? USD_TO_KRW : 1;
-  if (currency === 'USD') {
+function transformMetaData(rawData, includeLeads = true, currency = 'KRW', clientName = '') {
+  // BAS는 USD 그대로 저장
+  const isUsdRaw = USD_RAW_CLIENTS.includes(clientName);
+  const exchangeRate = (currency === 'USD' && !isUsdRaw) ? USD_TO_KRW : 1;
+  if (currency === 'USD' && !isUsdRaw) {
     console.log(`   💱 환율 적용: 1 USD = ${USD_TO_KRW} KRW`);
+  } else if (currency === 'USD' && isUsdRaw) {
+    console.log(`   💵 USD 그대로 저장 (${clientName})`);
   }
 
   return rawData.map(row => {
@@ -215,16 +221,18 @@ function transformMetaData(rawData, includeLeads = true, currency = 'KRW') {
     const videoViews = row.video_p100_watched_actions?.[0]?.value || 0;
     const avgWatchTime = row.video_avg_time_watched_actions?.[0]?.value || 0;
 
-    // spend 환산 (USD → KRW)
+    // spend 계산
     const spendUsd = parseFloat(row.spend) || 0;
-    const spendKrw = Math.round(spendUsd * exchangeRate);
+    const spendFinal = isUsdRaw
+      ? Math.round(spendUsd * 100) / 100
+      : Math.round(spendUsd * exchangeRate);
 
     const record = {
       date: row.date_start,
       device: row.device_platform?.toLowerCase() || 'unknown',
       impressions: parseInt(row.impressions) || 0,
       clicks: parseInt(row.clicks) || 0,
-      spend: spendKrw,
+      spend: spendFinal,
       source: 'meta',
       campaign_name: row.campaign_name || '',
       keywords: '',
@@ -274,7 +282,7 @@ async function backfillClient(client, startDate, endDate) {
 
     // 데이터 변환 (H.E.A 판교는 식당이라 leads 제외)
     const includeLeads = client.client_name !== 'H.E.A 판교';
-    const records = transformMetaData(rawData, includeLeads, currency);
+    const records = transformMetaData(rawData, includeLeads, currency, client.client_name);
 
     // Airtable에 upsert
     const result = await upsertToAirtable(

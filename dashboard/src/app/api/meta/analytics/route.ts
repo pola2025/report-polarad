@@ -18,11 +18,13 @@ import type {
   MetaAdData,
 } from '@/types/meta-analytics'
 
-// 주차 계산 (월요일 시작)
+// 주차 계산 (월요일 시작, 일요일은 앞 주에 포함)
 function getWeekLabel(dateStr: string): string {
   const date = new Date(dateStr)
-  const jan1 = new Date(date.getFullYear(), 0, 1)
-  const days = Math.floor((date.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000))
+  const adjusted = new Date(date.getTime())
+  if (adjusted.getDay() === 0) adjusted.setDate(adjusted.getDate() - 1)
+  const jan1 = new Date(adjusted.getFullYear(), 0, 1)
+  const days = Math.floor((adjusted.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000))
   const weekNum = Math.ceil((days + jan1.getDay() + 1) / 7)
   return `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
 }

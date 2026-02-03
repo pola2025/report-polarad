@@ -133,9 +133,11 @@ export function BasPerformanceHeatmap({ daily }: BasPerformanceHeatmapProps) {
       // 월~일 인덱스로 변환 (월=0, 화=1, ..., 일=6)
       const dayIdx = jsDay === 0 ? 6 : jsDay - 1
 
-      // ISO 주차 계산
-      const startOfYear = new Date(date.getFullYear(), 0, 1)
-      const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+      // 월요일 기준 주차 계산 (일요일은 앞 주에 포함)
+      const adjusted = new Date(date.getTime())
+      if (adjusted.getDay() === 0) adjusted.setDate(adjusted.getDate() - 1)
+      const startOfYear = new Date(adjusted.getFullYear(), 0, 1)
+      const dayOfYear = Math.floor((adjusted.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
       const weekNum = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7)
       const weekKey = `W${weekNum}`
 
