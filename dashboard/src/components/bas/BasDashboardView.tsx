@@ -52,6 +52,8 @@ import { BasPerformanceHeatmap } from './BasPerformanceHeatmap'
 import { BasAdBubbleMap } from './BasAdBubbleMap'
 import { BasAdRadarChart } from './BasAdRadarChart'
 import { BasAdEfficiencyReport } from './BasAdEfficiencyReport'
+import { BasAdjustmentManager } from './BasAdjustmentManager'
+import type { AdAdjustment } from '@/types/ad-adjustments'
 
 // BAS API
 import {
@@ -1059,7 +1061,6 @@ function AdsManagementSection({ clientSlug }: { clientSlug: string }) {
 export function BasDashboardView({
   clientSlug,
   clientName,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isAdmin,
   dateRange,
 }: BasDashboardViewProps) {
@@ -1079,6 +1080,7 @@ export function BasDashboardView({
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl)
   const [adsViewMode, setAdsViewMode] = useState<AdsViewMode>(viewFromUrl)
+  const [adjustments, setAdjustments] = useState<AdAdjustment[]>([])
 
   // URL 탭 변경 시 activeTab 동기화
   useEffect(() => {
@@ -1165,9 +1167,24 @@ export function BasDashboardView({
     }
   }, [clientSlug, startDate, endDate, compareMode])
 
+  // 광고조정일 조회
+  const loadAdjustments = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ clientSlug, startDate, endDate })
+      const res = await fetch(`/api/ad-adjustments?${params}`)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.success) setAdjustments(json.data)
+      }
+    } catch {
+      // 조정일 로드 실패 시 무시
+    }
+  }, [clientSlug, startDate, endDate])
+
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadAdjustments()
+  }, [loadData, loadAdjustments])
 
   // 탭 변경 핸들러 (URL 동기화)
   const handleTabChange = (tab: TabId) => {
@@ -1374,6 +1391,28 @@ export function BasDashboardView({
                 {/* BAS 필터 바 */}
                 <BasFilterBar compareMode={compareMode} />
 
+                {/* 광고조정일 관리 */}
+                {isAdmin ? (
+                  <BasAdjustmentManager
+                    clientSlug={clientSlug}
+                    adjustments={adjustments}
+                    onAdded={loadAdjustments}
+                    onDeleted={loadAdjustments}
+                  />
+                ) : adjustments.length > 0 ? (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {adjustments.map((adj) => {
+                      const cfg = { budget_change: { color: '#8B5CF6', label: '예산 변경', bg: 'bg-violet-100', text: 'text-violet-700' }, creative_swap: { color: '#3B82F6', label: '소재 교체', bg: 'bg-blue-100', text: 'text-blue-700' }, targeting_change: { color: '#F59E0B', label: '타겟 변경', bg: 'bg-amber-100', text: 'text-amber-700' }, campaign_on_off: { color: '#EF4444', label: '캠페인 ON/OFF', bg: 'bg-red-100', text: 'text-red-700' }, other: { color: '#6B7280', label: '기타', bg: 'bg-gray-100', text: 'text-gray-700' } }[adj.type] || { color: '#6B7280', label: '기타', bg: 'bg-gray-100', text: 'text-gray-700' }
+                      return (
+                        <span key={adj.id} className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full ${cfg.bg} ${cfg.text}`} title={`${adj.date}: ${cfg.label} - ${adj.description}`}>
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.color }} />
+                          {adj.date.slice(5)} {cfg.label}
+                        </span>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
                 {/* 경영 요약 */}
                 <BasExecutiveSummary
                   highlights={executiveSummary.highlights}
@@ -1399,6 +1438,7 @@ export function BasDashboardView({
                       spend: d.spend,
                       clicks: d.clicks,
                     }))}
+                    adjustments={adjustments}
                   />
                 )}
 
@@ -1486,8 +1526,8 @@ export function BasDashboardView({
 
                 {/* 차트 영역 + 히트맵 (Phase 2) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <BasTrendChart data={daily} />
-                  <BasPerformanceHeatmap daily={daily} />
+                  <BasTrendChart data={daily} adjustments={adjustments} />
+                  <BasPerformanceHeatmap daily={daily} adjustments={adjustments} />
                 </div>
 
                 {/* 플랫폼 비교 */}
