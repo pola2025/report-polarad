@@ -10,6 +10,8 @@ import type {
   MetaAdData,
 } from '@/types/meta-analytics'
 import type { BasDashboardData } from '@/types/bas-analytics'
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
 
 /**
  * BAS 대시보드 전체 데이터를 로드
@@ -163,24 +165,25 @@ export function generateExecutiveSummary(
 export function generateAIInsightItems(
   summary: MetaKPISummary,
   daily: MetaDailyData[],
-  ads: MetaAdData[]
+  ads: MetaAdData[],
+  adjustments: AdAdjustment[] = []
 ): {
   summaryItems: Array<{ icon: string; text: string; type: 'success' | 'warning' | 'info' }>
   actionItems: Array<{ title: string; description: string }>
 } {
-  const summaryItems = [
+  const summaryItems: Array<{ icon: string; text: string; type: 'success' | 'warning' | 'info' }> = [
     {
       icon: '\u2713',
       text:
         summary.avg_cpl < 25
           ? `리드당 가격 $${Math.round(summary.avg_cpl).toLocaleString()}으로 효율적 운영 중`
           : `리드당 가격 $${Math.round(summary.avg_cpl).toLocaleString()} - 최적화 검토 필요`,
-      type: (summary.avg_cpl < 25 ? 'success' : 'warning') as 'success' | 'warning',
+      type: summary.avg_cpl < 25 ? 'success' : 'warning',
     },
     {
       icon: '\u2713',
       text: `총 ${summary.total_leads}건 리드 확보`,
-      type: 'success' as const,
+      type: 'success',
     },
     {
       icon: '!',
@@ -194,27 +197,104 @@ export function generateAIInsightItems(
         daily.length > 0 &&
         Math.max(...daily.map((d) => d.leads)) >
           Math.min(...daily.filter((d) => d.leads > 0).map((d) => d.leads)) * 2
-          ? ('warning' as const)
-          : ('success' as const),
+          ? 'warning'
+          : 'success',
     },
   ]
+
+  // 광고조정일 전후 데이터 변화 분석
+  if (adjustments.length > 0 && daily.length >= 4) {
+    const sortedDaily = [...daily].sort((a, b) => a.date.localeCompare(b.date))
+
+    for (const adj of adjustments) {
+      const adjDate = adj.date
+      const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+      const beforeDays = sortedDaily.filter((d) => d.date < adjDate).slice(-3)
+      const afterDays = sortedDaily.filter((d) => d.date > adjDate).slice(0, 3)
+
+      if (beforeDays.length < 2 || afterDays.length < 2) continue
+
+      const avgBefore = {
+        leads: beforeDays.reduce((s, d) => s + d.leads, 0) / beforeDays.length,
+        spend: beforeDays.reduce((s, d) => s + d.spend, 0) / beforeDays.length,
+        cpl: 0,
+      }
+      avgBefore.cpl = avgBefore.leads > 0 ? avgBefore.spend / avgBefore.leads : 0
+
+      const avgAfter = {
+        leads: afterDays.reduce((s, d) => s + d.leads, 0) / afterDays.length,
+        spend: afterDays.reduce((s, d) => s + d.spend, 0) / afterDays.length,
+        cpl: 0,
+      }
+      avgAfter.cpl = avgAfter.leads > 0 ? avgAfter.spend / avgAfter.leads : 0
+
+      const dateShort = adjDate.slice(5) // MM-DD
+      const parts: string[] = []
+
+      // 리드 변화
+      if (avgBefore.leads > 0) {
+        const leadChange = ((avgAfter.leads - avgBefore.leads) / avgBefore.leads) * 100
+        if (Math.abs(leadChange) >= 15) {
+          parts.push(`리드 ${leadChange > 0 ? '+' : ''}${Math.round(leadChange)}%`)
+        }
+      } else if (avgAfter.leads > 0) {
+        parts.push(`리드 ${avgAfter.leads.toFixed(1)}건/일 발생`)
+      }
+
+      // CPL 변화
+      if (avgBefore.cpl > 0 && avgAfter.cpl > 0) {
+        const cplChange = ((avgAfter.cpl - avgBefore.cpl) / avgBefore.cpl) * 100
+        if (Math.abs(cplChange) >= 10) {
+          parts.push(`CPL ${cplChange > 0 ? '+' : ''}${Math.round(cplChange)}%`)
+        }
+      }
+
+      // 지출 변화
+      if (avgBefore.spend > 0) {
+        const spendChange = ((avgAfter.spend - avgBefore.spend) / avgBefore.spend) * 100
+        if (Math.abs(spendChange) >= 20) {
+          parts.push(`지출 ${spendChange > 0 ? '+' : ''}${Math.round(spendChange)}%`)
+        }
+      }
+
+      if (parts.length > 0) {
+        const changeText = parts.join(', ')
+        // 리드 증가 or CPL 감소 = 긍정적
+        const leadUp = avgAfter.leads > avgBefore.leads
+        const cplDown = avgAfter.cpl < avgBefore.cpl && avgAfter.cpl > 0
+        const isPositive = leadUp || cplDown
+
+        summaryItems.push({
+          icon: isPositive ? '\u2191' : '\u2193',
+          text: `${dateShort} ${cfg.label} 이후: ${changeText}`,
+          type: isPositive ? 'success' : 'warning',
+        })
+      } else {
+        summaryItems.push({
+          icon: '\u2192',
+          text: `${dateShort} ${cfg.label} 이후: 유의미한 변화 미감지 (안정 유지)`,
+          type: 'info',
+        })
+      }
+    }
+  }
 
   const topAd = ads.length > 0 ? ads.reduce((top, ad) => (ad.leads > top.leads ? ad : top), ads[0]) : null
 
   const actionItems = [
     {
-      title: summary.avg_cpl > 30 ? '\ud0c0\uac9f\ud305 \uc7ac\uac80\ud1a0' : '\ud604 \uc804\ub7b5 \uc720\uc9c0',
-      description: summary.avg_cpl > 30 ? '\uc608\uc0c1 \ub9ac\ub4dc\ub2f9 \uac00\uaca9 \uac1c\uc120: 10~15%' : '\uc548\uc815\uc801 \uc131\uacfc \uc9c0\uc18d',
+      title: summary.avg_cpl > 30 ? '타겟팅 재검토' : '현 전략 유지',
+      description: summary.avg_cpl > 30 ? '예상 리드당 가격 개선: 10~15%' : '안정적 성과 지속',
     },
     {
       title:
         topAd && topAd.leads > summary.total_leads * 0.3
-          ? '\uc8fc\ub825 \uad11\uace0 \uc608\uc0b0 \uc99d\uc561'
-          : '\uc2e0\uaddc \uc18c\uc7ac \ud14c\uc2a4\ud2b8',
+          ? '주력 광고 예산 증액'
+          : '신규 소재 테스트',
       description:
         topAd && topAd.leads > summary.total_leads * 0.3
-          ? '\uc608\uc0c1 \ucd94\uac00 \ub9ac\ub4dc: +20%'
-          : '\ub2e4\uc591\ud55c \uba54\uc2dc\uc9c0 \uc2e4\ud5d8',
+          ? '예상 추가 리드: +20%'
+          : '다양한 메시지 실험',
     },
   ]
 

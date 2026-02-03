@@ -1296,7 +1296,7 @@ export function BasDashboardView({
 
   // 경영 요약
   const executiveSummary = generateExecutiveSummary(summary, daily, ads)
-  const aiInsight = generateAIInsightItems(summary, daily, ads)
+  const aiInsight = generateAIInsightItems(summary, daily, ads, adjustments)
 
   return (
     <div className="min-h-screen bg-neutral-50">
