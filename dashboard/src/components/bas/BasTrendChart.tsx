@@ -124,7 +124,7 @@ export function BasTrendChart({ data, adjustments = [] }: BasTrendChartProps) {
       {/* 차트 */}
       <div className="-mx-2 sm:mx-0">
         <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 24, right: 0, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="basLeadGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
@@ -145,7 +145,7 @@ export function BasTrendChart({ data, adjustments = [] }: BasTrendChartProps) {
             <YAxis yAxisId="ctr" orientation="right" stroke="#06B6D4" fontSize={11} tickLine={false} axisLine={false} hide={true} />
 
             <Tooltip content={<CustomTooltip />} />
-            <Legend verticalAlign="top" height={36} iconType="circle" formatter={(value: string) => <span className="text-sm text-gray-600">{value}</span>} />
+            <Legend verticalAlign="bottom" height={36} iconType="circle" formatter={(value: string) => <span className="text-sm text-gray-600">{value}</span>} />
 
             {metrics.includes('leads') && (
               <Bar yAxisId="leads" dataKey="leads" fill="#3B82F6" radius={[4, 4, 0, 0]} name="리드수" barSize={period === '30d' ? 8 : period === '14d' ? 16 : 24} />
