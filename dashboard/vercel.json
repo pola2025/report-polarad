@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/backfill",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/lead-sync",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
