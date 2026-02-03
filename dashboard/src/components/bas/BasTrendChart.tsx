@@ -12,19 +12,23 @@ import {
   Legend,
   ResponsiveContainer,
   Area,
+  ReferenceLine,
 } from 'recharts'
 import type { MetaDailyData } from '@/types/meta-analytics'
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 interface BasTrendChartProps {
   data: MetaDailyData[]
+  adjustments?: AdAdjustment[]
 }
 
 type PeriodOption = '7d' | '14d' | '30d'
 type MetricKey = 'leads' | 'spend' | 'cpl' | 'impressions' | 'ctr'
 
-export function BasTrendChart({ data }: BasTrendChartProps) {
+export function BasTrendChart({ data, adjustments = [] }: BasTrendChartProps) {
   const [period, setPeriod] = useState<PeriodOption>('7d')
   const [metrics, setMetrics] = useState<MetricKey[]>(['leads', 'spend', 'cpl'])
 
@@ -158,6 +162,35 @@ export function BasTrendChart({ data }: BasTrendChartProps) {
             {metrics.includes('ctr') && (
               <Line yAxisId="ctr" type="monotone" dataKey="ctr" stroke="#06B6D4" strokeWidth={2} name="CTR" dot={{ fill: '#06B6D4', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }} />
             )}
+
+            {/* 광고조정일 마커 */}
+            {adjustments.map((adj) => {
+              const dateLabel = format(new Date(adj.date), 'MM/dd', { locale: ko })
+              const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+              const isInRange = chartData.some((d) => d.dateLabel === dateLabel)
+              if (!isInRange) return null
+              return (
+                <ReferenceLine
+                  key={adj.id}
+                  x={dateLabel}
+                  yAxisId="leads"
+                  stroke={cfg.color}
+                  strokeDasharray="4 3"
+                  strokeWidth={2}
+                  label={({ viewBox }) => {
+                    const { x } = viewBox as { x: number }
+                    return (
+                      <g>
+                        <rect x={x - 22} y={0} width={44} height={18} rx={9} fill={cfg.color} />
+                        <text x={x} y={13} textAnchor="middle" fill="#fff" fontSize={10} fontWeight={700}>
+                          {cfg.shortLabel}
+                        </text>
+                      </g>
+                    )
+                  }}
+                />
+              )
+            })}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

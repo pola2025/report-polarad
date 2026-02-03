@@ -1,5 +1,8 @@
 'use client'
 
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
+
 interface DailyData {
   date: string
   leads: number
@@ -10,9 +13,10 @@ interface DailyData {
 
 interface BasDailyCardsProps {
   data: DailyData[]
+  adjustments?: AdAdjustment[]
 }
 
-export function BasDailyCards({ data }: BasDailyCardsProps) {
+export function BasDailyCards({ data, adjustments = [] }: BasDailyCardsProps) {
   // 최근 7일만 표시
   const recentData = data.slice(-7)
 
@@ -39,17 +43,40 @@ export function BasDailyCards({ data }: BasDailyCardsProps) {
           const isMax = day.date === maxLeadsDay.date
           const isMin = day.date === minLeadsDay.date && day.leads > 0
 
+          const dayAdjs = adjustments.filter((a) => a.date === day.date)
+
           return (
             <div
               key={day.date}
-              className={`p-3 rounded-lg border transition-colors ${
+              className={`p-3 rounded-lg border transition-colors relative ${
                 isMax
                   ? 'border-green-300 bg-green-50'
                   : isMin
                     ? 'border-amber-300 bg-amber-50'
-                    : 'border-gray-100 bg-gray-50'
+                    : dayAdjs.length > 0
+                      ? 'border-gray-200 bg-white ring-1 ring-offset-1'
+                      : 'border-gray-100 bg-gray-50'
               }`}
+              style={dayAdjs.length > 0 ? { '--tw-ring-color': ADJUSTMENT_TYPE_CONFIG[dayAdjs[0].type].color + '40' } as React.CSSProperties : undefined}
             >
+              {/* 조정일 뱃지 */}
+              {dayAdjs.length > 0 && (
+                <div className="flex flex-col gap-0.5 mb-1.5">
+                  {dayAdjs.map((adj) => {
+                    const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+                    return (
+                      <span
+                        key={adj.id}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold rounded ${cfg.bgClass} ${cfg.textClass} border ${cfg.borderClass} leading-none`}
+                        title={`${cfg.label}: ${adj.description}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.color }} />
+                        {cfg.shortLabel}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
               <div className="text-xs text-gray-500 mb-1">
                 {day.date.slice(5)}
                 <span className="text-gray-400 ml-0.5">

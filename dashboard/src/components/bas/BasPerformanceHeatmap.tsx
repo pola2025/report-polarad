@@ -4,9 +4,12 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Grid3X3, Info } from 'lucide-react'
 import type { MetaDailyData } from '@/types/meta-analytics'
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
 
 interface BasPerformanceHeatmapProps {
   daily: MetaDailyData[]
+  adjustments?: AdAdjustment[]
 }
 
 type MetricType = 'cpl' | 'leads' | 'ctr' | 'spend'
@@ -110,7 +113,7 @@ const DAY_HEADER_COLORS = [
   'text-red-500',
 ]
 
-export function BasPerformanceHeatmap({ daily }: BasPerformanceHeatmapProps) {
+export function BasPerformanceHeatmap({ daily, adjustments = [] }: BasPerformanceHeatmapProps) {
   const [metric, setMetric] = useState<MetricType>('cpl')
   const [, setHoveredCell] = useState<HeatmapCell | null>(null)
 
@@ -351,6 +354,20 @@ export function BasPerformanceHeatmap({ daily }: BasPerformanceHeatmapProps) {
                   onMouseEnter={() => setHoveredCell(cell)}
                   onMouseLeave={() => setHoveredCell(null)}
                 >
+                  {/* 광고조정일 뱃지 */}
+                  {adjustments.filter((a) => a.date === cell.date).length > 0 && (() => {
+                    const adj = adjustments.find((a) => a.date === cell.date)!
+                    const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+                    return (
+                      <span
+                        className="absolute -top-1 left-1/2 -translate-x-1/2 z-10 px-1.5 lg:px-2 py-0.5 lg:py-1 text-[7px] lg:text-[10px] font-bold rounded-full whitespace-nowrap border border-white shadow-sm"
+                        style={{ backgroundColor: cfg.color, color: '#fff' }}
+                        title={adjustments.filter((a) => a.date === cell.date).map((a) => `${ADJUSTMENT_TYPE_CONFIG[a.type].label}: ${a.description}`).join('\n')}
+                      >
+                        {cfg.shortLabel}
+                      </span>
+                    )
+                  })()}
                   <span className="font-bold text-[8px] lg:text-xs">
                     {config.format(cell.value)}
                   </span>

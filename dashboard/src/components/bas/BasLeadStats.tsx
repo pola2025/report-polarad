@@ -15,6 +15,8 @@ import {
   Calendar,
 } from 'lucide-react'
 import type { BasLeadTrends, CampaignPerformance } from '@/types/bas-leads'
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
 import { BasLeadHeatmap } from './BasLeadHeatmap'
 
 // KST 기준 n일전 날짜
@@ -37,6 +39,7 @@ export function BasLeadStats() {
   const [trends, setTrends] = useState<BasLeadTrends | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCampaigns, setShowCampaigns] = useState(false)
+  const [adjustments, setAdjustments] = useState<AdAdjustment[]>([])
 
   // 날짜 필터 state (로컬 관리, URL params X)
   const [activePreset, setActivePreset] = useState<QuickPreset>('30d')
@@ -48,9 +51,14 @@ export function BasLeadStats() {
   const fetchTrends = useCallback(async (start: string, end: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/bas/leads/trends?startDate=${start}&endDate=${end}`)
-      const data = await res.json()
+      const [tRes, aRes] = await Promise.all([
+        fetch(`/api/bas/leads/trends?startDate=${start}&endDate=${end}`),
+        fetch(`/api/ad-adjustments?clientSlug=bas&startDate=${start}&endDate=${end}`),
+      ])
+      const data = await tRes.json()
       if (!data.error) setTrends(data)
+      const adjData = await aRes.json()
+      if (adjData.success) setAdjustments(adjData.data)
     } catch (e) {
       console.error('Failed to fetch trends:', e)
     } finally {
@@ -201,12 +209,12 @@ export function BasLeadStats() {
           <h3 className="text-sm font-semibold text-gray-900">일별 접수 추이 ({periodLabel})</h3>
           {loading && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
         </div>
-        <DailyChart daily={trends.daily} />
+        <DailyChart daily={trends.daily} adjustments={adjustments} />
       </div>
 
       {/* 리드 히트맵 */}
       {trends.daily_enriched && trends.daily_enriched.length > 0 && (
-        <BasLeadHeatmap daily={trends.daily_enriched} />
+        <BasLeadHeatmap daily={trends.daily_enriched} adjustments={adjustments} />
       )}
 
       {/* 캠페인 성과 */}
@@ -280,7 +288,7 @@ function ChangeCard({
 }
 
 // === 일별 바 차트 (고정 px 높이, 색상 계층화) ===
-function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
+function DailyChart({ daily, adjustments = [] }: { daily: BasLeadTrends['daily']; adjustments?: AdAdjustment[] }) {
   const maxCount = Math.max(...daily.map(d => d.count), 1)
   const CHART_H = 160 // 차트 영역 고정 높이 px
   const BAR_MIN = 20  // 1건 이상일 때 최소 바 높이 px
@@ -340,6 +348,21 @@ function DailyChart({ daily }: { daily: BasLeadTrends['daily'] }) {
                     {d.count}
                   </span>
                 )}
+
+                {/* 조정일 뱃지 */}
+                {adjustments.filter((a) => a.date === d.date).length > 0 && (() => {
+                  const adj = adjustments.find((a) => a.date === d.date)!
+                  const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+                  return (
+                    <span
+                      className="mb-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded whitespace-nowrap leading-none"
+                      style={{ backgroundColor: cfg.color, color: '#fff' }}
+                      title={adjustments.filter((a) => a.date === d.date).map((a) => `${ADJUSTMENT_TYPE_CONFIG[a.type].label}: ${a.description}`).join('\n')}
+                    >
+                      {cfg.shortLabel}
+                    </span>
+                  )
+                })()}
 
                 {/* 바 */}
                 <div

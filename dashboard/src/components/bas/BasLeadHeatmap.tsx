@@ -4,9 +4,12 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Grid3X3, Info } from 'lucide-react'
 import type { DailyLeadWithMeta } from '@/types/bas-leads'
+import type { AdAdjustment } from '@/types/ad-adjustments'
+import { ADJUSTMENT_TYPE_CONFIG } from '@/types/ad-adjustments'
 
 interface BasLeadHeatmapProps {
   daily: DailyLeadWithMeta[]
+  adjustments?: AdAdjustment[]
 }
 
 interface HeatmapCell {
@@ -65,7 +68,7 @@ function fmtWatch(sec?: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
+export function BasLeadHeatmap({ daily, adjustments = [] }: BasLeadHeatmapProps) {
   const { weeks, dayAverages, maxCount } = useMemo(() => {
     const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date))
     if (sorted.length === 0) return { weeks: [], dayAverages: [], maxCount: 0 }
@@ -233,6 +236,20 @@ export function BasLeadHeatmap({ daily }: BasLeadHeatmapProps) {
                   transition={{ delay: wIdx * 0.03 + dIdx * 0.015 }}
                   className={`rounded-md ${bg} cursor-pointer transition-all duration-150 hover:scale-105 hover:z-10 hover:shadow-md relative group h-7 lg:h-[92px] flex flex-col items-center justify-center`}
                 >
+                  {/* 광고조정일 뱃지 */}
+                  {adjustments.filter((a) => a.date === cell.date).length > 0 && (() => {
+                    const adj = adjustments.find((a) => a.date === cell.date)!
+                    const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+                    return (
+                      <span
+                        className="absolute -top-1 left-1/2 -translate-x-1/2 z-10 px-1.5 lg:px-2 py-0.5 lg:py-1 text-[7px] lg:text-[10px] font-bold rounded-full whitespace-nowrap border border-white shadow-sm"
+                        style={{ backgroundColor: cfg.color, color: '#fff' }}
+                        title={adjustments.filter((a) => a.date === cell.date).map((a) => `${ADJUSTMENT_TYPE_CONFIG[a.type].label}: ${a.description}`).join('\n')}
+                      >
+                        {cfg.shortLabel}
+                      </span>
+                    )
+                  })()}
                   {/* 모바일: 리드수만 */}
                   <span className={`lg:hidden font-bold text-[9px] ${mainCls}`}>
                     {cell.count}
