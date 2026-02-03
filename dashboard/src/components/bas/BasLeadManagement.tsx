@@ -992,10 +992,43 @@ function LeadDetailSlide({
           {lead.submission_history && (
             <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
               <h5 className="text-xs font-medium text-amber-700 mb-2">접수 이력 ({lead.submission_count}회)</h5>
-              <div className="space-y-1 text-xs text-amber-800">
-                {lead.submission_history.split('\n').filter(Boolean).map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
+              <div className="space-y-2 text-xs text-amber-800">
+                {(() => {
+                  const entries = lead.submission_history.split('\n').filter(Boolean)
+                  const noteLines = lead.notes ? lead.notes.split('\n').filter(Boolean) : []
+                  // 접수 차수별 날짜 파싱
+                  const parsedEntries = entries.map(entry => {
+                    const m = entry.match(/(\d{4}-\d{2}-\d{2})/)
+                    return { date: m?.[1] || '', entry }
+                  })
+                  // 메모 날짜 파싱
+                  const parsedNotes = noteLines.map(line => {
+                    const m = line.match(/^\[(\d{4}-\d{2}-\d{2})/)
+                    return { date: m?.[1] || '', line }
+                  })
+                  // 메모를 가장 가까운 이전 접수차수에 매칭
+                  const notesByIdx: string[][] = parsedEntries.map(() => [])
+                  for (const note of parsedNotes) {
+                    if (!note.date) continue
+                    let idx = -1
+                    for (let i = parsedEntries.length - 1; i >= 0; i--) {
+                      if (parsedEntries[i].date && parsedEntries[i].date <= note.date) { idx = i; break }
+                    }
+                    if (idx >= 0) notesByIdx[idx].push(note.line)
+                  }
+                  return parsedEntries.map((pe, i) => (
+                    <div key={i}>
+                      <p>{pe.entry}</p>
+                      {notesByIdx[i].length > 0 && (
+                        <div className="ml-3 mt-0.5 space-y-0.5">
+                          {notesByIdx[i].map((n, j) => (
+                            <p key={j} className="text-amber-600/80 text-[11px]">└ {n}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                })()}
               </div>
               {(lead.previous_status || lead.previous_staff) && (
                 <div className="mt-2 pt-2 border-t border-amber-200 space-y-1 text-xs text-amber-700">
