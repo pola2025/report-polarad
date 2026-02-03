@@ -72,6 +72,7 @@ export interface AirtableLeadFields {
   email: string
   message: string
   created_at: string
+  created_at_full: string
   source: string
   campaign: string
   ad_name: string
@@ -111,17 +112,17 @@ export function mapMetaLeadToAirtable(lead: MetaLeadData): AirtableLeadFields {
 
   const message = extraFields.join('\n')
 
-  // created_time → YYYY-MM-DD
-  const created_at = lead.created_time
-    ? lead.created_time.split('T')[0]
-    : new Date().toISOString().split('T')[0]
+  // created_time → full ISO datetime 보존
+  const created_at_full = lead.created_time || new Date().toISOString()
+  const created_at_date = created_at_full.split('T')[0]
 
   return {
     name,
     phone,
     email,
     message,
-    created_at,
+    created_at: created_at_date,
+    created_at_full,
     source: `meta_leadgen_${lead.form_id || 'unknown'}`,
     campaign: lead.campaign_name || '',
     ad_name: lead.ad_name || '',
@@ -200,6 +201,7 @@ async function createLeadRecord(fields: AirtableLeadFields): Promise<string | nu
         '이메일': fields.email,
         '문의내용': fields.message,
         '접수일': fields.created_at,
+        '접수일시': fields.created_at_full,
         status: '접수',
         submission_count: 1,
         first_submission_date: fields.created_at,

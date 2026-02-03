@@ -50,7 +50,9 @@ jobs:
               const existing=searchData.records&&searchData.records[0];
 
               const name=f['이름']||'';
-              const date=fmtDate(f['접수일']);
+              const dateRaw=f['접수일']||'';
+              const date=fmtDate(dateRaw);
+              const dateFull=dateRaw||new Date().toISOString();
               const campaign=f['캠페인네임']||'';
               const platform=f['플랫폼']||'';
               const seminarDate=f['신청일']||'';
@@ -83,7 +85,7 @@ jobs:
                 await fetch('https://api.airtable.com/v0/'+NEW_BASE+'/'+NEW_TABLE,{
                   method:'POST',
                   headers:{Authorization:'Bearer '+AIRTABLE_KEY,'Content-Type':'application/json'},
-                  body:JSON.stringify({fields:{'이름':name,'연락처':f['연락처']||'','접수일':date,'참석희망일':seminarDate,status:'접수',submission_count:1,first_submission_date:date,source:'make_sync',campaign:campaign,platform:platform}})
+                  body:JSON.stringify({fields:{'이름':name,'연락처':f['연락처']||'','접수일':date,'접수일시':dateFull,'참석희망일':seminarDate,status:'접수',submission_count:1,first_submission_date:date,source:'make_sync',campaign:campaign,platform:platform}})
                 });
                 console.log('Created: '+name+' '+phone);
                 created++;
