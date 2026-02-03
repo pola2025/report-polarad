@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     }
 
     const conditions = [`{client_slug}='${clientSlug}'`]
-    if (startDate) conditions.push(`IS_AFTER({date}, '${startDate}') | {date}='${startDate}'`)
-    if (endDate) conditions.push(`IS_BEFORE({date}, '${endDate}') | {date}='${endDate}'`)
+    if (startDate) conditions.push(`OR(IS_AFTER({date}, '${startDate}'), {date}='${startDate}')`)
+    if (endDate) conditions.push(`OR(IS_BEFORE({date}, '${endDate}'), {date}='${endDate}')`)
 
     const formula = conditions.length === 1
       ? conditions[0]
