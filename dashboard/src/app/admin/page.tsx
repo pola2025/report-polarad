@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
-import { Plus, RefreshCw, Play, AlertCircle, CheckCircle, Clock, Upload, Search, FileText, Eye } from 'lucide-react'
+import { Plus, RefreshCw, Play, AlertCircle, CheckCircle, Clock, Upload, Search, FileText, Eye, CalendarDays } from 'lucide-react'
+import { BasAdjustmentManager } from '@/components/bas/BasAdjustmentManager'
+import type { AdAdjustment } from '@/types/ad-adjustments'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -66,6 +68,25 @@ export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [backfillLogs, setBackfillLogs] = useState<BackfillLog[]>([])
   const [isBackfilling, setIsBackfilling] = useState(false)
+
+  // 광고조정일 관리
+  const [adjClientSlug, setAdjClientSlug] = useState('')
+  const [adjustments, setAdjustments] = useState<AdAdjustment[]>([])
+  const [adjLoading, setAdjLoading] = useState(false)
+
+  const fetchAdjustments = useCallback(async (slug: string) => {
+    if (!slug) { setAdjustments([]); return }
+    setAdjLoading(true)
+    try {
+      const res = await fetch(`/api/ad-adjustments?clientSlug=${slug}`)
+      const data = await res.json()
+      if (data.success) setAdjustments(data.data)
+    } catch (e) {
+      console.error('조정일 조회 실패:', e)
+    } finally {
+      setAdjLoading(false)
+    }
+  }, [])
 
   // 새 클라이언트 폼
   const [newClient, setNewClient] = useState({
@@ -353,6 +374,46 @@ export default function AdminPage() {
                   </Card>
                 </Link>
               </div>
+            </section>
+
+            {/* 광고조정일 관리 */}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <CalendarDays className="inline-block h-5 w-5 mr-1.5 -mt-0.5 text-violet-500" />
+                광고조정일 관리
+              </h2>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">클라이언트 선택</label>
+                    <select
+                      value={adjClientSlug}
+                      onChange={(e) => {
+                        setAdjClientSlug(e.target.value)
+                        fetchAdjustments(e.target.value)
+                      }}
+                      className="w-full max-w-xs px-3 py-2 border rounded-md text-sm"
+                    >
+                      <option value="">클라이언트를 선택하세요</option>
+                      {clients.filter(c => c.slug).map((c) => (
+                        <option key={c.id} value={c.slug!}>{c.client_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {adjClientSlug && (
+                    adjLoading ? (
+                      <div className="text-sm text-gray-500 py-4">로딩 중...</div>
+                    ) : (
+                      <BasAdjustmentManager
+                        clientSlug={adjClientSlug}
+                        adjustments={adjustments}
+                        onAdded={() => fetchAdjustments(adjClientSlug)}
+                        onDeleted={() => fetchAdjustments(adjClientSlug)}
+                      />
+                    )
+                  )}
+                </CardContent>
+              </Card>
             </section>
 
             {/* 알림 */}
