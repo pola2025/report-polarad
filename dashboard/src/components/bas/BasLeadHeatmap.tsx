@@ -129,6 +129,9 @@ export function BasLeadHeatmap({ daily, adjustments = [] }: BasLeadHeatmapProps)
   const insightText = useMemo(() => {
     if (dayAverages.length === 0 || dayAverages.every(v => v === 0)) return ''
 
+    const parts: string[] = []
+
+    // 요일별 분석
     const weekdayAvgs = dayAverages.slice(0, 5).filter(v => v > 0)
     const weekendAvgs = dayAverages.slice(5).filter(v => v > 0)
     const weekdayMean = weekdayAvgs.length > 0 ? weekdayAvgs.reduce((a, b) => a + b, 0) / weekdayAvgs.length : 0
@@ -140,15 +143,44 @@ export function BasLeadHeatmap({ daily, adjustments = [] }: BasLeadHeatmapProps)
     if (weekdayMean > 0 && weekendMean > 0) {
       const diff = Math.abs(((weekendMean - weekdayMean) / weekdayMean) * 100).toFixed(0)
       if (weekendMean > weekdayMean * 1.2) {
-        return `주말 평균 리드 ${weekendMean.toFixed(1)}건으로 평일(${weekdayMean.toFixed(1)}건) 대비 ${diff}% 높습니다. ${DAY_HEADERS[bestDayIdx]}요일이 평균 ${dayAverages[bestDayIdx].toFixed(1)}건으로 최고 성과입니다.`
+        parts.push(`주말 평균 리드 ${weekendMean.toFixed(1)}건으로 평일(${weekdayMean.toFixed(1)}건) 대비 ${diff}% 높습니다. ${DAY_HEADERS[bestDayIdx]}요일이 평균 ${dayAverages[bestDayIdx].toFixed(1)}건으로 최고 성과.`)
+      } else if (weekdayMean > weekendMean * 1.2) {
+        parts.push(`평일 평균 리드 ${weekdayMean.toFixed(1)}건으로 주말(${weekendMean.toFixed(1)}건) 대비 ${diff}% 높습니다. ${DAY_HEADERS[bestDayIdx]}요일이 가장 활발.`)
+      } else {
+        parts.push(`${DAY_HEADERS[bestDayIdx]}요일 평균 ${dayAverages[bestDayIdx].toFixed(1)}건으로 가장 많고, ${DAY_HEADERS[worstDayIdx]}요일 ${dayAverages[worstDayIdx].toFixed(1)}건으로 가장 적습니다.`)
       }
-      if (weekdayMean > weekendMean * 1.2) {
-        return `평일 평균 리드 ${weekdayMean.toFixed(1)}건으로 주말(${weekendMean.toFixed(1)}건) 대비 ${diff}% 높습니다. ${DAY_HEADERS[bestDayIdx]}요일이 가장 활발합니다.`
+    } else {
+      parts.push(`${DAY_HEADERS[bestDayIdx]}요일 평균 ${dayAverages[bestDayIdx].toFixed(1)}건으로 가장 많고, ${DAY_HEADERS[worstDayIdx]}요일 ${dayAverages[worstDayIdx].toFixed(1)}건으로 가장 적습니다.`)
+    }
+
+    // 광고조정일 전후 리드 변화 분석
+    if (adjustments.length > 0 && daily.length >= 4) {
+      const sortedDaily = [...daily].sort((a, b) => a.date.localeCompare(b.date))
+
+      for (const adj of adjustments) {
+        const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
+        const beforeDays = sortedDaily.filter((d) => d.date < adj.date).slice(-3)
+        const afterDays = sortedDaily.filter((d) => d.date > adj.date).slice(0, 3)
+
+        if (beforeDays.length < 2 || afterDays.length < 2) continue
+
+        const beforeAvg = beforeDays.reduce((s, d) => s + d.count, 0) / beforeDays.length
+        const afterAvg = afterDays.reduce((s, d) => s + d.count, 0) / afterDays.length
+
+        if (beforeAvg === 0) continue
+
+        const changeRate = ((afterAvg - beforeAvg) / beforeAvg) * 100
+        if (Math.abs(changeRate) < 15) continue // 15% 미만 변화는 무시
+
+        const arrow = changeRate > 0 ? '↑' : '↓'
+        const sign = changeRate > 0 ? '+' : ''
+        const dateShort = adj.date.slice(5)
+        parts.push(`${arrow} ${dateShort} ${cfg.label} 후 리드 ${sign}${changeRate.toFixed(0)}% (${beforeAvg.toFixed(1)} → ${afterAvg.toFixed(1)}건)`)
       }
     }
 
-    return `${DAY_HEADERS[bestDayIdx]}요일 평균 ${dayAverages[bestDayIdx].toFixed(1)}건으로 가장 많고, ${DAY_HEADERS[worstDayIdx]}요일 ${dayAverages[worstDayIdx].toFixed(1)}건으로 가장 적습니다.`
-  }, [dayAverages])
+    return parts.join(' ')
+  }, [dayAverages, adjustments, daily])
 
   if (daily.length === 0) return null
 
@@ -242,7 +274,7 @@ export function BasLeadHeatmap({ daily, adjustments = [] }: BasLeadHeatmapProps)
                     const cfg = ADJUSTMENT_TYPE_CONFIG[adj.type]
                     return (
                       <span
-                        className="absolute -top-1 left-1/2 -translate-x-1/2 z-10 px-1.5 lg:px-2 py-0.5 lg:py-1 text-[7px] lg:text-[10px] font-bold rounded-full whitespace-nowrap border border-white shadow-sm"
+                        className="absolute -top-1 -right-1 z-10 px-1.5 lg:px-2 py-0.5 lg:py-1 text-[7px] lg:text-[10px] font-bold rounded-full whitespace-nowrap border border-white shadow-sm"
                         style={{ backgroundColor: cfg.color, color: '#fff' }}
                         title={adjustments.filter((a) => a.date === cell.date).map((a) => `${ADJUSTMENT_TYPE_CONFIG[a.type].label}: ${a.description}`).join('\n')}
                       >
