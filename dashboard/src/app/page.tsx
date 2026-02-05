@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChannelComparisonChart, MetaSummaryCards, KeywordMonthlyTrendChart, MetaDayOfWeekChart, NaverKeywordDonutChart } from '@/components/charts'
 import { DailyTrendChart } from '@/components/report'
-import { Loader2, BarChart3, DollarSign, Settings } from 'lucide-react'
+import { Loader2, BarChart3, DollarSign, Settings, Copy, Check, ExternalLink } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
@@ -95,6 +95,17 @@ function DashboardContent() {
   const clientSlug = clientSlugFromUrl || selectedClientSlug
   const isClientView = !!clientSlugFromUrl // URL에서 온 경우만 클라이언트 뷰
   const isAdminView = !clientSlugFromUrl && isAuthenticated === true // 관리자가 선택한 경우
+
+  // 클라이언트 링크 복사
+  const [copiedLink, setCopiedLink] = useState(false)
+  const copyClientLink = () => {
+    if (!clientSlug) return
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'
+    navigator.clipboard.writeText(`${baseUrl}/?client=${clientSlug}`).then(() => {
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    })
+  }
 
   const [data, setData] = useState<DashboardData | null>(null)
   const [clientInfo, setClientInfo] = useState<{
@@ -558,6 +569,27 @@ function DashboardContent() {
                 {clientInfo?.name || clientSlug}
               </div>
             </div>
+            {isAuthenticated && clientSlug && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-white/60 font-mono truncate">/?client={clientSlug}</span>
+                <button
+                  onClick={copyClientLink}
+                  className={`shrink-0 p-0.5 rounded ${copiedLink ? 'text-green-300' : 'text-white/50 hover:text-white'}`}
+                  title="클라이언트 링크 복사"
+                >
+                  {copiedLink ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                </button>
+                <a
+                  href={`${typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'}/?client=${clientSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 p-0.5 text-white/50 hover:text-white"
+                  title="새 탭에서 열기"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               {isAuthenticated && (
                 <button
@@ -623,8 +655,30 @@ function DashboardContent() {
                 endDate={dateRange.end}
                 onDateChange={(start, end) => setDateRange({ start, end })}
               />
-              <div className="text-sm font-medium text-white bg-white/20 px-3 py-1.5 rounded-full">
-                {clientInfo?.name || clientSlug}
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-medium text-white bg-white/20 px-3 py-1.5 rounded-full">
+                  {clientInfo?.name || clientSlug}
+                </div>
+                {isAuthenticated && clientSlug && (
+                  <>
+                    <button
+                      onClick={copyClientLink}
+                      className={`shrink-0 p-1 rounded transition-colors ${copiedLink ? 'text-green-300' : 'text-white/50 hover:text-white'}`}
+                      title="클라이언트 링크 복사"
+                    >
+                      {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <a
+                      href={`${typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'}/?client=${clientSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 p-1 text-white/50 hover:text-white transition-colors"
+                      title="새 탭에서 열기"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           </div>
