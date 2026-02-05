@@ -7,6 +7,7 @@ interface DateRangePickerProps {
   startDate: string
   endDate: string
   onDateChange: (start: string, end: string) => void
+  compact?: boolean
   presets?: Array<{
     label: string
     value: string
@@ -132,6 +133,7 @@ export function DateRangePicker({
   startDate,
   endDate,
   onDateChange,
+  compact = false,
   presets = defaultPresets,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -219,17 +221,26 @@ export function DateRangePicker({
   const isCurrentMonth = (date: Date) => date.getMonth() === viewMonth.month
   const isToday = (date: Date) => formatDate(date) === formatDate(new Date())
 
-  const displayLabel = `${startDate} ~ ${endDate}`
+  // compact: MM.DD ~ MM.DD, default: YYYY-MM-DD ~ YYYY-MM-DD
+  const formatCompact = (d: string) => {
+    const parts = d.split('-')
+    return `${parts[1]}.${parts[2]}`
+  }
+  const displayLabel = compact
+    ? `${formatCompact(startDate)} ~ ${formatCompact(endDate)}`
+    : `${startDate} ~ ${endDate}`
 
   return (
     <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm font-medium bg-white/20 text-white px-3 py-1.5 rounded-full hover:bg-white/30 transition-colors"
+        className={`flex items-center gap-1.5 font-medium bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors ${
+          compact ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5 gap-2'
+        }`}
       >
-        <Calendar className="h-4 w-4" />
+        <Calendar className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
         <span>{displayLabel}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

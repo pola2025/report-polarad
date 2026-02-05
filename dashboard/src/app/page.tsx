@@ -580,6 +580,7 @@ function DashboardContent() {
                   startDate={dateRange.start}
                   endDate={dateRange.end}
                   onDateChange={(start, end) => setDateRange({ start, end })}
+                  compact
                 />
               </div>
             </div>

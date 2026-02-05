@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
-import { Plus, RefreshCw, Play, AlertCircle, CheckCircle, Clock, Upload, Search, FileText, Eye, CalendarDays } from 'lucide-react'
+import { Plus, RefreshCw, Play, AlertCircle, CheckCircle, Clock, Upload, Search, FileText, Eye, CalendarDays, Check, Copy, ExternalLink } from 'lucide-react'
 import { BasAdjustmentManager } from '@/components/bas/BasAdjustmentManager'
 import type { AdAdjustment } from '@/types/ad-adjustments'
 import Link from 'next/link'
@@ -68,6 +68,18 @@ export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [backfillLogs, setBackfillLogs] = useState<BackfillLog[]>([])
   const [isBackfilling, setIsBackfilling] = useState(false)
+
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
+
+  const copyClientUrl = (slug: string | null) => {
+    if (!slug) return
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'
+    const url = `${baseUrl}/?client=${slug}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedSlug(slug)
+      setTimeout(() => setCopiedSlug(null), 2000)
+    })
+  }
 
   // 광고조정일 관리
   const [adjClientSlug, setAdjClientSlug] = useState('')
@@ -464,6 +476,35 @@ export default function AdminPage() {
                             <div className="font-medium text-gray-900 hover:text-[#F5A623]">{client.client_name}</div>
                             <div className="text-sm text-gray-500">{client.slug || '슬러그 없음'}</div>
                           </button>
+                          {client.slug && (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <a
+                                href={`${typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'}/?client=${client.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-500 hover:text-blue-700 hover:underline font-mono"
+                                title={`report.polarad.co.kr/?client=${client.slug}`}
+                              >
+                                /?client={client.slug}
+                              </a>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); copyClientUrl(client.slug) }}
+                                className={`shrink-0 p-0.5 rounded transition-colors ${copiedSlug === client.slug ? 'text-green-600' : 'text-gray-400 hover:text-blue-600'}`}
+                                title="클라이언트 링크 복사"
+                              >
+                                {copiedSlug === client.slug ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              </button>
+                              <a
+                                href={`${typeof window !== 'undefined' ? window.location.origin : 'https://report.polarad.co.kr'}/?client=${client.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 p-0.5 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="새 탭에서 열기"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {client.meta_ad_account_id || '-'}
