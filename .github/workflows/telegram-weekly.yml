@@ -32,11 +32,12 @@ jobs:
 
       - name: Create .env file
         run: |
-          cat > dashboard/.env.local << EOF
+          cat > dashboard/.env.local << 'ENVEOF'
           NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-          EOF
+          ENVEOF
+          sed -i 's/^[[:space:]]*//' dashboard/.env.local
 
       - name: Create Weekly Report
         working-directory: scripts

@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/data-integrity",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/bas-report?type=weekly",
+      "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/cron/bas-report?type=monthly",
+      "schedule": "0 0 1 * *"
     }
   ]
 }
