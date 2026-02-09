@@ -79,12 +79,18 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Report fetch error:', error)
       // polarad_reports 실패 시 telegram_reports에서 시도
-      const { data: fallbackReports } = await supabase
+      let fallbackQuery = supabase
         .from('telegram_reports')
         .select('*')
         .eq('client_id', client.id)
         .order('week_start', { ascending: false })
         .limit(limit)
+
+      if (type !== 'all') {
+        fallbackQuery = fallbackQuery.eq('report_type', type)
+      }
+
+      const { data: fallbackReports } = await fallbackQuery
 
       return NextResponse.json({ reports: fallbackReports || [] })
     }

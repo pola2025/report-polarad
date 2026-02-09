@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       label: r.report_type === 'monthly'
         ? `${r.year}년 ${r.month}월 리포트`
         : `${r.year}년 ${r.month}월 ${r.week}주차 리포트`,
-      url: `/report/monthly/${r.id}`,
+      url: `/report/${r.report_type}/${r.id}`,
     }))
 
     // period_start 내림차순 정렬

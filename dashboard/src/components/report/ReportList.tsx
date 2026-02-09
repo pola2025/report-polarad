@@ -163,7 +163,7 @@ export function ReportList({ clientSlug, isAdmin = false }: ReportListProps) {
           {filteredReports.map((report) => (
             <Link
               key={report.id}
-              href={`/report/monthly/${report.id}`}
+              href={`/report/${report.report_type}/${report.id}`}
               className="block"
             >
               <Card className="hover:border-[#F5A623] hover:shadow-md transition-all cursor-pointer">
