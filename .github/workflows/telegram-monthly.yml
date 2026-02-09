@@ -3,10 +3,9 @@
 name: Monthly Report Notification
 
 on:
-  schedule:
-    # KST 매월 1일 09:00 = UTC 00:00
-    - cron: '0 0 1 * *'
-  workflow_dispatch:  # 수동 실행 허용
+  # schedule 비활성화: Vercel Cron으로 마이그레이션됨 (2026-02-09)
+  # - cron: '0 0 1 * *'
+  workflow_dispatch:  # 수동 실행만 허용
 
 jobs:
   notify:

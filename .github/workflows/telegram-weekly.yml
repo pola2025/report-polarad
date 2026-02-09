@@ -3,10 +3,9 @@
 name: Weekly Report - Create & Send
 
 on:
-  schedule:
-    # KST 월요일 09:00 = UTC 월요일 00:00
-    - cron: '0 0 * * 1'
-  workflow_dispatch:  # 수동 실행 허용
+  # schedule 비활성화: Vercel Cron으로 마이그레이션됨 (2026-02-09)
+  # - cron: '0 0 * * 1'
+  workflow_dispatch:  # 수동 실행만 허용
     inputs:
       force:
         description: '기존 리포트 덮어쓰기'

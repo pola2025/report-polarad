@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/bas-report?type=monthly",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/hea-report?type=weekly",
+      "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/cron/hea-report?type=monthly",
+      "schedule": "0 0 1 * *"
     }
   ]
 }
