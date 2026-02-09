@@ -4,11 +4,29 @@
  */
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, TABLES } from '@/lib/supabase'
+import { unstable_noStore as noStore } from 'next/cache'
+import { createClient } from '@supabase/supabase-js'
+import { TABLES } from '@/lib/supabase'
+
+function createNoCacheClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: {
+        fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }),
+      },
+    }
+  )
+}
 
 export async function GET(request: NextRequest) {
+  noStore()
+
   try {
     const { searchParams } = new URL(request.url)
     const clientSlug = searchParams.get('clientSlug')
@@ -19,7 +37,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'clientSlug is required' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = createNoCacheClient()
 
     // 클라이언트 ID 조회 (slug → id)
     const { data: client } = await supabase
@@ -63,10 +81,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ reports: [] })
     }
 
-    return NextResponse.json({
-      reports: reports || [],
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
-    })
+    return NextResponse.json(
+      { reports: reports || [] },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'CDN-Cache-Control': 'no-store',
+        },
+      }
+    )
   } catch (error) {
     console.error('Reports API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
