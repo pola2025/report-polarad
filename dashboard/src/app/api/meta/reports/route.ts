@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
 
     const { data: reports, error } = await query
 
-    if (error) {
-      console.error('Report fetch error:', error)
-      // polarad_reports 실패 시 telegram_reports에서 시도
+    if (error || !reports || reports.length === 0) {
+      if (error) console.error('Report fetch error:', error)
+      // polarad_reports 실패 또는 비어있으면 telegram_reports에서 시도
       let fallbackQuery = supabase
         .from('telegram_reports')
         .select('*')
