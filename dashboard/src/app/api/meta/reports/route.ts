@@ -28,45 +28,27 @@ export async function GET(request: NextRequest) {
       .eq('slug', clientSlug)
       .single()
 
-    if (!client) {
-      // polarad_clients에 없으면 기존 clients 테이블에서 조회
+    // polarad_clients에 없으면 기존 clients 테이블에서 조회
+    let clientId: string | null = client?.id || null
+
+    if (!clientId) {
       const { data: legacyClient } = await supabase
         .from('clients')
-        .select('id, client_name')
+        .select('id')
         .eq('slug', clientSlug)
         .single()
-
-      if (!legacyClient) {
-        return NextResponse.json({ reports: [] })
-      }
-
-      // 기존 telegram_reports 테이블에서 조회
-      let query = supabase
-        .from('telegram_reports')
-        .select('*')
-        .eq('client_id', legacyClient.id)
-        .order('week_start', { ascending: false })
-        .limit(limit)
-
-      if (type !== 'all') {
-        query = query.eq('report_type', type)
-      }
-
-      const { data: reports, error } = await query
-
-      if (error) {
-        console.error('Report fetch error:', error)
-        return NextResponse.json({ reports: [] })
-      }
-
-      return NextResponse.json({ reports: reports || [] })
+      clientId = legacyClient?.id || null
     }
 
-    // polarad_reports 테이블에서 조회
+    if (!clientId) {
+      return NextResponse.json({ reports: [] })
+    }
+
+    // telegram_reports에서 직접 조회 (BAS 리포트 저장소)
     let query = supabase
-      .from(TABLES.REPORTS)
+      .from('telegram_reports')
       .select('*')
-      .eq('client_id', client.id)
+      .eq('client_id', clientId)
       .order('week_start', { ascending: false })
       .limit(limit)
 
@@ -76,26 +58,15 @@ export async function GET(request: NextRequest) {
 
     const { data: reports, error } = await query
 
-    if (error || !reports || reports.length === 0) {
-      if (error) console.error('Report fetch error:', error)
-      // polarad_reports 실패 또는 비어있으면 telegram_reports에서 시도
-      let fallbackQuery = supabase
-        .from('telegram_reports')
-        .select('*')
-        .eq('client_id', client.id)
-        .order('week_start', { ascending: false })
-        .limit(limit)
-
-      if (type !== 'all') {
-        fallbackQuery = fallbackQuery.eq('report_type', type)
-      }
-
-      const { data: fallbackReports } = await fallbackQuery
-
-      return NextResponse.json({ reports: fallbackReports || [] })
+    if (error) {
+      console.error('Report fetch error:', error)
+      return NextResponse.json({ reports: [] })
     }
 
-    return NextResponse.json({ reports: reports || [] })
+    return NextResponse.json({
+      reports: reports || [],
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+    })
   } catch (error) {
     console.error('Reports API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
