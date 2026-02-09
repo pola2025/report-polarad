@@ -14,7 +14,9 @@ export function createServerClient() {
 // 테이블명 상수 (polarad_ 접두사로 BAS-Meta와 분리)
 export const TABLES = {
   CLIENTS: 'polarad_clients',
+  /** @deprecated Airtable로 마이그레이션됨. 2026-01-05 이후 데이터 없음. admin/backfill에서만 참조. */
   META_DATA: 'polarad_meta_data',
+  /** @deprecated Airtable로 마이그레이션됨. 2025-12-28 이후 데이터 없음. */
   NAVER_DATA: 'polarad_naver_data',
   KEYWORD_STATS: 'polarad_keyword_stats',
   REPORTS: 'polarad_reports',
