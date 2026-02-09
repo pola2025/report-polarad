@@ -401,8 +401,12 @@ async function backfillClient(
         ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
       key = `${date}|${campaignName}|${device}`
     } else {
-      // HEA 판교: 캠페인 레벨 (campaign_name 포함)
+      // HEA 판교: 캠페인 레벨 (campaign_name + video 지표 포함)
       fields.campaign_name = campaignName
+      fields.video_views = row.video_p100_watched_actions?.[0]?.value
+        ? parseInt(row.video_p100_watched_actions[0].value) : 0
+      fields.avg_watch_time = row.video_avg_time_watched_actions?.[0]?.value
+        ? parseFloat(row.video_avg_time_watched_actions[0].value) : 0
       key = `${date}|${campaignName}|${device}`
     }
 
