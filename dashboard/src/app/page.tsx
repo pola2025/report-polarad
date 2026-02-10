@@ -92,12 +92,10 @@ function DashboardContent() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [adminScope, setAdminScope] = useState<string>('all')
   const [clients, setClients] = useState<Client[]>([])
-  const [selectedClientSlug, setSelectedClientSlug] = useState<string>('')
-
-  // 실제 사용할 clientSlug (URL 파라미터 또는 관리자가 선택한 것)
-  const clientSlug = clientSlugFromUrl || selectedClientSlug
-  const isClientView = !!clientSlugFromUrl // URL에서 온 경우만 클라이언트 뷰
-  const isAdminView = !clientSlugFromUrl && isAuthenticated === true // 관리자가 선택한 경우
+  // 실제 사용할 clientSlug (URL 파라미터 기반)
+  const clientSlug = clientSlugFromUrl || ''
+  const isClientView = !!clientSlugFromUrl
+  const isAdminView = !!clientSlugFromUrl && isAuthenticated === true
 
   // scope 제한: bas-naratton 관리자가 허용되지 않은 클라이언트에 접근 시 관리자 기능 숨김
   const BAS_NARATTON_SLUGS = ['bas', 'naratton']
@@ -444,7 +442,7 @@ function DashboardContent() {
   }
 
   // 관리자: 클라이언트 선택 화면
-  if (!clientSlugFromUrl && isAuthenticated && !selectedClientSlug) {
+  if (!clientSlugFromUrl && isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="bg-[#F5A623] border-b border-[#E09000]">
@@ -485,7 +483,7 @@ function DashboardContent() {
                 {clients.map((client) => (
                   <button
                     key={client.id}
-                    onClick={() => setSelectedClientSlug(client.slug)}
+                    onClick={() => router.push(`/?client=${client.slug}`)}
                     className="p-4 border rounded-lg hover:bg-gray-50 hover:border-[#F5A623] transition-colors text-left"
                   >
                     <div className="font-medium">{client.client_name}</div>
@@ -529,13 +527,7 @@ function DashboardContent() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <button
-                    onClick={() => {
-                      if (clientSlugFromUrl) {
-                        router.push('/')
-                      } else {
-                        setSelectedClientSlug('')
-                      }
-                    }}
+                    onClick={() => router.push('/')}
                     className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1 transition-colors"
                   >
                     <span>←</span>
@@ -608,15 +600,7 @@ function DashboardContent() {
             <div className="flex items-center justify-between">
               {isAuthenticated && (
                 <button
-                  onClick={() => {
-                    if (clientSlugFromUrl) {
-                      router.push('/')
-                    } else {
-                      setSelectedClientSlug('')
-                      setData(null)
-                      setActiveTab('summary')
-                    }
-                  }}
+                  onClick={() => router.push('/')}
                   className="text-xs text-white/80 hover:text-white underline whitespace-nowrap"
                 >
                   클라이언트 변경
@@ -651,15 +635,7 @@ function DashboardContent() {
             <div className="flex items-center gap-3">
               {isAuthenticated && (
                 <button
-                  onClick={() => {
-                    if (clientSlugFromUrl) {
-                      router.push('/')
-                    } else {
-                      setSelectedClientSlug('')
-                      setData(null)
-                      setActiveTab('summary')
-                    }
-                  }}
+                  onClick={() => router.push('/')}
                   className="text-sm text-white/80 hover:text-white underline"
                 >
                   클라이언트 변경

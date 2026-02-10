@@ -1352,16 +1352,14 @@ function StaffModal({
                     {/* 편집 폼 */}
                     {editingId === s.id && (
                       <div className="mt-2 space-y-2 bg-gray-50 rounded-lg p-2.5">
+                        {s.slug && (
                         <div>
-                          <label className="text-[10px] text-gray-500 block mb-0.5">슬러그</label>
-                          <input
-                            type="text"
-                            value={editFields.slug || ''}
-                            onChange={e => setEditFields(prev => ({ ...prev, slug: e.target.value.replace(/[^a-z0-9]/g, '') }))}
-                            placeholder="영문 이니셜 (예: kms)"
-                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                          <label className="text-[10px] text-gray-500 block mb-0.5">슬러그 (자동생성)</label>
+                          <div className="w-full text-xs border border-gray-100 bg-gray-50 rounded px-2 py-1.5 text-gray-500 font-mono">
+                            {s.slug}
+                          </div>
                         </div>
+                        )}
                         <div>
                           <label className="text-[10px] text-gray-500 block mb-0.5">이메일</label>
                           <input

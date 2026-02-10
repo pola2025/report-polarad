@@ -642,12 +642,18 @@ export async function getNarattonStaffByName(name: string): Promise<NarattonStaf
 export async function createNarattonStaff(name: string): Promise<NarattonStaff | null> {
   if (!STAFF_TABLE_ID) return null
 
+  // slug 자동생성: 랜덤 8자 영숫자
+  const slug = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, 8)
+
   const url = `${BASE_URL}/${STAFF_TABLE_ID}`
   const res = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      fields: { name, is_active: false },
+      fields: { name, slug, is_active: false },
     }),
   })
   const data = await res.json()
