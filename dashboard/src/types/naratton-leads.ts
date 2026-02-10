@@ -60,6 +60,7 @@ export interface NarattonStaff {
   name: string
   is_active: boolean
   totp_secret?: string     // TOTP 시크릿 (setup 시에만 반환)
+  setup_token?: string     // 1회용 TOTP 설정 토큰
 }
 
 // === API 요약 ===

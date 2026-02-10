@@ -297,7 +297,35 @@ export async function fetchNarattonLeadsWithSummary(options: FetchNarattonLeadsO
 
   const allLeads = [...homepageLeads, ...metaLeads]
 
-  // 2. summary는 항상 전체 데이터에서 계산 (필터 무관)
+  // 2. 전화번호 기준 중복 카운트 계산 (런타임)
+  const phoneCountMap = new Map<string, { count: number; dates: string[] }>()
+  for (const lead of allLeads) {
+    const normalized = normalizePhone(lead.phone)
+    if (!normalized) continue
+    const entry = phoneCountMap.get(normalized)
+    if (entry) {
+      entry.count++
+      if (lead.created_at) entry.dates.push(lead.created_at)
+    } else {
+      phoneCountMap.set(normalized, {
+        count: 1,
+        dates: lead.created_at ? [lead.created_at] : [],
+      })
+    }
+  }
+  // 각 리드에 중복 카운트 주입
+  for (const lead of allLeads) {
+    const normalized = normalizePhone(lead.phone)
+    const entry = normalized ? phoneCountMap.get(normalized) : null
+    if (entry) {
+      lead.submission_count = entry.count
+      lead.submission_history = entry.dates
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+        .join(',')
+    }
+  }
+
+  // 3. summary는 항상 전체 데이터에서 계산 (필터 무관)
   const summary = calculateNarattonLeadSummary(allLeads)
 
   // 3. JS에서 필터 적용
@@ -320,7 +348,11 @@ export async function fetchNarattonLeadsWithSummary(options: FetchNarattonLeadsO
     filtered = filtered.filter(l => !!l.blacklisted === blacklisted)
   }
   if (duplicatesOnly) {
-    filtered = filtered.filter(l => l.submission_count > 1)
+    filtered = filtered.filter(l => {
+      const normalized = normalizePhone(l.phone)
+      const entry = normalized ? phoneCountMap.get(normalized) : null
+      return entry ? entry.count > 1 : false
+    })
   }
   if (search) {
     const q = search.slice(0, 50).toLowerCase()
@@ -534,9 +566,25 @@ function mapRecordToStaff(record: any): NarattonStaff {
   return {
     id: record.id,
     name: f['name'] || f['Name'] || '',
-    is_active: f['is_active'] ?? true,
+    is_active: f['is_active'] === true,
     totp_secret: f['totp_secret'] || undefined,
+    setup_token: f['setup_token'] || undefined,
   }
+}
+
+export async function getNarattonStaffByToken(token: string): Promise<NarattonStaff | null> {
+  if (!STAFF_TABLE_ID || !token) return null
+
+  const params = new URLSearchParams()
+  params.set('filterByFormula', `{setup_token}='${escapeFormulaValue(token)}'`)
+  params.set('maxRecords', '1')
+
+  const url = `${BASE_URL}/${STAFF_TABLE_ID}?${params.toString()}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }, cache: 'no-store' })
+  const data = await res.json()
+
+  if (data.error || !data.records?.length) return null
+  return mapRecordToStaff(data.records[0])
 }
 
 export async function fetchNarattonStaff(): Promise<NarattonStaff[]> {
@@ -581,7 +629,7 @@ export async function createNarattonStaff(name: string): Promise<NarattonStaff |
     method: 'POST',
     headers,
     body: JSON.stringify({
-      fields: { name, is_active: true },
+      fields: { name, is_active: false },
     }),
   })
   const data = await res.json()
@@ -596,7 +644,7 @@ export async function createNarattonStaff(name: string): Promise<NarattonStaff |
 
 export async function updateNarattonStaff(
   recordId: string,
-  updates: { name?: string; is_active?: boolean; totp_secret?: string }
+  updates: { name?: string; is_active?: boolean; totp_secret?: string; setup_token?: string }
 ): Promise<NarattonStaff | null> {
   if (!STAFF_TABLE_ID) return null
 

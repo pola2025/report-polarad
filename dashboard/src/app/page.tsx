@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChannelComparisonChart, MetaSummaryCards, KeywordMonthlyTrendChart, MetaDayOfWeekChart, NaverKeywordDonutChart } from '@/components/charts'
 import { DailyTrendChart } from '@/components/report'
-import { Loader2, BarChart3, DollarSign, Settings, Copy, Check, ExternalLink } from 'lucide-react'
+import { Loader2, BarChart3, DollarSign, Settings, Copy, Check, ExternalLink, LayoutDashboard, Facebook, Navigation, Activity, FileText, Users } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { NaverPeriodTable } from '@/components/naver/NaverPeriodTable'
 import { NaverKeywordTable } from '@/components/naver/NaverKeywordTable'
@@ -23,6 +23,7 @@ import type { GA4AnalyticsResponse } from '@/types/ga4-analytics'
 import { GA4Section } from '@/components/ga4'
 import { FunnelSection } from '@/components/funnel'
 import { BasDashboardView } from '@/components/bas'
+import { NarattonLeadManagement } from '@/components/naratton/NarattonLeadManagement'
 
 interface DashboardData {
   kpi: {
@@ -84,7 +85,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const clientSlugFromUrl = searchParams.get('client')
-  const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | null
+  const tabFromUrl = searchParams.get('tab') as 'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | 'leads' | null
 
   // 관리자 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
@@ -129,8 +130,8 @@ function DashboardContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metricView, setMetricView] = useState<'impressions' | 'clicks' | 'spend'>('impressions')
-  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'ga4' | 'reports'>(() => {
-    const validTabs = ['summary', 'meta', 'naver', 'ga4', 'reports'] as const
+  const [activeTab, setActiveTab] = useState<'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | 'leads'>(() => {
+    const validTabs = ['summary', 'meta', 'naver', 'ga4', 'reports', 'leads'] as const
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       return tabFromUrl
     }
@@ -138,7 +139,7 @@ function DashboardContent() {
   })
 
   // 탭 변경 시 URL 업데이트
-  const handleTabChange = useCallback((tab: 'summary' | 'meta' | 'naver' | 'ga4' | 'reports') => {
+  const handleTabChange = useCallback((tab: 'summary' | 'meta' | 'naver' | 'ga4' | 'reports' | 'leads') => {
     setActiveTab(tab)
 
     // URL 파라미터 업데이트
@@ -685,8 +686,49 @@ function DashboardContent() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex min-h-[calc(100vh-64px)]">
+        {/* PC 왼쪽 사이드바 - md 이상에서만 표시 */}
+        {showTabs && (
+          <aside className="hidden md:flex flex-col w-52 lg:w-56 bg-white border-r border-gray-200 shrink-0 sticky top-0 h-[calc(100vh-64px)] overflow-y-auto">
+            <nav className="flex-1 py-4 px-3 space-y-1">
+              {[
+                { key: 'summary' as const, icon: LayoutDashboard, label: '통합 요약' },
+                { key: 'meta' as const, icon: Facebook, label: 'Meta 상세' },
+                ...(isNaverEnabled && clientInfo?.naver?.show_detail_tab !== false
+                  ? [{ key: 'naver' as const, icon: Navigation, label: '네이버 상세' }]
+                  : []),
+                ...(clientInfo?.ga?.enabled
+                  ? [{ key: 'ga4' as const, icon: Activity, label: 'GA4 분석' }]
+                  : []),
+                { key: 'reports' as const, icon: FileText, label: '리포트' },
+                ...(clientSlug === 'naratton' && isAuthenticated
+                  ? [{ key: 'leads' as const, icon: Users, label: '리드관리' }]
+                  : []),
+              ].map(item => {
+                const Icon = item.icon
+                const isActive = activeTab === item.key
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => handleTabChange(item.key)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-[#FFF3E0] text-[#E09000] shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? 'text-[#F5A623]' : 'text-gray-400'}`} />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
+        )}
+
+        {/* 메인 콘텐츠 */}
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
@@ -698,71 +740,6 @@ function DashboardContent() {
           </div>
         ) : data ? (
           <>
-            {/* 탭 네비게이션 */}
-            {showTabs && (
-              <div className={`grid gap-1 border-b border-gray-200 mb-6 ${
-                clientInfo?.ga?.enabled
-                  ? (isNaverEnabled ? 'grid-cols-5' : 'grid-cols-4')
-                  : (isNaverEnabled ? 'grid-cols-4' : 'grid-cols-3')
-              }`}>
-                <button
-                  onClick={() => handleTabChange('summary')}
-                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                    activeTab === 'summary'
-                      ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  통합 요약
-                </button>
-                <button
-                  onClick={() => handleTabChange('meta')}
-                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                    activeTab === 'meta'
-                      ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Meta 상세
-                </button>
-                {/* 네이버 상세 탭 - 네이버 활성화 & show_detail_tab이 true일 때만 표시 */}
-                {isNaverEnabled && clientInfo?.naver?.show_detail_tab !== false && (
-                  <button
-                    onClick={() => handleTabChange('naver')}
-                    className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                      activeTab === 'naver'
-                        ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    네이버 상세
-                  </button>
-                )}
-                {/* GA4 탭 - ga.enabled가 true일 때만 표시 */}
-                {clientInfo?.ga?.enabled && (
-                  <button
-                    onClick={() => handleTabChange('ga4')}
-                    className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                      activeTab === 'ga4'
-                        ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    GA4 분석
-                  </button>
-                )}
-                <button
-                  onClick={() => handleTabChange('reports')}
-                  className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                    activeTab === 'reports'
-                      ? 'bg-white text-[#F5A623] border-b-2 border-[#F5A623]'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  리포트
-                </button>
-              </div>
-            )}
 
             {/* 통합 요약 탭 */}
             {activeTab === 'summary' && (
@@ -1889,9 +1866,54 @@ function DashboardContent() {
             {activeTab === 'reports' && showTabs && (
               <ReportList clientSlug={clientSlug} isAdmin={isAuthenticated === true} />
             )}
+
+            {/* 리드관리 탭 - 나라똔 전용 */}
+            {activeTab === 'leads' && clientSlug === 'naratton' && isAuthenticated && (
+              <NarattonLeadManagement clientSlug={clientSlug} />
+            )}
           </>
         ) : null}
-      </main>
+        </main>
+      </div>
+
+      {/* 모바일 하단 네비게이션 바 */}
+      {showTabs && data && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-area-bottom">
+          <div className="flex justify-around items-center h-14 px-1">
+            {[
+              { key: 'summary' as const, icon: LayoutDashboard, label: '요약' },
+              { key: 'meta' as const, icon: Facebook, label: 'Meta' },
+              ...(isNaverEnabled && clientInfo?.naver?.show_detail_tab !== false
+                ? [{ key: 'naver' as const, icon: Navigation, label: '네이버' }]
+                : []),
+              ...(clientInfo?.ga?.enabled
+                ? [{ key: 'ga4' as const, icon: Activity, label: 'GA4' }]
+                : []),
+              { key: 'reports' as const, icon: FileText, label: '리포트' },
+              ...(clientSlug === 'naratton' && isAuthenticated
+                ? [{ key: 'leads' as const, icon: Users, label: '리드' }]
+                : []),
+            ].map(item => {
+              const Icon = item.icon
+              const isActive = activeTab === item.key
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => handleTabChange(item.key)}
+                  className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-[48px] ${
+                    isActive
+                      ? 'text-[#F5A623]'
+                      : 'text-gray-400 active:text-gray-600'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#F5A623]' : ''}`} />
+                  <span className={`text-[10px] font-medium ${isActive ? 'text-[#F5A623]' : ''}`}>{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }

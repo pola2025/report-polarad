@@ -243,22 +243,6 @@ export function NarattonLeadManagement({ clientSlug }: NarattonLeadManagementPro
     }
   }
 
-  const toggleStaffActive = async (staffId: string, isActive: boolean) => {
-    try {
-      const res = await fetch(`/api/naratton/staff/${staffId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !isActive }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setStaff(prev => prev.map(s => s.id === staffId ? data.staff : s))
-      }
-    } catch (err) {
-      console.error('toggleStaffActive error:', err)
-    }
-  }
-
   const deleteStaffMember = async (staffId: string) => {
     try {
       const res = await fetch(`/api/naratton/staff/${staffId}`, { method: 'DELETE' })
@@ -409,7 +393,6 @@ export function NarattonLeadManagement({ clientSlug }: NarattonLeadManagementPro
           staff={staff}
           onClose={() => setShowStaffModal(false)}
           onAdd={addStaff}
-          onToggle={toggleStaffActive}
           onDelete={deleteStaffMember}
         />
       )}
@@ -658,8 +641,8 @@ function LeadCard({
               {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '...' : lead.name) : '(없음)'}
             </span>
             {lead.submission_count > 1 && (
-              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full">
-                재접수 ({lead.submission_count}회)
+              <span className="inline-flex items-center justify-center w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full">
+                {lead.submission_count}
               </span>
             )}
             {lead.blacklisted && (
@@ -700,12 +683,20 @@ function LeadCard({
 
       <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400">
         <span>{lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}</span>
-        {lead.notes && (
-          <span className="flex items-center gap-0.5">
-            <MessageSquare className="w-3 h-3" />
-            메모
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {lead.submission_count > 1 && (
+            <span className="flex items-center gap-0.5 text-amber-600">
+              <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-500 text-white text-[9px] font-bold rounded-full">{lead.submission_count}</span>
+              회 접수
+            </span>
+          )}
+          {lead.notes && (
+            <span className="flex items-center gap-0.5">
+              <MessageSquare className="w-3 h-3" />
+              메모
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -759,6 +750,11 @@ function LeadTable({
                     >
                       {lead.name ? (lead.name.length > 6 ? lead.name.slice(0, 6) + '...' : lead.name) : '(없음)'}
                     </button>
+                    {lead.submission_count > 1 && (
+                      <span className="inline-flex items-center justify-center w-4.5 h-4.5 bg-amber-500 text-white text-[10px] font-bold rounded-full shrink-0">
+                        {lead.submission_count}
+                      </span>
+                    )}
                     {lead.blacklisted && (
                       <span className="px-1 py-0.5 bg-red-50 text-red-700 text-[10px] font-medium rounded">BL</span>
                     )}
@@ -886,8 +882,8 @@ function LeadDetailSlide({
             <div className="flex items-center gap-3">
               <h4 className="text-lg font-bold text-gray-900">{lead.name || '(이름 없음)'}</h4>
               {lead.submission_count > 1 && (
-                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">
-                  재접수 ({lead.submission_count}회)
+                <span className="inline-flex items-center justify-center w-6 h-6 bg-amber-500 text-white text-xs font-bold rounded-full">
+                  {lead.submission_count}
                 </span>
               )}
               {lead.blacklisted && (
@@ -899,6 +895,26 @@ function LeadDetailSlide({
               <span>{lead.phone}</span>
             </div>
             {lead.email && <p className="text-sm text-gray-500">{lead.email}</p>}
+            {/* 접수 이력 - 중복접수 시 모든 접수일자 표시 */}
+            {lead.submission_count > 1 && lead.submission_history && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                <p className="text-xs font-medium text-amber-700 mb-1.5">접수 이력 ({lead.submission_count}회)</p>
+                <div className="space-y-1">
+                  {lead.submission_history.split(',').map((dateStr, i) => {
+                    const d = dateStr.trim()
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-xs text-amber-800">
+                        <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-200 text-amber-700 text-[10px] font-bold rounded-full shrink-0">
+                          {i + 1}
+                        </span>
+                        <span>{d ? new Date(d).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}</span>
+                        {i === 0 && <span className="text-[10px] text-amber-500">(최초)</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 채널별 상세 정보 */}
@@ -1172,13 +1188,11 @@ function StaffModal({
   staff,
   onClose,
   onAdd,
-  onToggle,
   onDelete,
 }: {
   staff: NarattonStaff[]
   onClose: () => void
   onAdd: (name: string) => void
-  onToggle: (id: string, isActive: boolean) => void
   onDelete: (id: string) => void
 }) {
   const [newName, setNewName] = useState('')
@@ -1189,8 +1203,29 @@ function StaffModal({
     setNewName('')
   }
 
-  const openTotpSetup = (staffId: string) => {
-    window.open(`/api/naratton/staff/${staffId}/setup-totp`, '_blank', 'width=500,height=700')
+  const [setupUrls, setSetupUrls] = useState<Record<string, string>>({})
+  const [setupLoading, setSetupLoading] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const generateSetupLink = async (staffId: string) => {
+    setSetupLoading(staffId)
+    try {
+      const res = await fetch(`/api/naratton/staff/${staffId}/setup-totp`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setSetupUrls(prev => ({ ...prev, [staffId]: data.setupUrl }))
+      }
+    } catch (err) {
+      console.error('generateSetupLink error:', err)
+    } finally {
+      setSetupLoading(null)
+    }
+  }
+
+  const copyLink = async (staffId: string, url: string) => {
+    await navigator.clipboard.writeText(url)
+    setCopiedId(staffId)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   return (
@@ -1244,36 +1279,46 @@ function StaffModal({
             {/* 목록 */}
             <div className="divide-y divide-gray-100">
               {staff.map(s => (
-                <div key={s.id} className="flex items-center justify-between py-2.5">
-                  <div>
-                    <span className={`text-sm ${s.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
-                      {s.name}
-                    </span>
+                <div key={s.id} className="py-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm ${s.is_active ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                        {s.name}
+                      </span>
+                      {s.is_active ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">인증완료</span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">미인증</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => generateSetupLink(s.id)}
+                        disabled={setupLoading === s.id}
+                        className="text-xs px-2 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                      >
+                        {setupLoading === s.id ? '...' : '2FA 링크'}
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`'${s.name}' 담당자를 삭제하시겠습니까?`)) onDelete(s.id) }}
+                        className="text-xs px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openTotpSetup(s.id)}
-                      className="text-xs px-2 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
-                    >
-                      2FA
-                    </button>
-                    <button
-                      onClick={() => onToggle(s.id, s.is_active)}
-                      className={`text-xs px-2 py-1 rounded-lg transition-colors ${
-                        s.is_active
-                          ? 'text-amber-600 hover:bg-amber-50'
-                          : 'text-green-600 hover:bg-green-50'
-                      }`}
-                    >
-                      {s.is_active ? '비활성화' : '활성화'}
-                    </button>
-                    <button
-                      onClick={() => { if (confirm(`'${s.name}' 담당자를 삭제하시겠습니까?`)) onDelete(s.id) }}
-                      className="text-xs px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      삭제
-                    </button>
-                  </div>
+                  {/* 생성된 링크 표시 */}
+                  {setupUrls[s.id] && (
+                    <div className="mt-1.5 flex items-center gap-1.5 bg-indigo-50 rounded-lg px-2 py-1.5">
+                      <code className="text-[10px] text-indigo-600 truncate flex-1">{setupUrls[s.id]}</code>
+                      <button
+                        onClick={() => copyLink(s.id, setupUrls[s.id])}
+                        className="shrink-0 text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                      >
+                        {copiedId === s.id ? '복사됨' : '복사'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               {staff.length === 0 && (
