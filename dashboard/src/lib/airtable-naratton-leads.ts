@@ -255,6 +255,7 @@ export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): Naratton
   }
   let blacklisted = 0
   let duplicates = 0
+  const byStaff: Record<string, { total: number; by_status: Partial<Record<NarattonLeadStatus, number>> }> = {}
 
   for (const lead of allLeads) {
     const s = lead.status as NarattonLeadStatus
@@ -262,6 +263,14 @@ export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): Naratton
     byChannel[lead.channel]++
     if (lead.blacklisted) blacklisted++
     if (lead.submission_count > 1) duplicates++
+
+    // 담당자별 집계
+    const staffKey = lead.assigned_staff || '미지정'
+    if (!byStaff[staffKey]) {
+      byStaff[staffKey] = { total: 0, by_status: {} }
+    }
+    byStaff[staffKey].total++
+    byStaff[staffKey].by_status[s] = (byStaff[staffKey].by_status[s] || 0) + 1
   }
 
   const total = allLeads.length
@@ -275,6 +284,7 @@ export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): Naratton
     conversion_rate: conversionRate,
     blacklisted,
     duplicates,
+    by_staff: byStaff,
   }
 }
 

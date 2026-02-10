@@ -67,6 +67,12 @@ export interface NarattonStaff {
   telegram_chat_id?: string  // 개인 텔레그램 알림용
 }
 
+// === 담당자별 통계 ===
+export interface StaffStat {
+  total: number
+  by_status: Partial<Record<NarattonLeadStatus, number>>
+}
+
 // === API 요약 ===
 export interface NarattonLeadSummary {
   total: number
@@ -76,6 +82,7 @@ export interface NarattonLeadSummary {
   conversion_rate: number   // 계약 완료 / 전체 * 100
   blacklisted: number
   duplicates: number
+  by_staff: Record<string, StaffStat>
 }
 
 // === API 응답: 리드 목록 ===

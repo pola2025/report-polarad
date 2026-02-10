@@ -28,6 +28,7 @@ import type {
   NarattonLeadSummary,
   NarattonLeadStatus,
   NarattonLeadChannel,
+  StaffStat,
 } from '@/types/naratton-leads'
 import { STATUS_CONFIG, ALL_STATUSES } from '@/types/naratton-leads'
 
@@ -406,46 +407,142 @@ export function NarattonLeadManagement({ clientSlug }: NarattonLeadManagementPro
 
 // === 요약 카드 ===
 function SummaryCards({ summary }: { summary: NarattonLeadSummary }) {
+  // 담당자 정렬: 미지정 맨 아래, 나머지 total 내림차순
+  const staffEntries = Object.entries(summary.by_staff || {}).sort((a, b) => {
+    if (a[0] === '미지정') return 1
+    if (b[0] === '미지정') return -1
+    return b[1].total - a[1].total
+  })
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-blue-50 rounded-lg">
-            <Users className="w-4 h-4 text-blue-600" />
+    <div className="space-y-3">
+      {/* 메인 카드 4개 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-blue-50 rounded-lg">
+              <Users className="w-4 h-4 text-blue-600" />
+            </div>
+            <span className="text-xs text-gray-500">전체 접수</span>
           </div>
-          <span className="text-xs text-gray-500">전체 접수</span>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.total.toLocaleString()}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            홈페이지 {summary.by_channel.homepage} / Meta {summary.by_channel.meta}
+          </p>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.total.toLocaleString()}</p>
-        <p className="text-[10px] text-gray-400 mt-0.5">
-          홈페이지 {summary.by_channel.homepage} / Meta {summary.by_channel.meta}
-        </p>
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-amber-50 rounded-lg">
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <span className="text-xs text-gray-500">오늘 신규</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.today_new}</p>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-green-50 rounded-lg">
+              <UserCheck className="w-4 h-4 text-green-600" />
+            </div>
+            <span className="text-xs text-gray-500">계약 완료</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.by_status['계약 완료']}</p>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-purple-50 rounded-lg">
+              <CheckCircle2 className="w-4 h-4 text-purple-600" />
+            </div>
+            <span className="text-xs text-gray-500">전환율</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.conversion_rate}%</p>
+        </div>
       </div>
-      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-amber-50 rounded-lg">
-            <Clock className="w-4 h-4 text-amber-600" />
-          </div>
-          <span className="text-xs text-gray-500">오늘 신규</span>
+
+      {/* 상태별 현황 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+        <h4 className="text-xs font-medium text-gray-500 mb-2.5">상태별 현황</h4>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {ALL_STATUSES.map(status => {
+            const count = summary.by_status[status] || 0
+            const config = STATUS_CONFIG[status]
+            return (
+              <div
+                key={status}
+                className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg ${config.bg} ${count === 0 ? 'opacity-40' : ''}`}
+              >
+                <span className={`text-lg font-bold ${config.text}`}>{count}</span>
+                <span className={`text-[10px] font-medium ${config.text} text-center leading-tight`}>{config.label}</span>
+              </div>
+            )
+          })}
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.today_new}</p>
       </div>
-      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-green-50 rounded-lg">
-            <UserCheck className="w-4 h-4 text-green-600" />
+
+      {/* 담당자별 현황 */}
+      {staffEntries.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+          <h4 className="text-xs font-medium text-gray-500 mb-2.5">담당자별 현황</h4>
+
+          {/* 모바일: 카드형 */}
+          <div className="sm:hidden space-y-2">
+            {staffEntries.map(([name, stat]) => (
+              <StaffStatCard key={name} name={name} stat={stat} />
+            ))}
           </div>
-          <span className="text-xs text-gray-500">계약 완료</span>
+
+          {/* 데스크탑: 테이블형 */}
+          <div className="hidden sm:block">
+            <div className="space-y-0 divide-y divide-gray-100">
+              {staffEntries.map(([name, stat]) => (
+                <div key={name} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                  <span className={`text-sm font-medium w-20 shrink-0 ${name === '미지정' ? 'text-gray-400' : 'text-gray-900'}`}>
+                    {name}
+                  </span>
+                  <span className="text-sm font-bold text-gray-700 w-14 shrink-0">
+                    전체 {stat.total}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ALL_STATUSES.map(status => {
+                      const count = stat.by_status[status]
+                      if (!count) return null
+                      const config = STATUS_CONFIG[status]
+                      return (
+                        <span key={status} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${config.bg} ${config.text}`}>
+                          {config.label} {count}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.by_status['계약 완료']}</p>
+      )}
+    </div>
+  )
+}
+
+// === 담당자 통계 카드 (모바일용) ===
+function StaffStatCard({ name, stat }: { name: string; stat: StaffStat }) {
+  return (
+    <div className="bg-gray-50 rounded-lg p-2.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className={`text-sm font-medium ${name === '미지정' ? 'text-gray-400' : 'text-gray-900'}`}>{name}</span>
+        <span className="text-sm font-bold text-gray-700">전체 {stat.total}</span>
       </div>
-      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-purple-50 rounded-lg">
-            <CheckCircle2 className="w-4 h-4 text-purple-600" />
-          </div>
-          <span className="text-xs text-gray-500">전환율</span>
-        </div>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.conversion_rate}%</p>
+      <div className="flex flex-wrap gap-1">
+        {ALL_STATUSES.map(status => {
+          const count = stat.by_status[status]
+          if (!count) return null
+          const config = STATUS_CONFIG[status]
+          return (
+            <span key={status} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${config.bg} ${config.text}`}>
+              {config.label} {count}
+            </span>
+          )
+        })}
       </div>
     </div>
   )
