@@ -233,7 +233,7 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {leads.map(lead => {
             const config = STATUS_CONFIG[lead.status] || STATUS_CONFIG['심사준비']
             const ChannelIcon = lead.channel === 'homepage' ? Globe : Megaphone
