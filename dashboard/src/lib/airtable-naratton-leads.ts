@@ -52,9 +52,13 @@ export function normalizePhone(phone: string): string {
 // 홈페이지 레코드 → NarattonLead 변환
 // ===========================
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// 테스트 데이터 자동 감지용 전화번호
+const TEST_PHONES = new Set(['01098979834'])
+
 function mapHomepageRecord(record: any): NarattonLead {
   const f = record.fields
-  const isTest = f['is_test'] === true
+  const phone = f['연락처'] || ''
+  const isTest = f['is_test'] === true || TEST_PHONES.has(normalizePhone(phone))
   return {
     id: record.id,
     channel: isTest ? 'test' : 'homepage',
@@ -89,7 +93,8 @@ function mapHomepageRecord(record: any): NarattonLead {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapMetaRecord(record: any): NarattonLead {
   const f = record.fields
-  const isTest = f['is_test'] === true
+  const phone = f['연락처'] || ''
+  const isTest = f['is_test'] === true || TEST_PHONES.has(normalizePhone(phone))
   return {
     id: record.id,
     channel: isTest ? 'test' : 'meta',
