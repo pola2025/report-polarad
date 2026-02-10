@@ -37,10 +37,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action, slug, code } = body as {
+    const { action, slug, code, email } = body as {
       action: 'send' | 'verify'
       slug: string
       code?: string
+      email?: string
     }
 
     if (!slug) {
@@ -76,6 +77,29 @@ export async function POST(request: NextRequest) {
 
     // ─── OTP 발송 ──────────────────────────
     if (action === 'send') {
+      // 이메일 검증 필수
+      if (!email) {
+        return NextResponse.json(
+          { error: '이메일을 입력해주세요.' },
+          { status: 400 }
+        )
+      }
+
+      if (!staff.email) {
+        return NextResponse.json(
+          { error: '등록된 이메일이 없습니다. 관리자에게 문의하세요.' },
+          { status: 400 }
+        )
+      }
+
+      if (email.trim().toLowerCase() !== staff.email.trim().toLowerCase()) {
+        recordStaffFailedAttempt(ip)
+        return NextResponse.json(
+          { error: '이메일이 일치하지 않습니다.' },
+          { status: 401 }
+        )
+      }
+
       const result = await sendStaffOTP(staff.name, staff.telegram_chat_id)
       if (!result.success) {
         return NextResponse.json({ error: result.error }, { status: 400 })

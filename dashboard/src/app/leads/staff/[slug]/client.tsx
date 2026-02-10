@@ -369,23 +369,26 @@ function TelegramLoginView({
   staffName: string
   onLogin: (name: string) => void
 }) {
+  // step: 'email' → 'otp'
+  const [step, setStep] = useState<'email' | 'otp'>('email')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleSendOTP = async () => {
+    if (!email) return
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/naratton/staff-auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send', slug }),
+        body: JSON.stringify({ action: 'send', slug, email }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        setOtpSent(true)
+        setStep('otp')
       } else {
         setError(data.error || '인증코드 발송에 실패했습니다.')
       }
@@ -420,29 +423,51 @@ function TelegramLoginView({
     }
   }
 
+  const handleResend = () => {
+    setStep('email')
+    setCode('')
+    setError('')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {otpSent ? <MessageCircle className="w-7 h-7 text-indigo-600" /> : <Lock className="w-7 h-7 text-indigo-600" />}
+            {step === 'otp' ? <MessageCircle className="w-7 h-7 text-indigo-600" /> : <Mail className="w-7 h-7 text-indigo-600" />}
           </div>
           <h1 className="text-xl font-bold text-gray-900">나라똔 리드관리</h1>
           <p className="text-sm text-gray-500 mt-1">{staffName}님 로그인</p>
         </div>
 
-        {!otpSent ? (
+        {step === 'email' ? (
           <div className="space-y-4">
-            <p className="text-sm text-gray-500 text-center">텔레그램으로 인증코드를 받으세요</p>
+            <div>
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">
+                <Mail className="inline w-4 h-4 mr-1" />
+                이메일 주소
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                placeholder="등록된 이메일 입력"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && email && handleSendOTP()}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md text-center">{error}</p>}
             <button
               onClick={handleSendOTP}
-              disabled={loading}
+              disabled={loading || !email}
               className="w-full py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-              {loading ? '발송 중...' : '인증코드 발송'}
+              {loading ? '발송 중...' : '인증코드 받기'}
             </button>
+            <p className="text-xs text-gray-400 text-center">이메일 확인 후 텔레그램으로 인증코드가 발송됩니다</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -465,8 +490,8 @@ function TelegramLoginView({
                 autoFocus
               />
             </div>
-            <button onClick={() => { setOtpSent(false); setCode(''); setError('') }} className="text-xs text-gray-400 hover:text-gray-600">
-              인증코드 재발송
+            <button onClick={handleResend} className="text-xs text-gray-400 hover:text-gray-600">
+              다시 입력하기
             </button>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md text-center">{error}</p>}
             <button
