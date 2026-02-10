@@ -25,7 +25,6 @@ export default async function StaffSlugPortalPage({ params }: Props) {
       slug={slug}
       staffName={staff.name}
       isActive={staff.is_active}
-      hasEmail={!!staff.email}
       hasTelegram={!!staff.telegram_chat_id}
     />
   )

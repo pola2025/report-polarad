@@ -8,7 +8,6 @@ interface SlugPortalClientProps {
   slug: string
   staffName: string
   isActive: boolean
-  hasEmail: boolean
   hasTelegram: boolean
 }
 
@@ -16,7 +15,6 @@ export function SlugPortalClient({
   slug,
   staffName,
   isActive,
-  hasEmail,
   hasTelegram,
 }: SlugPortalClientProps) {
   const [loggedInName, setLoggedInName] = useState<string | null>(null)
@@ -60,7 +58,7 @@ export function SlugPortalClient({
 
   // 미활성화 → 활성화 위저드
   if (!isActive) {
-    return <ActivationWizard slug={slug} staffName={staffName} initialHasEmail={hasEmail} initialHasTelegram={hasTelegram} />
+    return <ActivationWizard slug={slug} staffName={staffName} />
   }
 
   // 활성화됨 → 텔레그램 OTP 로그인
@@ -72,18 +70,13 @@ export function SlugPortalClient({
 function ActivationWizard({
   slug,
   staffName,
-  initialHasEmail,
-  initialHasTelegram,
 }: {
   slug: string
   staffName: string
-  initialHasEmail: boolean
-  initialHasTelegram: boolean
 }) {
   // 단계: 1=이메일, 2=텔레그램연결, 3=OTP인증, 4=완료
-  // 이메일 없으면 무조건 1부터, 이메일 있고 텔레그램 없으면 2, 둘 다 있으면 3
-  const initialStep = !initialHasEmail ? 1 : !initialHasTelegram ? 2 : 3
-  const [step, setStep] = useState(initialStep)
+  // 항상 이메일 입력(본인 확인)부터 시작
+  const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
   const [botUsername, setBotUsername] = useState('')
   const [activationToken, setActivationToken] = useState('')
@@ -91,19 +84,6 @@ function ActivationWizard({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [checkingConnection, setCheckingConnection] = useState(false)
-  const [otpAutoSent, setOtpAutoSent] = useState(false)
-
-  // 이메일+텔레그램 다 있는데 비활성인 경우 → 자동 OTP 발송
-  useEffect(() => {
-    if (initialStep === 3 && !otpAutoSent) {
-      setOtpAutoSent(true)
-      fetch('/api/naratton/staff-auth/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send-otp', slug }),
-      }).catch(() => {})
-    }
-  }, [initialStep, otpAutoSent, slug])
 
   // Step 1: 이메일 저장
   const handleSaveEmail = async () => {
@@ -117,9 +97,25 @@ function ActivationWizard({
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        setBotUsername(data.botUsername)
-        setActivationToken(data.activationToken)
-        setStep(2)
+        if (data.telegramConnected) {
+          // 텔레그램 이미 연결 → 바로 OTP 발송 → step 3
+          const otpRes = await fetch('/api/naratton/staff-auth/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'send-otp', slug }),
+          })
+          const otpData = await otpRes.json()
+          if (otpData.success) {
+            setStep(3)
+          } else {
+            setError(otpData.error || 'OTP 발송에 실패했습니다.')
+          }
+        } else {
+          // 텔레그램 미연결 → step 2
+          setBotUsername(data.botUsername)
+          setActivationToken(data.activationToken)
+          setStep(2)
+        }
       } else {
         setError(data.error || '이메일 저장에 실패했습니다.')
       }

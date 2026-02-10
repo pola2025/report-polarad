@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
         success: true,
         botUsername: 'polamkt2026_bot',
         activationToken: token,
+        telegramConnected: !!staff.telegram_chat_id,
       })
     }
 
