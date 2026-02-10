@@ -97,8 +97,10 @@ function ActivationWizard({
       })
       const data = await res.json()
       if (res.ok && data.success) {
+        setBotUsername(data.botUsername)
+        setActivationToken(data.activationToken)
         if (data.telegramConnected) {
-          // 텔레그램 이미 연결 → 바로 OTP 발송 → step 3
+          // 텔레그램 이미 연결 → 바로 OTP 발송 시도
           const otpRes = await fetch('/api/naratton/staff-auth/setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -108,12 +110,12 @@ function ActivationWizard({
           if (otpData.success) {
             setStep(3)
           } else {
-            setError(otpData.error || 'OTP 발송에 실패했습니다.')
+            // OTP 발송 실패 → 텔레그램 재연결 필요
+            setError('텔레그램 연결에 문제가 있습니다. 봇을 다시 시작해주세요.')
+            setStep(2)
           }
         } else {
           // 텔레그램 미연결 → step 2
-          setBotUsername(data.botUsername)
-          setActivationToken(data.activationToken)
           setStep(2)
         }
       } else {
