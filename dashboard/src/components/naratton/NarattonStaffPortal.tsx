@@ -237,44 +237,46 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
           {leads.map(lead => {
             const config = STATUS_CONFIG[lead.status] || STATUS_CONFIG['심사준비']
             const ChannelIcon = lead.channel === 'homepage' ? Globe : Megaphone
+            const hasNotes = !!lead.notes?.trim()
             return (
               <div key={`${lead.channel}-${lead.id}`} className="bg-white rounded-xl border border-gray-200 p-3">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        lead.channel === 'homepage' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
-                      }`}>
-                        <ChannelIcon className="w-3 h-3" />
-                        {CHANNEL_LABEL[lead.channel]}
-                      </span>
-                      <span className="font-semibold text-sm text-gray-900">{lead.name || '(없음)'}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-                        {config.label}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{lead.phone}</p>
-                  </div>
-                  <button
-                    onClick={() => { setSelectedLead(lead); setShowDetail(true) }}
-                    className="text-xs text-indigo-600 hover:underline shrink-0"
-                  >
-                    상세
-                  </button>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    lead.channel === 'homepage' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
+                  }`}>
+                    <ChannelIcon className="w-3 h-3" />
+                    {CHANNEL_LABEL[lead.channel]}
+                  </span>
+                  <span className="font-semibold text-sm text-gray-900">{lead.name || '(없음)'}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+                    {config.label}
+                  </span>
+                  <span className="text-[10px] text-gray-400 ml-auto">
+                    {lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                  </span>
                 </div>
+                <p className="text-xs text-gray-400 mb-2">{lead.phone}</p>
                 <div className="flex items-center gap-2">
                   <select
                     value={lead.status}
                     onChange={e => updateLead(lead, { status: e.target.value as NarattonLeadStatus })}
-                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {ALL_STATUSES.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
-                  <span className="text-[10px] text-gray-400">
-                    {lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
-                  </span>
+                  <button
+                    onClick={() => { setSelectedLead(lead); setShowDetail(true) }}
+                    className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      hasNotes
+                        ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100 ring-1 ring-amber-200'
+                    }`}
+                  >
+                    <Pencil className="w-3 h-3" />
+                    {hasNotes ? '메모확인' : '메모작성'}
+                  </button>
                 </div>
               </div>
             )
