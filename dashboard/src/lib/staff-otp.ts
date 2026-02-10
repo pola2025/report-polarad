@@ -66,7 +66,7 @@ export async function sendStaffOTP(
     return { success: false, error: '잠시 후 다시 시도해주세요.' }
   }
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN
+  const botToken = process.env.ADMIN_OTP_BOT_TOKEN
   if (!botToken) {
     return { success: false, error: '텔레그램 봇이 설정되지 않았습니다.' }
   }

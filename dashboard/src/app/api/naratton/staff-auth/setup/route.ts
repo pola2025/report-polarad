@@ -1,11 +1,11 @@
 /**
- * 나라똔 담당자 슬러그 기반 2FA 설정 API
+ * 나라똔 담당자 셀프 활성화 API
  * POST /api/naratton/staff-auth/setup
  *
- * Body: { slug: string, code?: string }
- *
- * 1단계: code 없이 호출 → TOTP 시크릿 생성 + QR URI 반환
- * 2단계: code 있으면 → 검증 + 관리자 텔레그램 승인 요청
+ * action: 'save-email'       → 이메일 저장, 봇 정보 반환
+ * action: 'check-telegram'   → getUpdates로 봇 연결 확인, chat_id 저장
+ * action: 'send-otp'         → 텔레그램 OTP 발송
+ * action: 'verify-otp'       → OTP 검증 → is_active = true
  */
 
 export const dynamic = 'force-dynamic'
@@ -15,103 +15,119 @@ import {
   getNarattonStaffBySlug,
   updateNarattonStaff,
 } from '@/lib/airtable-naratton-leads'
-import { sendStaffAuthNotification } from '@/lib/telegram'
+import { findActivationChat, sendViaAdminOtpBot } from '@/lib/telegram'
+import { sendStaffOTP, verifyStaffOTP } from '@/lib/staff-otp'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { slug, code } = body
+    const { action, slug } = body
 
     if (!slug || typeof slug !== 'string') {
       return NextResponse.json({ error: '슬러그가 필요합니다.' }, { status: 400 })
     }
 
-    // 담당자 조회
     const staff = await getNarattonStaffBySlug(slug)
     if (!staff) {
       return NextResponse.json({ error: '담당자를 찾을 수 없습니다.' }, { status: 404 })
     }
 
-    // 이미 활성화됨
     if (staff.is_active) {
-      return NextResponse.json({ error: '이미 인증이 완료된 담당자입니다.' }, { status: 400 })
+      return NextResponse.json({ error: '이미 활성화된 계정입니다.' }, { status: 400 })
     }
 
-    const { TOTP, Secret } = await import('otpauth')
+    // ─── Step 1: 이메일 저장 ──────────────────────
+    if (action === 'save-email') {
+      const { email } = body
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json({ error: '올바른 이메일을 입력해주세요.' }, { status: 400 })
+      }
 
-    // 1단계: TOTP 시크릿 없으면 생성
-    if (!staff.totp_secret) {
-      const secret = new Secret({ size: 20 })
+      // 이메일 저장 + activation_token 갱신 (없으면 생성)
+      const token = staff.activation_token || Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map(b => b.toString(36).padStart(2, '0'))
+        .join('')
+        .slice(0, 12)
 
-      const totp = new TOTP({
-        issuer: 'Polarad',
-        label: `나라똔:${staff.name}`,
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-        secret,
-      })
-
-      // Airtable에 시크릿 저장 (is_active는 false 유지)
       await updateNarattonStaff(staff.id, {
-        totp_secret: secret.base32,
+        email,
+        activation_token: token,
       })
 
       return NextResponse.json({
-        step: 'qr',
-        qrUri: totp.toString(),
-        staffName: staff.name,
+        success: true,
+        botUsername: 'polamkt2026_bot',
+        activationToken: token,
       })
     }
 
-    // totp_secret 있지만 code 없으면 → QR URI 재반환
-    if (!code) {
-      const secret = Secret.fromBase32(staff.totp_secret)
-      const totp = new TOTP({
-        issuer: 'Polarad',
-        label: `나라똔:${staff.name}`,
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-        secret,
-      })
+    // ─── Step 2: 텔레그램 연결 확인 ────────────────
+    if (action === 'check-telegram') {
+      // 이미 chat_id가 있으면 바로 성공
+      if (staff.telegram_chat_id) {
+        return NextResponse.json({ success: true, connected: true })
+      }
 
-      return NextResponse.json({
-        step: 'qr',
-        qrUri: totp.toString(),
-        staffName: staff.name,
-      })
+      if (!staff.activation_token) {
+        return NextResponse.json({ error: '먼저 이메일을 등록해주세요.' }, { status: 400 })
+      }
+
+      const chatId = await findActivationChat(staff.activation_token)
+      if (!chatId) {
+        return NextResponse.json({
+          success: false,
+          connected: false,
+          error: '텔레그램 봇과 대화를 시작해주세요.',
+        })
+      }
+
+      // chat_id 저장
+      await updateNarattonStaff(staff.id, { telegram_chat_id: chatId })
+
+      return NextResponse.json({ success: true, connected: true })
     }
 
-    // 2단계: 코드 검증
-    if (typeof code !== 'string' || code.length !== 6) {
-      return NextResponse.json({ error: '6자리 인증 코드를 입력해주세요.' }, { status: 400 })
+    // ─── Step 3: OTP 발송 ─────────────────────────
+    if (action === 'send-otp') {
+      const chatId = staff.telegram_chat_id
+      if (!chatId) {
+        return NextResponse.json({ error: '텔레그램이 연결되지 않았습니다.' }, { status: 400 })
+      }
+
+      const result = await sendStaffOTP(staff.name, chatId)
+      return NextResponse.json(result)
     }
 
-    const secret = Secret.fromBase32(staff.totp_secret)
-    const totp = new TOTP({
-      issuer: 'Polarad',
-      label: `나라똔:${staff.name}`,
-      algorithm: 'SHA1',
-      digits: 6,
-      period: 30,
-      secret,
-    })
+    // ─── Step 4: OTP 검증 → 활성화 ────────────────
+    if (action === 'verify-otp') {
+      const { code } = body
+      if (!code || typeof code !== 'string' || code.length !== 6) {
+        return NextResponse.json({ error: '6자리 인증코드를 입력해주세요.' }, { status: 400 })
+      }
 
-    const delta = totp.validate({ token: code, window: 1 })
-    if (delta === null) {
-      return NextResponse.json({ error: '인증 코드가 올바르지 않습니다.' }, { status: 401 })
+      const result = verifyStaffOTP(staff.name, code)
+      if (!result.valid) {
+        return NextResponse.json({ success: false, error: result.error }, { status: 401 })
+      }
+
+      // 활성화
+      await updateNarattonStaff(staff.id, { is_active: true })
+
+      // 관리자에게 알림
+      const adminChatId = process.env.ADMIN_OTP_CHAT_ID
+      if (adminChatId) {
+        await sendViaAdminOtpBot(
+          adminChatId,
+          `<b>✅ 담당자 활성화 완료</b>\n\n<b>이름:</b> ${staff.name}\n<b>이메일:</b> ${staff.email || '-'}\n\n⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+        )
+      }
+
+      return NextResponse.json({ success: true })
     }
 
-    // 코드 검증 성공 → 관리자 텔레그램 승인 요청
-    await sendStaffAuthNotification(staff.name, staff.id, slug)
-
-    return NextResponse.json({
-      step: 'pending',
-      message: '인증 코드가 확인되었습니다. 관리자 승인을 기다려주세요.',
-    })
+    return NextResponse.json({ error: '잘못된 action입니다.' }, { status: 400 })
   } catch (error) {
     console.error('POST /api/naratton/staff-auth/setup error:', error)
-    return NextResponse.json({ error: '설정 중 오류가 발생했습니다.' }, { status: 500 })
+    return NextResponse.json({ error: '처리 중 오류가 발생했습니다.' }, { status: 500 })
   }
 }

@@ -58,12 +58,13 @@ export interface NarattonLead {
 export interface NarattonStaff {
   id: string
   name: string
-  slug?: string            // 영문 이니셜 슬러그 (포털 URL용)
-  email?: string           // 로그인용 이메일
+  slug?: string              // 자동생성 슬러그 (포털 URL용)
+  email?: string             // 로그인용 이메일
   is_active: boolean
-  totp_secret?: string     // TOTP 시크릿 (setup 시에만 반환)
-  setup_token?: string     // 1회용 TOTP 설정 토큰
-  telegram_chat_id?: string // 개인 텔레그램 알림용
+  totp_secret?: string       // (레거시) TOTP 시크릿
+  setup_token?: string       // (레거시) 1회용 TOTP 설정 토큰
+  activation_token?: string  // 텔레그램 봇 연결용 토큰
+  telegram_chat_id?: string  // 개인 텔레그램 알림용
 }
 
 // === API 요약 ===

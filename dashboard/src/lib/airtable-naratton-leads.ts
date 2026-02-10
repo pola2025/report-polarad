@@ -571,6 +571,7 @@ function mapRecordToStaff(record: any): NarattonStaff {
     is_active: f['is_active'] === true,
     totp_secret: f['totp_secret'] || undefined,
     setup_token: f['setup_token'] || undefined,
+    activation_token: f['activation_token'] || undefined,
     telegram_chat_id: f['telegram_chat_id'] || undefined,
   }
 }
@@ -580,6 +581,21 @@ export async function getNarattonStaffBySlug(slug: string): Promise<NarattonStaf
 
   const params = new URLSearchParams()
   params.set('filterByFormula', `{slug}='${escapeFormulaValue(slug)}'`)
+  params.set('maxRecords', '1')
+
+  const url = `${BASE_URL}/${STAFF_TABLE_ID}?${params.toString()}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }, cache: 'no-store' })
+  const data = await res.json()
+
+  if (data.error || !data.records?.length) return null
+  return mapRecordToStaff(data.records[0])
+}
+
+export async function getNarattonStaffByActivationToken(token: string): Promise<NarattonStaff | null> {
+  if (!STAFF_TABLE_ID || !token) return null
+
+  const params = new URLSearchParams()
+  params.set('filterByFormula', `{activation_token}='${escapeFormulaValue(token)}'`)
   params.set('maxRecords', '1')
 
   const url = `${BASE_URL}/${STAFF_TABLE_ID}?${params.toString()}`
@@ -653,7 +669,15 @@ export async function createNarattonStaff(name: string): Promise<NarattonStaff |
     method: 'POST',
     headers,
     body: JSON.stringify({
-      fields: { name, slug, is_active: false },
+      fields: {
+        name,
+        slug,
+        is_active: false,
+        activation_token: Array.from(crypto.getRandomValues(new Uint8Array(8)))
+          .map(b => b.toString(36).padStart(2, '0'))
+          .join('')
+          .slice(0, 12),
+      },
     }),
   })
   const data = await res.json()
@@ -668,7 +692,7 @@ export async function createNarattonStaff(name: string): Promise<NarattonStaff |
 
 export async function updateNarattonStaff(
   recordId: string,
-  updates: { name?: string; slug?: string; email?: string; is_active?: boolean; totp_secret?: string; setup_token?: string; telegram_chat_id?: string }
+  updates: { name?: string; slug?: string; email?: string; is_active?: boolean; totp_secret?: string; setup_token?: string; activation_token?: string; telegram_chat_id?: string }
 ): Promise<NarattonStaff | null> {
   if (!STAFF_TABLE_ID) return null
 

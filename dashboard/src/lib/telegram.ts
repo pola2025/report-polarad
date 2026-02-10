@@ -186,6 +186,56 @@ export async function sendStaffAuthNotification(
 }
 
 /**
+ * 텔레그램 봇 getUpdates로 활성화 토큰 메시지 찾기
+ * ADMIN_OTP_BOT에서 /start TOKEN 메시지를 검색
+ */
+export async function findActivationChat(activationToken: string): Promise<string | null> {
+  const botToken = process.env.ADMIN_OTP_BOT_TOKEN
+  if (!botToken) return null
+
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${botToken}/getUpdates?limit=100&allowed_updates=["message"]`
+    )
+    const data = await res.json()
+    if (!data.ok || !data.result) return null
+
+    for (const update of data.result) {
+      const msg = update.message
+      if (!msg?.text) continue
+      if (msg.text === `/start ${activationToken}`) {
+        // offset 업데이트해서 이 메시지를 소비
+        await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=${update.update_id + 1}&limit=1`)
+        return String(msg.chat.id)
+      }
+    }
+    return null
+  } catch (error) {
+    console.error('findActivationChat error:', error)
+    return null
+  }
+}
+
+/**
+ * ADMIN_OTP_BOT으로 메시지 전송 (담당자 DM용)
+ */
+export async function sendViaAdminOtpBot(chatId: string, message: string): Promise<boolean> {
+  const botToken = process.env.ADMIN_OTP_BOT_TOKEN
+  if (!botToken) return false
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/**
  * 에러 알림 (관리자용)
  */
 export async function sendErrorNotification(
