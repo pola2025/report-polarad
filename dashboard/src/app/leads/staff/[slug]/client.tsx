@@ -81,7 +81,9 @@ function ActivationWizard({
   initialHasTelegram: boolean
 }) {
   // 단계: 1=이메일, 2=텔레그램연결, 3=OTP인증, 4=완료
-  const [step, setStep] = useState(initialHasTelegram ? 3 : initialHasEmail ? 2 : 1)
+  // 이메일 없으면 무조건 1부터, 이메일 있고 텔레그램 없으면 2, 둘 다 있으면 3
+  const initialStep = !initialHasEmail ? 1 : !initialHasTelegram ? 2 : 3
+  const [step, setStep] = useState(initialStep)
   const [email, setEmail] = useState('')
   const [botUsername, setBotUsername] = useState('')
   const [activationToken, setActivationToken] = useState('')
@@ -89,6 +91,19 @@ function ActivationWizard({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [checkingConnection, setCheckingConnection] = useState(false)
+  const [otpAutoSent, setOtpAutoSent] = useState(false)
+
+  // 이메일+텔레그램 다 있는데 비활성인 경우 → 자동 OTP 발송
+  useEffect(() => {
+    if (initialStep === 3 && !otpAutoSent) {
+      setOtpAutoSent(true)
+      fetch('/api/naratton/staff-auth/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send-otp', slug }),
+      }).catch(() => {})
+    }
+  }, [initialStep, otpAutoSent, slug])
 
   // Step 1: 이메일 저장
   const handleSaveEmail = async () => {
