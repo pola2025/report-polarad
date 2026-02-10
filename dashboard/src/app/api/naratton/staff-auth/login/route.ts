@@ -37,10 +37,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action, slug, email, code } = body as {
+    const { action, slug, code } = body as {
       action: 'send' | 'verify'
       slug: string
-      email?: string
       code?: string
     }
 
