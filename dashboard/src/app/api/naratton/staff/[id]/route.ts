@@ -24,7 +24,10 @@ export async function PATCH(
 
     const staff = await updateNarattonStaff(id, {
       name: body.name,
+      slug: body.slug,
+      email: body.email,
       is_active: body.is_active,
+      telegram_chat_id: body.telegram_chat_id,
     })
 
     if (!staff) {

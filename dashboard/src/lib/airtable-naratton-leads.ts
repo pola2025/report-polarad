@@ -448,8 +448,8 @@ export async function addNarattonLeadNote(
   const current = await getNarattonLead(recordId, tableId)
   if (!current) return null
 
-  const now = new Date()
-  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const timestamp = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')} ${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
   const newNote = `[${timestamp}] ${author}: ${note}`
   const updatedNotes = current.notes ? `${newNote}\n${current.notes}` : newNote
 
@@ -486,8 +486,8 @@ export async function updateNarattonLeadNote(
   const lines = current.notes.split('\n').filter(Boolean)
   if (noteIndex < 0 || noteIndex >= lines.length) return null
 
-  const now = new Date()
-  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const timestamp = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')} ${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
   lines[noteIndex] = `[${timestamp}] ${author}: ${newContent} (수정됨)`
 
   const url = `${BASE_URL}/${tableId}/${recordId}`
@@ -566,10 +566,28 @@ function mapRecordToStaff(record: any): NarattonStaff {
   return {
     id: record.id,
     name: f['name'] || f['Name'] || '',
+    slug: f['slug'] || undefined,
+    email: f['email'] || undefined,
     is_active: f['is_active'] === true,
     totp_secret: f['totp_secret'] || undefined,
     setup_token: f['setup_token'] || undefined,
+    telegram_chat_id: f['telegram_chat_id'] || undefined,
   }
+}
+
+export async function getNarattonStaffBySlug(slug: string): Promise<NarattonStaff | null> {
+  if (!STAFF_TABLE_ID || !slug) return null
+
+  const params = new URLSearchParams()
+  params.set('filterByFormula', `{slug}='${escapeFormulaValue(slug)}'`)
+  params.set('maxRecords', '1')
+
+  const url = `${BASE_URL}/${STAFF_TABLE_ID}?${params.toString()}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }, cache: 'no-store' })
+  const data = await res.json()
+
+  if (data.error || !data.records?.length) return null
+  return mapRecordToStaff(data.records[0])
 }
 
 export async function getNarattonStaffByToken(token: string): Promise<NarattonStaff | null> {
@@ -644,7 +662,7 @@ export async function createNarattonStaff(name: string): Promise<NarattonStaff |
 
 export async function updateNarattonStaff(
   recordId: string,
-  updates: { name?: string; is_active?: boolean; totp_secret?: string; setup_token?: string }
+  updates: { name?: string; slug?: string; email?: string; is_active?: boolean; totp_secret?: string; setup_token?: string; telegram_chat_id?: string }
 ): Promise<NarattonStaff | null> {
   if (!STAFF_TABLE_ID) return null
 

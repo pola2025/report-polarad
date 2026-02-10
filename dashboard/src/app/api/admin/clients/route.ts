@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { isAdminRequest } from '@/lib/admin-auth'
+import { isAdminRequest, getAdminScope, BAS_NARATTON_ALLOWED_SLUGS } from '@/lib/admin-auth'
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
@@ -72,10 +72,20 @@ export async function GET(request: NextRequest) {
     // Airtable에서 클라이언트 목록 조회
     const clients = await fetchClientsFromAirtable()
 
+    // scope에 따른 클라이언트 필터링
+    const scope = await getAdminScope(request)
+
     // 상태 필터 파라미터
     const statusFilter = request.nextUrl.searchParams.get('status')
 
     let filteredClients = [...clients]
+
+    // scope 필터 적용 (bas-naratton → BAS, 나라똔만)
+    if (scope === 'bas-naratton') {
+      filteredClients = filteredClients.filter((c: { slug: string }) =>
+        BAS_NARATTON_ALLOWED_SLUGS.includes(c.slug)
+      )
+    }
 
     // 상태 필터 적용
     if (statusFilter) {

@@ -1,69 +1,134 @@
 /**
- * 나라똔 담당자 TOTP 로그인 API
+ * 나라똔 담당자 텔레그램 OTP 로그인 API
  * POST /api/naratton/staff-auth/login
- * Body: { name: string, code: string }
+ *
+ * action: 'send'   → 텔레그램으로 인증코드 발송
+ * action: 'verify' → 인증코드 검증 → JWT 세션 발급
  */
 
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  verifyStaffTOTP,
   createStaffSession,
   setStaffSessionCookie,
   checkStaffRateLimit,
   recordStaffFailedAttempt,
   clearStaffAttempts,
 } from '@/lib/staff-auth'
+import { getNarattonStaffBySlug } from '@/lib/airtable-naratton-leads'
+import { sendStaffOTP, verifyStaffOTP } from '@/lib/staff-otp'
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      'unknown'
 
-    // Rate limit 체크
     const rateLimit = checkStaffRateLimit(ip)
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: '로그인 시도 횟수를 초과했습니다. 15분 후 다시 시도해주세요.' },
+        {
+          error:
+            '로그인 시도 횟수를 초과했습니다. 15분 후 다시 시도해주세요.',
+        },
         { status: 429 }
       )
     }
 
     const body = await request.json()
-    const { name, code } = body
+    const { action, slug, email, code } = body as {
+      action: 'send' | 'verify'
+      slug: string
+      email?: string
+      code?: string
+    }
 
-    if (!name || !code) {
+    if (!slug) {
       return NextResponse.json(
-        { error: '이름과 인증 코드를 입력해주세요.' },
+        { error: '잘못된 요청입니다.' },
         { status: 400 }
       )
     }
 
-    // TOTP 검증
-    const isValid = await verifyStaffTOTP(name, code)
-    if (!isValid) {
-      recordStaffFailedAttempt(ip)
+    // 담당자 조회
+    const staff = await getNarattonStaffBySlug(slug)
+    if (!staff) {
       return NextResponse.json(
-        {
-          error: '인증에 실패했습니다.',
-          remainingAttempts: rateLimit.remainingAttempts - 1,
-        },
-        { status: 401 }
+        { error: '담당자를 찾을 수 없습니다.' },
+        { status: 404 }
       )
     }
 
-    // 성공 → 세션 생성
-    clearStaffAttempts(ip)
-    const token = await createStaffSession(name)
+    // telegram_chat_id 확인
+    if (!staff.telegram_chat_id) {
+      return NextResponse.json(
+        { error: '텔레그램이 연동되지 않았습니다. 관리자에게 문의하세요.' },
+        { status: 400 }
+      )
+    }
 
-    const response = NextResponse.json({
-      success: true,
-      staffName: name,
-    })
+    if (!staff.is_active) {
+      return NextResponse.json(
+        { error: '계정이 비활성 상태입니다. 관리자에게 문의하세요.' },
+        { status: 403 }
+      )
+    }
 
-    return setStaffSessionCookie(response, token)
+    // ─── OTP 발송 ──────────────────────────
+    if (action === 'send') {
+      const result = await sendStaffOTP(staff.name, staff.telegram_chat_id)
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 400 })
+      }
+      return NextResponse.json({
+        success: true,
+        message: '텔레그램으로 인증코드를 발송했습니다.',
+      })
+    }
+
+    // ─── OTP 검증 ──────────────────────────
+    if (action === 'verify') {
+      if (!code) {
+        return NextResponse.json(
+          { error: '인증코드를 입력해주세요.' },
+          { status: 400 }
+        )
+      }
+
+      const result = verifyStaffOTP(staff.name, code)
+      if (!result.valid) {
+        recordStaffFailedAttempt(ip)
+        return NextResponse.json(
+          {
+            error: result.error,
+            remainingAttempts: rateLimit.remainingAttempts - 1,
+          },
+          { status: 401 }
+        )
+      }
+
+      // 인증 성공 → 세션 생성
+      clearStaffAttempts(ip)
+      const token = await createStaffSession(staff.name)
+
+      const response = NextResponse.json({
+        success: true,
+        staffName: staff.name,
+      })
+
+      return setStaffSessionCookie(response, token)
+    }
+
+    return NextResponse.json(
+      { error: '잘못된 요청입니다.' },
+      { status: 400 }
+    )
   } catch (error) {
     console.error('POST /api/naratton/staff-auth/login error:', error)
-    return NextResponse.json({ error: '로그인 처리 중 오류가 발생했습니다.' }, { status: 500 })
+    return NextResponse.json(
+      { error: '로그인 처리 중 오류가 발생했습니다.' },
+      { status: 500 }
+    )
   }
 }

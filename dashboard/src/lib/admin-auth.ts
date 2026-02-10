@@ -14,8 +14,11 @@ import { NextRequest, NextResponse } from 'next/server'
 const COOKIE_NAME = 'polarad_admin_session'
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 // 7일 (초)
 
+export type AdminScope = 'all' | 'bas-naratton'
+
 interface AdminSessionPayload extends JWTPayload {
   role: 'admin'
+  scope: AdminScope
   iat: number
   exp: number
 }
@@ -37,11 +40,11 @@ function getAdminKey(): string {
 // ─── JWT Session ──────────────────────────────────────────
 
 /** JWT 토큰 생성 */
-export async function createSession(): Promise<string> {
+export async function createSession(scope: AdminScope = 'all'): Promise<string> {
   const secret = getJwtSecret()
   const now = Math.floor(Date.now() / 1000)
 
-  return new SignJWT({ role: 'admin' } as AdminSessionPayload)
+  return new SignJWT({ role: 'admin', scope } as AdminSessionPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt(now)
     .setExpirationTime(now + SESSION_MAX_AGE)
@@ -92,13 +95,23 @@ export async function verifyTOTP(code: string): Promise<boolean> {
   return delta !== null
 }
 
-/** 관리자 키 검증 */
-export function verifyAdminKey(inputKey: string): boolean {
+/** 관리자 키 검증 → scope 반환 */
+export function verifyAdminKey(inputKey: string): { valid: boolean; scope: AdminScope } {
   const adminKey = getAdminKey()
-  // timing-safe comparison은 서버에서 crypto.timingSafeEqual 사용이 이상적이지만
-  // Edge Runtime 호환을 위해 단순 비교 (brute-force는 rate limit으로 방어)
-  return inputKey === adminKey
+  if (inputKey === adminKey) {
+    return { valid: true, scope: 'all' }
+  }
+
+  const basNarattonKey = process.env.BAS_NARATTON_ADMIN_KEY
+  if (basNarattonKey && inputKey === basNarattonKey) {
+    return { valid: true, scope: 'bas-naratton' }
+  }
+
+  return { valid: false, scope: 'all' }
 }
+
+/** BAS+나라똔 scope에서 접근 가능한 클라이언트 slug 목록 */
+export const BAS_NARATTON_ALLOWED_SLUGS = ['bas', 'naratton']
 
 // ─── Cookie Management ────────────────────────────────────
 
@@ -157,13 +170,41 @@ export async function isAdminRequest(
     request.nextUrl.searchParams.get('adminKey')
   if (headerKey) {
     try {
-      return verifyAdminKey(headerKey)
+      return verifyAdminKey(headerKey).valid
     } catch {
       return false
     }
   }
 
   return false
+}
+
+/**
+ * API 요청에서 관리자 scope 추출
+ * JWT에서 scope 읽기 → 헤더 키 폴백
+ */
+export async function getAdminScope(
+  request: NextRequest
+): Promise<AdminScope> {
+  const token = getSessionToken(request)
+  if (token) {
+    const payload = await verifySession(token)
+    if (payload) return payload.scope || 'all'
+  }
+
+  const headerKey =
+    request.headers.get('x-admin-key') ||
+    request.nextUrl.searchParams.get('adminKey')
+  if (headerKey) {
+    try {
+      const result = verifyAdminKey(headerKey)
+      if (result.valid) return result.scope
+    } catch {
+      // fall through
+    }
+  }
+
+  return 'all'
 }
 
 // ─── Rate Limiting ────────────────────────────────────────

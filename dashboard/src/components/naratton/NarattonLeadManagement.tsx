@@ -1183,7 +1183,7 @@ function LeadDetailSlide({
   )
 }
 
-// === 담당자 관리 모달 (TOTP 포함) ===
+// === 담당자 관리 모달 (슬러그 포털) ===
 function StaffModal({
   staff,
   onClose,
@@ -1196,6 +1196,11 @@ function StaffModal({
   onDelete: (id: string) => void
 }) {
   const [newName, setNewName] = useState('')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editFields, setEditFields] = useState<{ slug?: string; email?: string; telegram_chat_id?: string }>({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const handleAdd = () => {
     if (!newName.trim()) return
@@ -1203,29 +1208,61 @@ function StaffModal({
     setNewName('')
   }
 
-  const [setupUrls, setSetupUrls] = useState<Record<string, string>>({})
-  const [setupLoading, setSetupLoading] = useState<string | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const getStaffStatus = (s: NarattonStaff): 'active' | 'pending' | 'none' => {
+    if (s.is_active) return 'active'
+    if (s.totp_secret) return 'pending'
+    return 'none'
+  }
 
-  const generateSetupLink = async (staffId: string) => {
-    setSetupLoading(staffId)
+  const copyPortalLink = async (s: NarattonStaff) => {
+    if (!s.slug) return
+    const host = window.location.origin
+    const url = `${host}/leads/staff/${s.slug}`
+    await navigator.clipboard.writeText(url)
+    setCopiedId(s.id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const approveStaff = async (staffId: string) => {
+    setApprovingId(staffId)
     try {
-      const res = await fetch(`/api/naratton/staff/${staffId}/setup-totp`, { method: 'POST' })
+      const res = await fetch(`/api/naratton/staff/${staffId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: true }),
+      })
       if (res.ok) {
-        const data = await res.json()
-        setSetupUrls(prev => ({ ...prev, [staffId]: data.setupUrl }))
+        window.location.reload()
       }
     } catch (err) {
-      console.error('generateSetupLink error:', err)
+      console.error('approveStaff error:', err)
     } finally {
-      setSetupLoading(null)
+      setApprovingId(null)
     }
   }
 
-  const copyLink = async (staffId: string, url: string) => {
-    await navigator.clipboard.writeText(url)
-    setCopiedId(staffId)
-    setTimeout(() => setCopiedId(null), 2000)
+  const startEdit = (s: NarattonStaff) => {
+    setEditingId(s.id)
+    setEditFields({ slug: s.slug || '', email: s.email || '', telegram_chat_id: s.telegram_chat_id || '' })
+  }
+
+  const saveEdit = async (staffId: string) => {
+    setSavingEdit(true)
+    try {
+      const res = await fetch(`/api/naratton/staff/${staffId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFields),
+      })
+      if (res.ok) {
+        setEditingId(null)
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error('saveEdit error:', err)
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   return (
@@ -1260,67 +1297,131 @@ function StaffModal({
               </button>
             </div>
 
-            {/* 담당자 포털 링크 */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs text-amber-700 mb-1 font-medium">담당자 포털</p>
-              <div className="flex items-center gap-2">
-                <code className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded flex-1">/leads/staff</code>
-                <a
-                  href="/leads/staff"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1 text-amber-600 hover:bg-amber-100 rounded transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-
             {/* 목록 */}
             <div className="divide-y divide-gray-100">
-              {staff.map(s => (
-                <div key={s.id} className="py-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${s.is_active ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
-                        {s.name}
-                      </span>
-                      {s.is_active ? (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">인증완료</span>
-                      ) : (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">미인증</span>
-                      )}
+              {staff.map(s => {
+                const status = getStaffStatus(s)
+                return (
+                  <div key={s.id} className="py-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${s.is_active ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                          {s.name}
+                        </span>
+                        {s.slug && (
+                          <code className="text-[10px] text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded">{s.slug}</code>
+                        )}
+                        {status === 'active' && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">인증완료</span>
+                        )}
+                        {status === 'pending' && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full">승인대기</span>
+                        )}
+                        {status === 'none' && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">미설정</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {status === 'pending' && (
+                          <button
+                            onClick={() => approveStaff(s.id)}
+                            disabled={approvingId === s.id}
+                            className="text-xs px-2 py-1 rounded-lg text-green-600 hover:bg-green-50 transition-colors disabled:opacity-50"
+                          >
+                            {approvingId === s.id ? '...' : '승인'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => editingId === s.id ? setEditingId(null) : startEdit(s)}
+                          className="text-xs px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                          {editingId === s.id ? '접기' : '편집'}
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`'${s.name}' 담당자를 삭제하시겠습니까?`)) onDelete(s.id) }}
+                          className="text-xs px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => generateSetupLink(s.id)}
-                        disabled={setupLoading === s.id}
-                        className="text-xs px-2 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50"
-                      >
-                        {setupLoading === s.id ? '...' : '2FA 링크'}
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`'${s.name}' 담당자를 삭제하시겠습니까?`)) onDelete(s.id) }}
-                        className="text-xs px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        삭제
-                      </button>
-                    </div>
+                    {/* 이메일 표시 */}
+                    {s.email && editingId !== s.id && (
+                      <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">{s.email}</p>
+                    )}
+                    {/* 편집 폼 */}
+                    {editingId === s.id && (
+                      <div className="mt-2 space-y-2 bg-gray-50 rounded-lg p-2.5">
+                        <div>
+                          <label className="text-[10px] text-gray-500 block mb-0.5">슬러그</label>
+                          <input
+                            type="text"
+                            value={editFields.slug || ''}
+                            onChange={e => setEditFields(prev => ({ ...prev, slug: e.target.value.replace(/[^a-z0-9]/g, '') }))}
+                            placeholder="영문 이니셜 (예: kms)"
+                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500 block mb-0.5">이메일</label>
+                          <input
+                            type="email"
+                            value={editFields.email || ''}
+                            onChange={e => setEditFields(prev => ({ ...prev, email: e.target.value }))}
+                            placeholder="example@email.com"
+                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500 block mb-0.5">텔레그램 Chat ID</label>
+                          <input
+                            type="text"
+                            value={editFields.telegram_chat_id || ''}
+                            onChange={e => setEditFields(prev => ({ ...prev, telegram_chat_id: e.target.value }))}
+                            placeholder="텔레그램 채팅 ID"
+                            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => saveEdit(s.id)}
+                            disabled={savingEdit}
+                            className="flex-1 text-xs py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          >
+                            {savingEdit ? '저장 중...' : '저장'}
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="text-xs px-3 py-1.5 border border-gray-200 rounded text-gray-600 hover:bg-gray-100 transition-colors"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* 포털 링크 */}
+                    {s.slug && editingId !== s.id && (
+                      <div className="mt-1.5 flex items-center gap-1.5 bg-indigo-50 rounded-lg px-2 py-1.5">
+                        <code className="text-[10px] text-indigo-600 truncate flex-1">/leads/staff/{s.slug}</code>
+                        <button
+                          onClick={() => copyPortalLink(s)}
+                          className="shrink-0 text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                        >
+                          {copiedId === s.id ? '복사됨' : '복사'}
+                        </button>
+                        <a
+                          href={`/leads/staff/${s.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 p-0.5 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    )}
                   </div>
-                  {/* 생성된 링크 표시 */}
-                  {setupUrls[s.id] && (
-                    <div className="mt-1.5 flex items-center gap-1.5 bg-indigo-50 rounded-lg px-2 py-1.5">
-                      <code className="text-[10px] text-indigo-600 truncate flex-1">{setupUrls[s.id]}</code>
-                      <button
-                        onClick={() => copyLink(s.id, setupUrls[s.id])}
-                        className="shrink-0 text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-                      >
-                        {copiedId === s.id ? '복사됨' : '복사'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
               {staff.length === 0 && (
                 <p className="text-sm text-gray-400 py-4 text-center">등록된 담당자가 없습니다.</p>
               )}

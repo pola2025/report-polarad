@@ -13,6 +13,7 @@ import {
   checkRateLimit,
   recordFailedAttempt,
   clearAttempts,
+  type AdminScope,
 } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
       adminKey?: string
       totpCode?: string
     }
+
+    let scope: AdminScope = 'all'
 
     // TOTP 우선 인증 (ADMIN_TOTP_SECRET이 설정된 경우)
     if (process.env.ADMIN_TOTP_SECRET) {
@@ -67,7 +70,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (!verifyAdminKey(adminKey)) {
+      const keyResult = verifyAdminKey(adminKey)
+      if (!keyResult.valid) {
         recordFailedAttempt(ip)
         return NextResponse.json(
           {
@@ -77,11 +81,12 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         )
       }
+      scope = keyResult.scope
     }
 
     // 3. 인증 성공 → JWT 발급 + 쿠키 설정
     clearAttempts(ip)
-    const token = await createSession()
+    const token = await createSession(scope)
 
     const response = NextResponse.json({ success: true })
     return setSessionCookie(response, token)

@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     authenticated: true,
+    scope: payload.scope || 'all',
     expiresAt: payload.exp ? payload.exp * 1000 : null,
   })
 }

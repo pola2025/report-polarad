@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
     const channel = searchParams.get('channel') as NarattonLeadChannel | null
     const status = searchParams.get('status') as NarattonLeadStatus | null
-    const staff = searchParams.get('staff') || undefined
+    // 담당자 세션일 때 서버사이드 필터 강제 적용
+    const staff = staffSession ? staffSession.staffName : (searchParams.get('staff') || undefined)
     const blacklistedParam = searchParams.get('blacklisted')
     const search = searchParams.get('search') || undefined
     const duplicatesOnly = searchParams.get('duplicatesOnly') === 'true'

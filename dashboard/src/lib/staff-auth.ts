@@ -1,13 +1,12 @@
 /**
  * Staff Authentication Library
  *
- * JWT 세션 + TOTP 기반 담당자 인증
+ * JWT 세션 + 텔레그램 OTP 기반 담당자 인증
  * admin-auth.ts 패턴 동일
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
-import { getNarattonStaffByName } from '@/lib/airtable-naratton-leads'
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -53,28 +52,6 @@ export async function verifyStaffSession(
   } catch {
     return null
   }
-}
-
-// ─── TOTP Verification ───────────────────────────────────
-
-export async function verifyStaffTOTP(staffName: string, code: string): Promise<boolean> {
-  const staff = await getNarattonStaffByName(staffName)
-  if (!staff || !staff.is_active) return false
-  if (!staff.totp_secret) return false
-
-  const { TOTP, Secret } = await import('otpauth')
-
-  const totp = new TOTP({
-    issuer: 'Polarad',
-    label: `Staff:${staffName}`,
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: Secret.fromBase32(staff.totp_secret),
-  })
-
-  const delta = totp.validate({ token: code, window: 1 })
-  return delta !== null
 }
 
 // ─── Cookie Management ────────────────────────────────────

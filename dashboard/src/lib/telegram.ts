@@ -162,6 +162,30 @@ export async function sendDailyReportNotification(
 }
 
 /**
+ * 담당자 2FA 인증 요청 알림 (관리자용)
+ */
+export async function sendStaffAuthNotification(
+  staffName: string,
+  staffId: string,
+  slug: string
+): Promise<boolean> {
+  const host = 'report.polarad.co.kr'
+  const adminKey = process.env.ADMIN_KEY || ''
+  const approveUrl = `https://${host}/api/naratton/staff/${staffId}/approve?key=${adminKey}`
+
+  const message = `
+<b>🔐 담당자 2FA 인증 요청</b>
+
+<b>이름:</b> ${staffName} (${slug})
+<a href="${approveUrl}">✅ 승인하기</a>
+
+⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+`.trim()
+
+  return sendTelegramMessage(BACKFILL_CHAT_ID, message)
+}
+
+/**
  * 에러 알림 (관리자용)
  */
 export async function sendErrorNotification(

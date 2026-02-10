@@ -24,6 +24,7 @@ import { GA4Section } from '@/components/ga4'
 import { FunnelSection } from '@/components/funnel'
 import { BasDashboardView } from '@/components/bas'
 import { NarattonLeadManagement } from '@/components/naratton/NarattonLeadManagement'
+import { SubAdminManager } from '@/components/admin/SubAdminManager'
 
 interface DashboardData {
   kpi: {
@@ -89,6 +90,7 @@ function DashboardContent() {
 
   // 관리자 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [adminScope, setAdminScope] = useState<string>('all')
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientSlug, setSelectedClientSlug] = useState<string>('')
 
@@ -96,6 +98,11 @@ function DashboardContent() {
   const clientSlug = clientSlugFromUrl || selectedClientSlug
   const isClientView = !!clientSlugFromUrl // URL에서 온 경우만 클라이언트 뷰
   const isAdminView = !clientSlugFromUrl && isAuthenticated === true // 관리자가 선택한 경우
+
+  // scope 제한: bas-naratton 관리자가 허용되지 않은 클라이언트에 접근 시 관리자 기능 숨김
+  const BAS_NARATTON_SLUGS = ['bas', 'naratton']
+  const isScopeAllowed = adminScope === 'all' || BAS_NARATTON_SLUGS.includes(clientSlug || '')
+  const effectiveAdmin = isAuthenticated === true && isScopeAllowed
 
   // 클라이언트 링크 복사
   const [copiedLink, setCopiedLink] = useState(false)
@@ -198,9 +205,11 @@ function DashboardContent() {
     }
     // 관리자 인증은 항상 체크 (URL 파라미터 여부와 무관)
     fetch('/api/auth/admin/verify')
-      .then(res => {
+      .then(async res => {
         if (res.ok) {
+          const data = await res.json()
           setIsAuthenticated(true)
+          setAdminScope(data.scope || 'all')
           return fetchClients()
         }
         setIsAuthenticated(false)
@@ -486,6 +495,11 @@ function DashboardContent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* 서브관리자 관리 (슈퍼관리자만) */}
+          {adminScope === 'all' && (
+            <SubAdminManager />
+          )}
         </main>
       </div>
     )
@@ -538,7 +552,7 @@ function DashboardContent() {
         <BasDashboardView
           clientSlug="bas"
           clientName={clientInfo.name}
-          isAdmin={isAuthenticated === true}
+          isAdmin={effectiveAdmin}
           dateRange={dateRange}
         />
       </>
@@ -702,7 +716,7 @@ function DashboardContent() {
                   ? [{ key: 'ga4' as const, icon: Activity, label: 'GA4 분석' }]
                   : []),
                 { key: 'reports' as const, icon: FileText, label: '리포트' },
-                ...(clientSlug === 'naratton' && isAuthenticated
+                ...(clientSlug === 'naratton' && effectiveAdmin
                   ? [{ key: 'leads' as const, icon: Users, label: '리드관리' }]
                   : []),
               ].map(item => {
@@ -1864,11 +1878,11 @@ function DashboardContent() {
 
             {/* 리포트 탭 */}
             {activeTab === 'reports' && showTabs && (
-              <ReportList clientSlug={clientSlug} isAdmin={isAuthenticated === true} />
+              <ReportList clientSlug={clientSlug} isAdmin={effectiveAdmin} />
             )}
 
             {/* 리드관리 탭 - 나라똔 전용 */}
-            {activeTab === 'leads' && clientSlug === 'naratton' && isAuthenticated && (
+            {activeTab === 'leads' && clientSlug === 'naratton' && effectiveAdmin && (
               <NarattonLeadManagement clientSlug={clientSlug} />
             )}
           </>
@@ -1890,7 +1904,7 @@ function DashboardContent() {
                 ? [{ key: 'ga4' as const, icon: Activity, label: 'GA4' }]
                 : []),
               { key: 'reports' as const, icon: FileText, label: '리포트' },
-              ...(clientSlug === 'naratton' && isAuthenticated
+              ...(clientSlug === 'naratton' && effectiveAdmin
                 ? [{ key: 'leads' as const, icon: Users, label: '리드' }]
                 : []),
             ].map(item => {

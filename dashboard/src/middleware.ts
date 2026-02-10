@@ -35,7 +35,12 @@ function verifyHeaderKey(request: NextRequest): boolean {
   if (!headerKey) return false
 
   const adminKey = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY
-  return headerKey === adminKey
+  if (headerKey === adminKey) return true
+
+  const basNarattonKey = process.env.BAS_NARATTON_ADMIN_KEY
+  if (basNarattonKey && headerKey === basNarattonKey) return true
+
+  return false
 }
 
 export async function middleware(request: NextRequest) {
