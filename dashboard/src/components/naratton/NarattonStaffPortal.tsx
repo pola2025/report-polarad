@@ -437,22 +437,22 @@ function StaffLeadDetail({
                     ) : (
                       <>
                         <p className="flex-1 text-xs text-gray-700">{line}</p>
-                        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => {
                               const match = line.match(/^\[.*?\]\s*.*?:\s*(.+?)(\s*\(수정됨\))?$/)
                               setEditingNoteContent(match ? match[1] : line)
                               setEditingNoteIndex(i)
                             }}
-                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
                           >
-                            <Pencil className="w-3 h-3" />
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => { if (confirm('삭제하시겠습니까?')) onDeleteNote(i) }}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-red-400 hover:bg-red-50 rounded transition-colors"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </>
