@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getNarattonStaffByToken, updateNarattonStaff } from '@/lib/airtable-naratton-leads'
 
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get('token')
+  const token = request.nextUrl.searchParams.get('token')?.replace(/\s/g, '') || ''
 
   if (!token || token.length < 32) {
     return new NextResponse(errorHtml('유효하지 않은 링크입니다.'), htmlHeaders())
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2FA 인증 설정 - ${esc(staff.name)}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
