@@ -57,7 +57,7 @@ export async function POST(
     }
 
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-    sendTelegramMessage(
+    await sendTelegramMessage(
       NARATTON_ADMIN_CHAT_ID,
       `<b>📝 나라똔 메모 작성</b>\n\n<b>작성시간:</b> ${now}\n<b>담당자:</b> ${body.author}\n<b>접수자:</b> ${leadName}\n<b>내용:</b> ${body.note}`
     ).catch(err => console.error('텔레그램 메모 알림 실패:', err))
@@ -97,7 +97,7 @@ export async function PUT(
     }
 
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-    sendTelegramMessage(
+    await sendTelegramMessage(
       NARATTON_ADMIN_CHAT_ID,
       `<b>✏️ 나라똔 메모 수정</b>\n\n<b>수정시간:</b> ${now}\n<b>담당자:</b> ${body.author}\n<b>접수자:</b> ${leadName}\n<b>내용:</b> ${body.content}`
     ).catch(err => console.error('텔레그램 메모 수정 알림 실패:', err))
