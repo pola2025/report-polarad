@@ -240,7 +240,7 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
             const hasNotes = !!lead.notes?.trim()
             return (
               <div key={`${lead.channel}-${lead.id}`} className="bg-white rounded-xl border border-gray-200 p-3">
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap md:flex-nowrap">
                   <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                     lead.channel === 'homepage' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
                   }`}>
@@ -248,6 +248,7 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
                     {CHANNEL_LABEL[lead.channel]}
                   </span>
                   <span className="font-semibold text-sm text-gray-900">{lead.name || '(없음)'}</span>
+                  <span className="hidden md:inline text-xs text-gray-400">{lead.phone}</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
                     {config.label}
                   </span>
@@ -255,7 +256,7 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
                     {lead.created_at ? new Date(lead.created_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mb-2">{lead.phone}</p>
+                <p className="text-xs text-gray-400 mb-2 md:hidden">{lead.phone}</p>
                 <div className="flex items-center gap-2">
                   <select
                     value={lead.status}
