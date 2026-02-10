@@ -18,7 +18,7 @@ import { sendTelegramMessage } from '@/lib/telegram'
 import { isAdminRequest } from '@/lib/admin-auth'
 import { isStaffRequest } from '@/lib/staff-auth'
 
-const BACKFILL_CHAT_ID = '-1003394139746'
+const NARATTON_ADMIN_CHAT_ID = '-1003353283178'
 
 async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
   const isAdmin = await isAdminRequest(request)
@@ -58,7 +58,7 @@ export async function POST(
 
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
     sendTelegramMessage(
-      BACKFILL_CHAT_ID,
+      NARATTON_ADMIN_CHAT_ID,
       `<b>📝 나라똔 메모 작성</b>\n\n<b>작성시간:</b> ${now}\n<b>담당자:</b> ${body.author}\n<b>접수자:</b> ${leadName}\n<b>내용:</b> ${body.note}`
     ).catch(err => console.error('텔레그램 메모 알림 실패:', err))
 
@@ -87,11 +87,20 @@ export async function PUT(
       )
     }
 
+    const lead = await getNarattonLead(id, body.table_id)
+    const leadName = lead?.name || '(이름 없음)'
+
     const updated = await updateNarattonLeadNote(id, body.table_id, body.noteIndex, body.content, body.author)
 
     if (!updated) {
       return NextResponse.json({ error: 'Failed to update note' }, { status: 500 })
     }
+
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    sendTelegramMessage(
+      NARATTON_ADMIN_CHAT_ID,
+      `<b>✏️ 나라똔 메모 수정</b>\n\n<b>수정시간:</b> ${now}\n<b>담당자:</b> ${body.author}\n<b>접수자:</b> ${leadName}\n<b>내용:</b> ${body.content}`
+    ).catch(err => console.error('텔레그램 메모 수정 알림 실패:', err))
 
     return NextResponse.json({ lead: updated })
   } catch (error) {
