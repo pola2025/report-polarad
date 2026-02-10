@@ -155,15 +155,15 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
-      <header className="bg-indigo-600 border-b border-indigo-700">
+      <header className="bg-emerald-600 border-b border-emerald-700">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-white">나라똔 리드관리</h1>
-            <p className="text-xs text-indigo-200">담당자: {staffName}</p>
+            <p className="text-xs text-emerald-200">담당자: {staffName}</p>
           </div>
           <button
             onClick={onLogout}
-            className="flex items-center gap-1 text-sm text-indigo-200 hover:text-white transition-colors"
+            className="flex items-center gap-1 text-sm text-emerald-200 hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4" />
             로그아웃
