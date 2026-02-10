@@ -21,6 +21,7 @@ import {
   Globe,
   Megaphone,
   ExternalLink,
+  FlaskConical,
 } from 'lucide-react'
 import type {
   NarattonLead,
@@ -36,10 +37,12 @@ import { STATUS_CONFIG, ALL_STATUSES } from '@/types/naratton-leads'
 const CHANNEL_ICON = {
   homepage: Globe,
   meta: Megaphone,
+  test: FlaskConical,
 }
 const CHANNEL_LABEL = {
   homepage: '홈페이지',
   meta: 'Meta',
+  test: '테스트',
 }
 
 // === 메인 컴포넌트 ===
@@ -139,7 +142,7 @@ export function NarattonLeadManagement({ clientSlug }: NarattonLeadManagementPro
   }
 
   // === 리드 업데이트 ===
-  const updateLead = async (lead: NarattonLead, updates: { status?: NarattonLeadStatus; assigned_staff?: string; blacklisted?: boolean }) => {
+  const updateLead = async (lead: NarattonLead, updates: { status?: NarattonLeadStatus; assigned_staff?: string; blacklisted?: boolean; is_test?: boolean }) => {
     setSaving(true)
     try {
       const res = await fetch(`/api/naratton/leads/${lead.id}`, {
@@ -382,6 +385,7 @@ export function NarattonLeadManagement({ clientSlug }: NarattonLeadManagementPro
           onStatusChange={(status) => updateLead(selectedLead, { status })}
           onStaffChange={(assigned_staff) => updateLead(selectedLead, { assigned_staff })}
           onBlacklist={(blacklisted) => updateLead(selectedLead, { blacklisted })}
+          onToggleTest={(is_test) => updateLead(selectedLead, { is_test })}
           onAddNote={addNote}
           onEditNote={editNote}
           onDeleteNote={deleteNote}
@@ -613,6 +617,7 @@ function FilterBar({
           <option value="">전체 채널</option>
           <option value="homepage">홈페이지</option>
           <option value="meta">Meta 리드</option>
+          <option value="test">테스트</option>
         </select>
 
         {/* 상태 필터 */}
@@ -703,11 +708,13 @@ function StatusBadge({ status }: { status: NarattonLeadStatus }) {
 // === 채널 배지 ===
 function ChannelBadge({ channel }: { channel: NarattonLeadChannel }) {
   const Icon = CHANNEL_ICON[channel]
-  const isHomepage = channel === 'homepage'
+  const colorClass = channel === 'homepage'
+    ? 'bg-emerald-50 text-emerald-700'
+    : channel === 'test'
+    ? 'bg-orange-50 text-orange-700'
+    : 'bg-blue-50 text-blue-700'
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-      isHomepage ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
-    }`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${colorClass}`}>
       <Icon className="w-3 h-3" />
       {CHANNEL_LABEL[channel]}
     </span>
@@ -935,6 +942,7 @@ function LeadDetailSlide({
   onStatusChange,
   onStaffChange,
   onBlacklist,
+  onToggleTest,
   onAddNote,
   onEditNote,
   onDeleteNote,
@@ -951,6 +959,7 @@ function LeadDetailSlide({
   onStatusChange: (status: NarattonLeadStatus) => void
   onStaffChange: (staff: string) => void
   onBlacklist: (blacklisted: boolean) => void
+  onToggleTest: (isTest: boolean) => void
   onAddNote: () => void
   onEditNote: (noteIndex: number, content: string) => void
   onDeleteNote: (noteIndex: number) => void
@@ -1108,25 +1117,47 @@ function LeadDetailSlide({
             </div>
           </div>
 
-          {/* 블랙리스트 토글 */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Ban className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-700">블랙리스트</span>
+          {/* 블랙리스트 / 테스트 토글 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Ban className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-700">블랙리스트</span>
+              </div>
+              <button
+                onClick={() => onBlacklist(!lead.blacklisted)}
+                role="switch"
+                aria-checked={lead.blacklisted}
+                aria-label="블랙리스트 토글"
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  lead.blacklisted ? 'bg-red-500' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  lead.blacklisted ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
             </div>
-            <button
-              onClick={() => onBlacklist(!lead.blacklisted)}
-              role="switch"
-              aria-checked={lead.blacklisted}
-              aria-label="블랙리스트 토글"
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                lead.blacklisted ? 'bg-red-500' : 'bg-gray-200'
-              }`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                lead.blacklisted ? 'translate-x-6' : 'translate-x-1'
-              }`} />
-            </button>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-700">테스트 데이터</span>
+                <span className="text-[10px] text-gray-400">(통계 제외)</span>
+              </div>
+              <button
+                onClick={() => onToggleTest(!lead.is_test)}
+                role="switch"
+                aria-checked={lead.is_test}
+                aria-label="테스트 데이터 토글"
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  lead.is_test ? 'bg-orange-500' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  lead.is_test ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
           </div>
 
           {/* 중복 리드 (cross-table) */}

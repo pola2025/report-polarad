@@ -18,7 +18,7 @@ export type NarattonLeadStatus =
   | '생각해보겠다'
 
 // === 채널 ===
-export type NarattonLeadChannel = 'homepage' | 'meta'
+export type NarattonLeadChannel = 'homepage' | 'meta' | 'test'
 
 // === 리드 (통합 타입) ===
 export interface NarattonLead {
@@ -38,6 +38,7 @@ export interface NarattonLead {
   submission_count: number
   first_submission_date: string
   submission_history: string
+  is_test: boolean
   // 홈페이지 전용
   company_name?: string
   business_number?: string
@@ -98,6 +99,7 @@ export interface NarattonLeadUpdateRequest {
   status?: NarattonLeadStatus
   assigned_staff?: string
   blacklisted?: boolean
+  is_test?: boolean
   table_id: string          // 어느 테이블인지 필수
 }
 

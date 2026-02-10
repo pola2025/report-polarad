@@ -22,7 +22,7 @@ import type {
 } from '@/types/naratton-leads'
 import { STATUS_CONFIG, ALL_STATUSES } from '@/types/naratton-leads'
 
-const CHANNEL_LABEL = { homepage: '홈페이지', meta: 'Meta' }
+const CHANNEL_LABEL = { homepage: '홈페이지', meta: 'Meta', test: '테스트' }
 
 interface NarattonStaffPortalProps {
   staffName: string
@@ -236,14 +236,13 @@ export function NarattonStaffPortal({ staffName, onLogout }: NarattonStaffPortal
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {leads.map(lead => {
             const config = STATUS_CONFIG[lead.status] || STATUS_CONFIG['심사준비']
-            const ChannelIcon = lead.channel === 'homepage' ? Globe : Megaphone
+            const ChannelIcon = lead.channel === 'homepage' ? Globe : lead.channel === 'test' ? AlertTriangle : Megaphone
+            const channelColor = lead.channel === 'homepage' ? 'bg-emerald-50 text-emerald-700' : lead.channel === 'test' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
             const hasNotes = !!lead.notes?.trim()
             return (
               <div key={`${lead.channel}-${lead.id}`} className="bg-white rounded-xl border border-gray-200 p-3">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap md:flex-nowrap">
-                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    lead.channel === 'homepage' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
-                  }`}>
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${channelColor}`}>
                     <ChannelIcon className="w-3 h-3" />
                     {CHANNEL_LABEL[lead.channel]}
                   </span>

@@ -54,9 +54,10 @@ export function normalizePhone(phone: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapHomepageRecord(record: any): NarattonLead {
   const f = record.fields
+  const isTest = f['is_test'] === true
   return {
     id: record.id,
-    channel: 'homepage',
+    channel: isTest ? 'test' : 'homepage',
     table_id: HOMEPAGE_TABLE_ID,
     name: f['이름'] || '',
     phone: f['연락처'] || '',
@@ -66,6 +67,7 @@ function mapHomepageRecord(record: any): NarattonLead {
     assigned_staff: f['assigned_staff'] || '',
     notes: f['notes'] || '',
     blacklisted: f['blacklisted'] || false,
+    is_test: isTest,
     submission_count: f['submission_count'] || 1,
     first_submission_date: f['first_submission_date'] || record.createdTime || '',
     submission_history: f['submission_history'] || '',
@@ -87,9 +89,10 @@ function mapHomepageRecord(record: any): NarattonLead {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapMetaRecord(record: any): NarattonLead {
   const f = record.fields
+  const isTest = f['is_test'] === true
   return {
     id: record.id,
-    channel: 'meta',
+    channel: isTest ? 'test' : 'meta',
     table_id: META_TABLE_ID,
     name: f['이름'] || '',
     phone: f['연락처'] || '',
@@ -99,6 +102,7 @@ function mapMetaRecord(record: any): NarattonLead {
     assigned_staff: f['assigned_staff'] || '',
     notes: f['notes'] || '',
     blacklisted: f['blacklisted'] || false,
+    is_test: isTest,
     submission_count: f['submission_count'] || 1,
     first_submission_date: f['first_submission_date'] || record.createdTime || '',
     submission_history: f['submission_history'] || '',
@@ -236,9 +240,12 @@ export async function fetchNarattonLeads(options: FetchNarattonLeadsOptions = {}
 // 리드 요약 계산 (순수 함수 - 이미 조회한 데이터에서 계산)
 // ===========================
 export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): NarattonLeadSummary {
+  // 테스트 리드는 통계에서 제외
+  const statsLeads = allLeads.filter(l => l.channel !== 'test')
+
   const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const today = nowKST.toISOString().split('T')[0]
-  const todayNew = allLeads.filter(l => {
+  const todayNew = statsLeads.filter(l => {
     if (!l.created_at) return false
     const kst = new Date(new Date(l.created_at).getTime() + 9 * 60 * 60 * 1000)
     return kst.toISOString().split('T')[0] === today
@@ -252,12 +259,13 @@ export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): Naratton
   const byChannel: Record<NarattonLeadChannel, number> = {
     homepage: 0,
     meta: 0,
+    test: 0,
   }
   let blacklisted = 0
   let duplicates = 0
   const byStaff: Record<string, { total: number; by_status: Partial<Record<NarattonLeadStatus, number>> }> = {}
 
-  for (const lead of allLeads) {
+  for (const lead of statsLeads) {
     const s = lead.status as NarattonLeadStatus
     if (byStatus[s] !== undefined) byStatus[s]++
     byChannel[lead.channel]++
@@ -273,7 +281,7 @@ export function calculateNarattonLeadSummary(allLeads: NarattonLead[]): Naratton
     byStaff[staffKey].by_status[s] = (byStaff[staffKey].by_status[s] || 0) + 1
   }
 
-  const total = allLeads.length
+  const total = statsLeads.length
   const conversionRate = total > 0 ? Math.round((byStatus['계약 완료'] / total) * 1000) / 10 : 0
 
   return {
@@ -418,6 +426,7 @@ export async function updateNarattonLead(
     status?: NarattonLeadStatus
     assigned_staff?: string
     blacklisted?: boolean
+    is_test?: boolean
     submission_count?: number
   }
 ): Promise<NarattonLead | null> {
@@ -427,6 +436,7 @@ export async function updateNarattonLead(
   if (updates.status !== undefined) fields['status'] = updates.status
   if (updates.assigned_staff !== undefined) fields['assigned_staff'] = updates.assigned_staff
   if (updates.blacklisted !== undefined) fields['blacklisted'] = updates.blacklisted
+  if (updates.is_test !== undefined) fields['is_test'] = updates.is_test
   if (updates.submission_count !== undefined) fields['submission_count'] = updates.submission_count
 
   const url = `${BASE_URL}/${tableId}/${recordId}`

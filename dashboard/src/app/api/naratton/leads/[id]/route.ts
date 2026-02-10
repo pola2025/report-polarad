@@ -75,6 +75,7 @@ export async function PATCH(
       status: body.status,
       assigned_staff: body.assigned_staff,
       blacklisted: body.blacklisted,
+      is_test: body.is_test,
     })
 
     if (!updated) {
@@ -85,7 +86,7 @@ export async function PATCH(
     if (body.status === '계약 완료' && previousStatus !== '계약 완료') {
       sendTelegramMessage(
         BACKFILL_CHAT_ID,
-        `<b>🎉 나라똔 계약 완료</b>\n\n<b>이름:</b> ${updated.name || '(이름 없음)'}\n<b>연락처:</b> ${updated.phone || '-'}\n<b>채널:</b> ${updated.channel === 'homepage' ? '홈페이지' : 'Meta 리드'}\n<b>담당자:</b> ${updated.assigned_staff || '미지정'}\n\n⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+        `<b>🎉 나라똔 계약 완료</b>\n\n<b>이름:</b> ${updated.name || '(이름 없음)'}\n<b>연락처:</b> ${updated.phone || '-'}\n<b>채널:</b> ${updated.channel === 'homepage' ? '홈페이지' : updated.channel === 'test' ? '테스트' : 'Meta 리드'}\n<b>담당자:</b> ${updated.assigned_staff || '미지정'}\n\n⏰ ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
       ).catch(err => console.error('텔레그램 계약 완료 알림 실패:', err))
     }
 
