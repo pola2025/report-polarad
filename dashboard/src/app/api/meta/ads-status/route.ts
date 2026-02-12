@@ -36,7 +36,7 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
   let nextUrl: string | null = url
 
   while (nextUrl) {
-    const response: Response = await fetch(nextUrl)
+    const response: Response = await fetch(nextUrl, { cache: 'no-store' })
     const data: { data?: T[]; error?: { message: string }; paging?: { next?: string } } = await response.json()
 
     if (data.error) {
