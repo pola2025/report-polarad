@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  GraduationCap,
+  FileCheck,
   Inbox,
-  Phone,
-  PhoneOff,
+  FileCheck2,
   CheckCircle2,
   ArrowRight,
   ChevronRight,
@@ -49,14 +48,14 @@ export function BasEnrollmentFunnel() {
 
   const { by_status, conversion_rate, total, by_campaign } = summary
 
-  const contacted = by_status['통화완료'] + by_status['수강등록']
-  const contactRate = total > 0 ? ((contacted / total) * 100) : 0
-  const enrollFromContact = contacted > 0 ? ((by_status['수강등록'] / contacted) * 100) : 0
+  const reviewed = by_status['1차 심사완료'] + by_status['2차 심사완료'] + by_status['계약완료']
+  const reviewRate = total > 0 ? ((reviewed / total) * 100) : 0
+  const contractFromReview = reviewed > 0 ? ((by_status['계약완료'] / reviewed) * 100) : 0
 
   // 퍼널 단계 정의
   const steps = [
     {
-      label: '접수',
+      label: '심사준비',
       value: total,
       icon: Inbox,
       bg: 'from-sky-100 to-sky-50',
@@ -65,17 +64,17 @@ export function BasEnrollmentFunnel() {
       labelColor: 'text-sky-500',
     },
     {
-      label: '통화완료',
-      value: contacted,
-      icon: Phone,
-      bg: 'from-emerald-100 to-emerald-50',
-      iconBg: 'bg-emerald-200',
-      textColor: 'text-emerald-800',
-      labelColor: 'text-emerald-500',
+      label: '심사완료',
+      value: reviewed,
+      icon: FileCheck,
+      bg: 'from-indigo-100 to-indigo-50',
+      iconBg: 'bg-indigo-200',
+      textColor: 'text-indigo-800',
+      labelColor: 'text-indigo-500',
     },
     {
-      label: '수강등록',
-      value: by_status['수강등록'],
+      label: '계약완료',
+      value: by_status['계약완료'],
       icon: CheckCircle2,
       bg: 'from-green-500 to-green-400',
       iconBg: 'bg-green-600',
@@ -85,14 +84,14 @@ export function BasEnrollmentFunnel() {
   ]
 
   const connectors = [
-    { label: `통화율 ${contactRate.toFixed(1)}%`, color: 'text-amber-600' },
-    { label: `등록율 ${enrollFromContact.toFixed(1)}%`, color: 'text-green-600' },
+    { label: `심사율 ${reviewRate.toFixed(1)}%`, color: 'text-indigo-600' },
+    { label: `계약율 ${contractFromReview.toFixed(1)}%`, color: 'text-green-600' },
   ]
 
-  // 캠페인별 정렬: 수강등록 건수 기준
+  // 캠페인별 정렬: 계약완료 건수 기준
   const topCampaigns = by_campaign
     .filter(c => c.total >= 3)
-    .sort((a, b) => b.by_status['수강등록'] - a.by_status['수강등록'])
+    .sort((a, b) => b.by_status['계약완료'] - a.by_status['계약완료'])
     .slice(0, 8)
 
   const maxCampaignTotal = Math.max(...topCampaigns.map(c => c.total), 1)
@@ -102,11 +101,11 @@ export function BasEnrollmentFunnel() {
   const insightText = (() => {
     const parts: string[] = []
     parts.push(
-      `전체 접수 ${formatNumber(total)}건 중 ${formatNumber(by_status['수강등록'])}건 수강등록 (전환율 ${conversion_rate}%).`
+      `전체 접수 ${formatNumber(total)}건 중 ${formatNumber(by_status['계약완료'])}건 계약완료 (전환율 ${conversion_rate}%).`
     )
-    if (by_status['부재'] > 0) {
-      const absentRate = ((by_status['부재'] / total) * 100).toFixed(1)
-      parts.push(`부재 ${formatNumber(by_status['부재'])}건(${absentRate}%)으로 재연락 필요.`)
+    if (by_status['심사거절'] > 0) {
+      const rejectRate = ((by_status['심사거절'] / total) * 100).toFixed(1)
+      parts.push(`심사거절 ${formatNumber(by_status['심사거절'])}건(${rejectRate}%).`)
     }
     if (bestCampaign) {
       parts.push(`최고 전환 캠페인: ${bestCampaign.campaign} (${bestCampaign.conversion_rate}%).`)
@@ -120,11 +119,11 @@ export function BasEnrollmentFunnel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 lg:w-9 lg:h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
-            <GraduationCap className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+            <FileCheck2 className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 text-sm lg:text-base">수강 전환 퍼널</h3>
-            <p className="text-xs text-gray-400 hidden lg:block">접수에서 수강등록까지의 전환 흐름</p>
+            <h3 className="font-bold text-gray-900 text-sm lg:text-base">계약 전환 퍼널</h3>
+            <p className="text-xs text-gray-400 hidden lg:block">심사준비에서 계약완료까지의 전환 흐름</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -166,12 +165,11 @@ export function BasEnrollmentFunnel() {
                     </motion.div>
                   </div>
                 </div>
-                {/* 부재 표시 (접수 행에) */}
-                {idx === 0 && by_status['부재'] > 0 && (
+                {/* 심사거절 표시 (접수 행에) */}
+                {idx === 0 && by_status['심사거절'] > 0 && (
                   <div className="flex items-center gap-1.5 bg-white/70 rounded-lg px-3 py-1.5">
-                    <PhoneOff className="w-3.5 h-3.5 text-gray-500" />
-                    <span className="text-xs text-gray-500">부재</span>
-                    <span className="text-sm font-bold text-gray-700">{formatNumber(by_status['부재'])}</span>
+                    <span className="text-xs text-gray-500">심사거절</span>
+                    <span className="text-sm font-bold text-gray-700">{formatNumber(by_status['심사거절'])}</span>
                   </div>
                 )}
               </div>
@@ -214,8 +212,8 @@ export function BasEnrollmentFunnel() {
               >
                 <span className={`text-xs font-medium ${step.labelColor}`}>{step.label}</span>
                 <div className="flex items-center gap-2">
-                  {idx === 0 && by_status['부재'] > 0 && (
-                    <span className="text-[10px] text-gray-400">부재 {by_status['부재']}</span>
+                  {idx === 0 && by_status['심사거절'] > 0 && (
+                    <span className="text-[10px] text-gray-400">거절 {by_status['심사거절']}</span>
                   )}
                   <span className={`text-sm font-bold ${step.textColor}`}>
                     {formatNumber(step.value)}
@@ -262,7 +260,7 @@ export function BasEnrollmentFunnel() {
             <ChevronRight
               className={`w-4 h-4 transition-transform duration-200 ${showCampaigns ? 'rotate-90' : ''}`}
             />
-            캠페인별 수강 전환율
+            캠페인별 계약 전환율
             <span className="text-[10px] text-gray-400 font-normal">
               ({showCampaigns ? '접기' : '펼치기'})
             </span>
@@ -306,7 +304,7 @@ export function BasEnrollmentFunnel() {
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="text-gray-400">
-                              등록 {campaign.by_status['수강등록']}건 / {campaign.total}건
+                              계약 {campaign.by_status['계약완료']}건 / {campaign.total}건
                             </span>
                             <span className={`font-bold ${cvrColor}`}>
                               {campaign.conversion_rate}%

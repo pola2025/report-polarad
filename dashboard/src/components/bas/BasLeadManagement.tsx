@@ -15,7 +15,10 @@ import {
   Ban,
   CheckCircle2,
   Clock,
-  PhoneOff,
+  FileCheck,
+  FileCheck2,
+  XCircle,
+  MoreHorizontal,
   Pencil,
   Trash2,
   Check,
@@ -30,13 +33,16 @@ import { BasLeadStats } from './BasLeadStats'
 
 // === 상태 배지 색상 ===
 const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; icon: typeof Clock }> = {
-  '접수': { bg: 'bg-blue-50', text: 'text-blue-700', icon: Clock },
-  '통화완료': { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: Phone },
-  '부재': { bg: 'bg-gray-100', text: 'text-gray-600', icon: PhoneOff },
-  '수강등록': { bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle2 },
+  '심사준비': { bg: 'bg-blue-50', text: 'text-blue-700', icon: Clock },
+  '1차 심사완료': { bg: 'bg-sky-50', text: 'text-sky-700', icon: FileCheck },
+  '2차 심사완료': { bg: 'bg-indigo-50', text: 'text-indigo-700', icon: FileCheck2 },
+  '계약완료': { bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle2 },
+  '심사거절': { bg: 'bg-red-50', text: 'text-red-700', icon: XCircle },
+  '블랙리스트': { bg: 'bg-gray-800', text: 'text-white', icon: Ban },
+  '기타': { bg: 'bg-gray-100', text: 'text-gray-600', icon: MoreHorizontal },
 }
 
-const ALL_STATUSES: LeadStatus[] = ['접수', '통화완료', '부재', '수강등록']
+const ALL_STATUSES: LeadStatus[] = ['심사준비', '1차 심사완료', '2차 심사완료', '계약완료', '심사거절', '블랙리스트', '기타']
 
 // === 메인 컴포넌트 ===
 interface BasLeadManagementProps {
@@ -448,9 +454,9 @@ function SummaryCards({ summary }: { summary: BasLeadSummary }) {
           <div className="p-1.5 bg-green-50 rounded-lg">
             <UserCheck className="w-4 h-4 text-green-600" />
           </div>
-          <span className="text-xs text-gray-500">수강등록</span>
+          <span className="text-xs text-gray-500">계약완료</span>
         </div>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.by_status['수강등록']}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.by_status['계약완료']}</p>
       </div>
       <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
         <div className="flex items-center gap-2 mb-1">
@@ -592,7 +598,7 @@ function EmptyState() {
 
 // === 상태 배지 ===
 function StatusBadge({ status }: { status: LeadStatus }) {
-  const config = STATUS_COLORS[status] || STATUS_COLORS['접수']
+  const config = STATUS_COLORS[status] || STATUS_COLORS['심사준비']
   const Icon = config.icon
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>

@@ -3,7 +3,7 @@
  */
 
 // === 리드 상태 ===
-export type LeadStatus = '접수' | '통화완료' | '부재' | '수강등록'
+export type LeadStatus = '심사준비' | '1차 심사완료' | '2차 심사완료' | '계약완료' | '심사거절' | '블랙리스트' | '기타'
 
 // === 리드 (Airtable 레코드 기반) ===
 export interface BasLead {
@@ -43,7 +43,7 @@ export interface CampaignLeadStats {
   campaign: string
   total: number
   by_status: Record<LeadStatus, number>
-  conversion_rate: number   // 수강등록 / total * 100
+  conversion_rate: number   // 계약완료 / total * 100
 }
 
 // === API 요약 ===
@@ -51,7 +51,7 @@ export interface BasLeadSummary {
   total: number
   today_new: number
   by_status: Record<LeadStatus, number>
-  conversion_rate: number   // 수강등록 / 전체 * 100
+  conversion_rate: number   // 계약완료 / 전체 * 100
   blacklisted: number
   duplicates: number        // submission_count > 1 건수
   by_campaign: CampaignLeadStats[]
@@ -76,8 +76,8 @@ export interface CampaignPerformance {
   campaign: string
   total: number
   by_status: Record<LeadStatus, number>
-  conversion_rate: number       // 수강등록 전환율 %
-  call_rate: number             // 통화완료율 %
+  conversion_rate: number       // 계약완료 전환율 %
+  review_rate: number           // 심사완료율 %
   recent_7d: number             // 최근 7일 접수량
   trend: 'up' | 'down' | 'flat' // 최근 추세
 }

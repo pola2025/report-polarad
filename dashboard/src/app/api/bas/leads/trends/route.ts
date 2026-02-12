@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       dailyMap.set(dateStr, {
         date: dateStr,
         count: 0,
-        by_status: { '접수': 0, '통화완료': 0, '부재': 0, '수강등록': 0 },
+        by_status: { '심사준비': 0, '1차 심사완료': 0, '2차 심사완료': 0, '계약완료': 0, '심사거절': 0, '블랙리스트': 0, '기타': 0 },
       })
     }
 
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
       if (!campaignMap.has(campaign)) {
         campaignMap.set(campaign, {
           total: 0,
-          by_status: { '접수': 0, '통화완료': 0, '부재': 0, '수강등록': 0 },
+          by_status: { '심사준비': 0, '1차 심사완료': 0, '2차 심사완료': 0, '계약완료': 0, '심사거절': 0, '블랙리스트': 0, '기타': 0 },
           recent_7d: 0,
           prev_7d: 0,
         })
@@ -206,17 +206,17 @@ export async function GET(request: NextRequest) {
 
     const campaigns: CampaignPerformance[] = Array.from(campaignMap.entries())
       .map(([campaign, data]) => {
-        const enrolled = data.by_status['수강등록']
-        const called = data.by_status['통화완료'] + enrolled
+        const contracted = data.by_status['계약완료']
+        const reviewed = data.by_status['1차 심사완료'] + data.by_status['2차 심사완료'] + contracted
         return {
           campaign,
           total: data.total,
           by_status: data.by_status,
           conversion_rate: data.total > 0
-            ? Math.round((enrolled / data.total) * 1000) / 10
+            ? Math.round((contracted / data.total) * 1000) / 10
             : 0,
-          call_rate: data.total > 0
-            ? Math.round((called / data.total) * 1000) / 10
+          review_rate: data.total > 0
+            ? Math.round((reviewed / data.total) * 1000) / 10
             : 0,
           recent_7d: data.recent_7d,
           trend: data.recent_7d > data.prev_7d ? 'up' as const

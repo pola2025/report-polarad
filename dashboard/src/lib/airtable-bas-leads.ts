@@ -47,7 +47,7 @@ function mapRecordToLead(record: any): BasLead {
     message: f['문의내용'] || f['message'] || '',
     created_at: f['접수일시'] || f['접수일'] || record.createdTime || '',
     // 관리 필드
-    status: f['status'] || '접수',
+    status: f['status'] || '심사준비',
     assigned_staff: f['assigned_staff'] || '',
     notes: f['notes'] || '',
     blacklisted: f['blacklisted'] || false,
@@ -169,10 +169,13 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
   }).length
 
   const byStatus: Record<LeadStatus, number> = {
-    '접수': 0,
-    '통화완료': 0,
-    '부재': 0,
-    '수강등록': 0,
+    '심사준비': 0,
+    '1차 심사완료': 0,
+    '2차 심사완료': 0,
+    '계약완료': 0,
+    '심사거절': 0,
+    '블랙리스트': 0,
+    '기타': 0,
   }
   let blacklisted = 0
   let duplicates = 0
@@ -187,7 +190,7 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
   }
 
   const total = allLeads.length
-  const conversionRate = total > 0 ? Math.round((byStatus['수강등록'] / total) * 1000) / 10 : 0
+  const conversionRate = total > 0 ? Math.round((byStatus['계약완료'] / total) * 1000) / 10 : 0
 
   // 캠페인별 통계
   const campaignMap = new Map<string, { total: number; by_status: Record<LeadStatus, number> }>()
@@ -196,7 +199,7 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
     if (!campaignMap.has(campaign)) {
       campaignMap.set(campaign, {
         total: 0,
-        by_status: { '접수': 0, '통화완료': 0, '부재': 0, '수강등록': 0 },
+        by_status: { '심사준비': 0, '1차 심사완료': 0, '2차 심사완료': 0, '계약완료': 0, '심사거절': 0, '블랙리스트': 0, '기타': 0 },
       })
     }
     const entry = campaignMap.get(campaign)!
@@ -213,7 +216,7 @@ export async function getBasLeadSummary(): Promise<BasLeadSummary> {
       total: data.total,
       by_status: data.by_status,
       conversion_rate: data.total > 0
-        ? Math.round((data.by_status['수강등록'] / data.total) * 1000) / 10
+        ? Math.round((data.by_status['계약완료'] / data.total) * 1000) / 10
         : 0,
     }))
     .sort((a, b) => b.total - a.total)
@@ -501,7 +504,7 @@ export async function createBasLead(fields: {
         '문의내용': fields.message || '',
         '접수일': submittedDate,
         '접수일시': submittedAt,
-        status: '접수',
+        status: '심사준비',
         submission_count: 1,
         first_submission_date: submittedDate,
       },

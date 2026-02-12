@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
             method: 'PATCH',
             body: JSON.stringify({
               fields: {
-                status: '접수',
+                status: '심사준비',
                 submission_count: cnt,
                 submission_history: hist,
                 previous_status: ef.status || '',
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
                 '접수일': date,
                 '접수일시': dateFull,
                 '참석희망일': seminarDate,
-                status: '접수',
+                status: '심사준비',
                 submission_count: 1,
                 first_submission_date: date,
                 source: 'cron_sync',

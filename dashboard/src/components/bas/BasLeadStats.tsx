@@ -416,8 +416,8 @@ function CampaignTable({ campaigns }: { campaigns: CampaignPerformance[] }) {
       <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] text-gray-400 font-medium uppercase tracking-wider px-1">
         <div className="col-span-4">캠페인</div>
         <div className="col-span-2 text-right">접수량</div>
-        <div className="col-span-2 text-right">통화율</div>
-        <div className="col-span-2 text-right">전환율</div>
+        <div className="col-span-2 text-right">심사율</div>
+        <div className="col-span-2 text-right">계약율</div>
         <div className="col-span-1 text-right">7일</div>
         <div className="col-span-1 text-center">추세</div>
       </div>
@@ -434,7 +434,7 @@ function CampaignTable({ campaigns }: { campaigns: CampaignPerformance[] }) {
             </div>
             <div className="flex items-center gap-3 text-[11px]">
               <span className="text-gray-600">{c.total}건</span>
-              <span className="text-blue-600">통화 {c.call_rate}%</span>
+              <span className="text-blue-600">심사 {c.review_rate}%</span>
               <span className="text-emerald-600">전환 {c.conversion_rate}%</span>
               <span className="text-gray-400">7일: {c.recent_7d}</span>
             </div>
@@ -467,8 +467,8 @@ function CampaignTable({ campaigns }: { campaigns: CampaignPerformance[] }) {
               <span className="text-xs font-semibold text-gray-900">{c.total}</span>
             </div>
             <div className="col-span-2 text-right">
-              <span className={`text-xs font-medium ${c.call_rate >= 50 ? 'text-blue-600' : 'text-gray-500'}`}>
-                {c.call_rate}%
+              <span className={`text-xs font-medium ${c.review_rate >= 50 ? 'text-blue-600' : 'text-gray-500'}`}>
+                {c.review_rate}%
               </span>
             </div>
             <div className="col-span-2 text-right">
