@@ -365,6 +365,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
   const [sortKey, setSortKey] = useState<SortKey>('risk_desc')
   const [activeAdIds, setActiveAdIds] = useState<Set<string> | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState(false)
   const [leads, setLeads] = useState<BasLead[]>([])
   const [leadsLoaded, setLeadsLoaded] = useState(false)
   const [adToCampaignMap, setAdToCampaignMap] = useState<Map<string, string>>(new Map())
@@ -376,6 +377,7 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     let cancelled = false
     async function load() {
       setStatusLoading(true)
+      setStatusError(false)
       try {
         const res = await fetch(`/api/meta/ads-status?clientSlug=${clientSlug}`)
         if (!res.ok) throw new Error('상태 조회 실패')
@@ -415,7 +417,10 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
           setCampaignInfoMap(campInfo)
         }
       } catch {
-        if (!cancelled) setActiveAdIds(null)
+        if (!cancelled) {
+          setActiveAdIds(new Set())
+          setStatusError(true)
+        }
       } finally {
         if (!cancelled) setStatusLoading(false)
       }
@@ -447,9 +452,9 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
     return () => { cancelled = true }
   }, [clientSlug])
 
-  // Filter: only active ads
+  // Filter: only active ads (OFF 광고 제외)
   const activeAds = useMemo(() => {
-    if (activeAdIds === null) return ads
+    if (activeAdIds === null || activeAdIds.size === 0) return []
     return ads.filter((ad) => activeAdIds.has(ad.ad_id))
   }, [ads, activeAdIds])
 
@@ -845,11 +850,19 @@ export function BasAdEfficiencyReport({ ads, clientSlug, dailyData }: BasAdEffic
   if (activeAds.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <p className="text-gray-400 text-sm">
-          {ads.length > 0
-            ? `활성 광고가 없습니다. (OFF 상태 ${ads.length}개 제외됨)`
-            : '광고 데이터가 없습니다.'}
-        </p>
+        {statusError ? (
+          <>
+            <AlertTriangle className="h-5 w-5 text-amber-500 mx-auto mb-2" />
+            <p className="text-gray-600 text-sm font-medium">광고 상태를 조회할 수 없습니다</p>
+            <p className="text-gray-400 text-xs mt-1">Meta API 연결을 확인해 주세요.</p>
+          </>
+        ) : (
+          <p className="text-gray-400 text-sm">
+            {ads.length > 0
+              ? `활성 광고가 없습니다. (OFF 상태 ${ads.length}개 제외됨)`
+              : '광고 데이터가 없습니다.'}
+          </p>
+        )}
       </div>
     )
   }
