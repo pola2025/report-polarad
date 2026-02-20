@@ -202,7 +202,7 @@ async function createLeadRecord(fields: AirtableLeadFields): Promise<string | nu
         '문의내용': fields.message,
         '접수일': fields.created_at,
         '접수일시': fields.created_at_full,
-        status: '접수',
+        status: '심사준비',
         submission_count: 1,
         first_submission_date: fields.created_at,
         submission_history: `1차: ${fields.created_at}`,
@@ -243,7 +243,7 @@ async function updateLeadForResubmission(
     method: 'PATCH',
     body: JSON.stringify({
       fields: {
-        status: '접수',
+        status: '심사준비',
         submission_count: newCount,
         previous_status: currentStatus,
         previous_staff: currentStaff,

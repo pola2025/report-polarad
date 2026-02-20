@@ -11,6 +11,12 @@
  * 4. 다른 접수일 → 재접수 처리
  * 5. 없음 → 신규 생성
  * 6. 텔레그램 알림
+ *
+ * 수동 백필:
+ *   GET /api/cron/lead-sync?since=2026-02-12&until=2026-02-20&notify=false
+ *   - since: 조회 시작일 (YYYY-MM-DD), 기본 24시간 전
+ *   - until: 조회 종료일 (YYYY-MM-DD), 기본 현재
+ *   - notify: 텔레그램 알림 여부 (기본 true, 백필 시 false 권장)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -88,30 +94,60 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
   let created = 0, resubmitted = 0, skipped = 0, errors = 0
 
-  try {
-    // 1. OLD 테이블에서 최근 24시간 내 레코드 조회
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const formula = encodeURIComponent(`IS_AFTER(CREATED_TIME(),'${since}')`)
-    const oldData = await airtableFetch(
-      OLD_BASE,
-      `/${OLD_TABLE}?filterByFormula=${formula}&pageSize=100`
-    )
+  // 쿼리 파라미터로 날짜 범위 지정 가능 (수동 백필용)
+  const url = new URL(request.url)
+  const sinceParam = url.searchParams.get('since')
+  const untilParam = url.searchParams.get('until')
+  const notifyParam = url.searchParams.get('notify')
+  const shouldNotify = notifyParam !== 'false'
 
-    if (oldData.error) {
-      console.error('[lead-sync] OLD table error:', oldData.error)
-      return NextResponse.json({ error: 'OLD table query failed', detail: oldData.error }, { status: 500 })
+  try {
+    // 1. OLD 테이블에서 레코드 조회 (페이지네이션 포함)
+    let formula: string
+    if (sinceParam) {
+      // 수동 백필: 접수일 기반 날짜 범위 필터
+      const sinceDate = sinceParam
+      const untilDate = untilParam || new Date().toISOString().split('T')[0]
+      formula = encodeURIComponent(
+        `AND(IS_AFTER({접수일},'${sinceDate}'), IS_BEFORE({접수일},'${untilDate}T23:59:59'))`
+      )
+      console.log(`[lead-sync] 수동 백필 모드: ${sinceDate} ~ ${untilDate}`)
+    } else {
+      // 기본: 최근 24시간 내 CREATED_TIME
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      formula = encodeURIComponent(`IS_AFTER(CREATED_TIME(),'${since}')`)
     }
 
-    const oldRecords = oldData.records || []
+    // 페이지네이션으로 모든 레코드 조회
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const oldRecords: any[] = []
+    let offset: string | undefined
+
+    do {
+      let fetchUrl = `/${OLD_TABLE}?filterByFormula=${formula}&pageSize=100`
+      if (offset) fetchUrl += `&offset=${offset}`
+
+      const oldData = await airtableFetch(OLD_BASE, fetchUrl)
+
+      if (oldData.error) {
+        console.error('[lead-sync] OLD table error:', oldData.error)
+        return NextResponse.json({ error: 'OLD table query failed', detail: oldData.error }, { status: 500 })
+      }
+
+      oldRecords.push(...(oldData.records || []))
+      offset = oldData.offset
+    } while (offset)
 
     if (oldRecords.length === 0) {
       return NextResponse.json({
         ok: true,
-        message: 'No new leads (24h window)',
+        message: sinceParam ? `No leads found (${sinceParam} ~ ${untilParam || 'now'})` : 'No new leads (24h window)',
         created: 0, resubmitted: 0, skipped: 0,
         duration: Date.now() - startTime,
       })
     }
+
+    console.log(`[lead-sync] OLD 테이블에서 ${oldRecords.length}건 조회됨`)
 
     // 2. 각 레코드 처리
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,12 +208,14 @@ export async function GET(request: NextRequest) {
 
           resubmitted++
 
-          await sendTelegram(
-            `<b>[BAS 리드 재접수 (${cnt}회차)]</b>\n이름: ${name}\n연락처: ${phone}` +
-            (seminarDate ? `\n참석희망일: ${seminarDate}` : '') +
-            (campaign ? `\n광고명: ${campaign}` : '') +
-            `\n접수일: ${date}\n\n<a href="${DASH_URL}">리드관리 바로가기</a>`
-          )
+          if (shouldNotify) {
+            await sendTelegram(
+              `<b>[BAS 리드 재접수 (${cnt}회차)]</b>\n이름: ${name}\n연락처: ${phone}` +
+              (seminarDate ? `\n참석희망일: ${seminarDate}` : '') +
+              (campaign ? `\n광고명: ${campaign}` : '') +
+              `\n접수일: ${date}\n\n<a href="${DASH_URL}">리드관리 바로가기</a>`
+            )
+          }
         } else {
           // 신규 생성
           await airtableFetch(NEW_BASE, `/${NEW_TABLE}`, {
@@ -201,14 +239,16 @@ export async function GET(request: NextRequest) {
 
           created++
 
-          const platformLabel = platform === 'fb' ? 'Facebook' : platform === 'ig' ? 'Instagram' : platform
-          await sendTelegram(
-            `<b>[BAS 리드 신규]</b>\n이름: ${name}\n연락처: ${phone}` +
-            (seminarDate ? `\n참석희망일: ${seminarDate}` : '') +
-            (campaign ? `\n광고명: ${campaign}` : '') +
-            (platform ? `\n플랫폼: ${platformLabel}` : '') +
-            `\n접수일: ${date}\n\n<a href="${DASH_URL}">리드관리 바로가기</a>`
-          )
+          if (shouldNotify) {
+            const platformLabel = platform === 'fb' ? 'Facebook' : platform === 'ig' ? 'Instagram' : platform
+            await sendTelegram(
+              `<b>[BAS 리드 신규]</b>\n이름: ${name}\n연락처: ${phone}` +
+              (seminarDate ? `\n참석희망일: ${seminarDate}` : '') +
+              (campaign ? `\n광고명: ${campaign}` : '') +
+              (platform ? `\n플랫폼: ${platformLabel}` : '') +
+              `\n접수일: ${date}\n\n<a href="${DASH_URL}">리드관리 바로가기</a>`
+            )
+          }
         }
       } catch (e) {
         console.error(`[lead-sync] Error processing ${name} ${phone}:`, e)
