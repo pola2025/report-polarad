@@ -28,7 +28,7 @@ const OLD_BASE = 'appdyFH6v4quVvF4z'
 const OLD_TABLE = 'tbl6p9tWbl5keMvrI'
 const NEW_BASE = process.env.AIRTABLE_BAS_LEADS_BASE_ID || 'app1Bh2Ny6eqTERqA'
 const NEW_TABLE = process.env.AIRTABLE_BAS_LEADS_TABLE_ID || 'tblaDj4M0Tlq2IRQu'
-const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY || ''
+const AIRTABLE_TOKEN = (process.env.AIRTABLE_API_KEY || '').trim()
 const TG_CHAT = '-1003394139746'
 const DASH_URL = 'https://report.polarad.co.kr/?client=bas&tab=lead-management'
 
@@ -63,7 +63,12 @@ async function airtableFetch(base: string, path: string, options?: RequestInit) 
       ...options?.headers,
     },
   })
-  return res.json()
+  const data = await res.json()
+  if (!res.ok || data.error) {
+    console.error(`[lead-sync] Airtable API error: ${res.status}`, JSON.stringify(data.error || data))
+    throw new Error(`Airtable ${res.status}: ${JSON.stringify(data.error || data)}`)
+  }
+  return data
 }
 
 // 텔레그램 알림
@@ -93,13 +98,16 @@ export async function GET(request: NextRequest) {
 
   const startTime = Date.now()
   let created = 0, resubmitted = 0, skipped = 0, errors = 0
+  const errorDetails: string[] = []
 
   // 쿼리 파라미터로 날짜 범위 지정 가능 (수동 백필용)
   const url = new URL(request.url)
   const sinceParam = url.searchParams.get('since')
   const untilParam = url.searchParams.get('until')
   const notifyParam = url.searchParams.get('notify')
+  const debugParam = url.searchParams.get('debug')
   const shouldNotify = notifyParam !== 'false'
+  const isDebug = debugParam === 'true'
 
   try {
     // 1. OLD 테이블에서 레코드 조회 (페이지네이션 포함)
@@ -148,6 +156,9 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[lead-sync] OLD 테이블에서 ${oldRecords.length}건 조회됨`)
+    if (isDebug) {
+      console.log(`[lead-sync] DEBUG: NEW_BASE=${NEW_BASE}, NEW_TABLE=${NEW_TABLE}, TOKEN_LEN=${AIRTABLE_TOKEN.length}`)
+    }
 
     // 2. 각 레코드 처리
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -251,7 +262,9 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (e) {
-        console.error(`[lead-sync] Error processing ${name} ${phone}:`, e)
+        const errMsg = `${name} ${phone}: ${e instanceof Error ? e.message : String(e)}`
+        console.error(`[lead-sync] Error processing ${errMsg}`)
+        errorDetails.push(errMsg)
         errors++
       }
 
@@ -266,6 +279,7 @@ export async function GET(request: NextRequest) {
       resubmitted,
       skipped,
       errors,
+      ...(isDebug && errorDetails.length > 0 ? { errorDetails } : {}),
       duration: Date.now() - startTime,
     }
 
