@@ -98,8 +98,8 @@ function parseCSV(csvText: string): string[][] {
   return result;
 }
 
-// Vercel Pro: 최대 60초
-export const maxDuration = 60;
+// Vercel Pro: 최대 300초
+export const maxDuration = 300;
 
 // POST: CSV 업로드 및 파싱
 export async function POST(request: NextRequest) {
