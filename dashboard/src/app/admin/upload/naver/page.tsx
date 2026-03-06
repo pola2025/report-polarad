@@ -1,105 +1,140 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { formatNumber } from '@/lib/utils'
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { formatNumber } from "@/lib/utils";
+import {
+  Upload,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  ArrowLeft,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Client {
-  id: string
-  client_name: string
-  slug: string
+  id: string;
+  client_name: string;
+  slug: string;
 }
 
 interface UploadResult {
-  success: boolean
-  message: string
+  success: boolean;
+  message: string;
   summary?: {
-    client: string
-    totalRecords: number
-    dateRange: { start: string; end: string }
-    uniqueKeywords: number
-    totalImpressions: number
-    totalClicks: number
-    totalCost: number
-    keywordStats: Record<string, { impressions: number; clicks: number; cost: number }>
-  }
-  error?: string
+    client: string;
+    totalRecords: number;
+    dateRange: { start: string; end: string };
+    uniqueKeywords: number;
+    totalImpressions: number;
+    totalClicks: number;
+    totalCost: number;
+    keywordStats: Record<
+      string,
+      { impressions: number; clicks: number; cost: number }
+    >;
+  };
+  error?: string;
 }
 
 export default function NaverUploadPage() {
-  const [clients, setClients] = useState<Client[]>([])
-  const [selectedClient, setSelectedClient] = useState<string>('')
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [result, setResult] = useState<UploadResult | null>(null)
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<UploadResult | null>(null);
 
   const fetchClients = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/clients')
+      const response = await fetch("/api/admin/clients");
 
       if (response.ok) {
-        const data = await response.json()
-        setClients(data.clients || [])
+        const data = await response.json();
+        setClients(data.clients || []);
       }
     } catch (error) {
-      console.error('클라이언트 조회 실패:', error)
+      console.error("클라이언트 조회 실패:", error);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+    fetchClients();
+  }, [fetchClients]);
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileSelect = (selectedFile: File) => {
+    if (!selectedFile.name.endsWith(".csv")) {
+      alert("CSV 파일만 업로드 가능합니다.");
+      return;
+    }
+    setFile(selectedFile);
+    setResult(null);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      if (!selectedFile.name.endsWith('.csv')) {
-        alert('CSV 파일만 업로드 가능합니다.')
-        return
-      }
-      setFile(selectedFile)
-      setResult(null)
-    }
-  }
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) handleFileSelect(selectedFile);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) handleFileSelect(droppedFile);
+  };
 
   const handleUpload = async () => {
     if (!file || !selectedClient) {
-      alert('클라이언트와 파일을 선택해주세요.')
-      return
+      alert("클라이언트와 파일을 선택해주세요.");
+      return;
     }
 
-    setUploading(true)
-    setResult(null)
+    setUploading(true);
+    setResult(null);
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('clientId', selectedClient)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("clientId", selectedClient);
 
-      const response = await fetch('/api/admin/upload/naver', {
-        method: 'POST',
+      const response = await fetch("/api/admin/upload/naver", {
+        method: "POST",
         body: formData,
-      })
+      });
 
-      const data = await response.json()
-      setResult(data)
+      const data = await response.json();
+      setResult(data);
 
       if (data.success) {
-        setFile(null)
+        setFile(null);
         // 파일 입력 초기화
-        const fileInput = document.getElementById('csv-file') as HTMLInputElement
-        if (fileInput) fileInput.value = ''
+        const fileInput = document.getElementById(
+          "csv-file",
+        ) as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
       }
     } catch (error) {
-      console.error('업로드 실패:', error)
-      setResult({ success: false, message: '업로드 중 오류가 발생했습니다.' })
+      console.error("업로드 실패:", error);
+      setResult({ success: false, message: "업로드 중 오류가 발생했습니다." });
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,8 +146,12 @@ export default function NaverUploadPage() {
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">네이버 플레이스 광고 업로드</h1>
-              <p className="text-sm text-gray-500">CSV 파일을 업로드하여 데이터를 저장합니다</p>
+              <h1 className="text-xl font-bold text-gray-900">
+                네이버 플레이스 광고 업로드
+              </h1>
+              <p className="text-sm text-gray-500">
+                CSV 파일을 업로드하여 데이터를 저장합니다
+              </p>
             </div>
           </div>
         </div>
@@ -154,7 +193,12 @@ export default function NaverUploadPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     CSV 파일 *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
                     <input
                       type="file"
                       id="csv-file"
@@ -167,7 +211,9 @@ export default function NaverUploadPage() {
                         <div className="flex items-center justify-center gap-2 text-blue-600">
                           <FileText className="h-6 w-6" />
                           <span className="font-medium">{file.name}</span>
-                          <span className="text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                          <span className="text-gray-500">
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
                         </div>
                       ) : (
                         <div className="text-gray-500">
@@ -186,7 +232,7 @@ export default function NaverUploadPage() {
                   disabled={!file || !selectedClient || uploading}
                   className="w-full"
                 >
-                  {uploading ? '업로드 중...' : '업로드'}
+                  {uploading ? "업로드 중..." : "업로드"}
                 </Button>
               </div>
             </CardContent>
@@ -194,9 +240,13 @@ export default function NaverUploadPage() {
 
           {/* 결과 표시 */}
           {result && (
-            <Card className={result.success ? 'border-green-200' : 'border-red-200'}>
+            <Card
+              className={result.success ? "border-green-200" : "border-red-200"}
+            >
               <CardContent className="pt-6">
-                <div className={`flex items-start gap-3 ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+                <div
+                  className={`flex items-start gap-3 ${result.success ? "text-green-700" : "text-red-700"}`}
+                >
                   {result.success ? (
                     <CheckCircle className="h-6 w-6 flex-shrink-0" />
                   ) : (
@@ -212,7 +262,9 @@ export default function NaverUploadPage() {
                             <div className="text-lg font-bold text-gray-900">
                               {formatNumber(result.summary.totalRecords)}건
                             </div>
-                            <div className="text-sm text-gray-500">총 레코드</div>
+                            <div className="text-sm text-gray-500">
+                              총 레코드
+                            </div>
                           </div>
                           <div className="bg-gray-50 p-3 rounded-md">
                             <div className="text-lg font-bold text-gray-900">
@@ -236,17 +288,22 @@ export default function NaverUploadPage() {
 
                         {/* 기간 */}
                         <div className="text-sm text-gray-600">
-                          기간: {result.summary.dateRange.start} ~ {result.summary.dateRange.end}
+                          기간: {result.summary.dateRange.start} ~{" "}
+                          {result.summary.dateRange.end}
                         </div>
 
                         {/* 키워드별 상세 */}
                         <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">키워드별 요약</h4>
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">
+                            키워드별 요약
+                          </h4>
                           <div className="max-h-60 overflow-auto">
                             <table className="w-full text-sm">
                               <thead className="bg-gray-100 sticky top-0">
                                 <tr>
-                                  <th className="px-3 py-2 text-left">키워드</th>
+                                  <th className="px-3 py-2 text-left">
+                                    키워드
+                                  </th>
                                   <th className="px-3 py-2 text-right">노출</th>
                                   <th className="px-3 py-2 text-right">클릭</th>
                                   <th className="px-3 py-2 text-right">비용</th>
@@ -256,11 +313,20 @@ export default function NaverUploadPage() {
                                 {Object.entries(result.summary.keywordStats)
                                   .sort((a, b) => b[1].cost - a[1].cost)
                                   .map(([keyword, stats]) => (
-                                    <tr key={keyword} className="hover:bg-gray-50">
+                                    <tr
+                                      key={keyword}
+                                      className="hover:bg-gray-50"
+                                    >
                                       <td className="px-3 py-2">{keyword}</td>
-                                      <td className="px-3 py-2 text-right">{formatNumber(stats.impressions)}</td>
-                                      <td className="px-3 py-2 text-right">{formatNumber(stats.clicks)}</td>
-                                      <td className="px-3 py-2 text-right">{formatNumber(stats.cost)}원</td>
+                                      <td className="px-3 py-2 text-right">
+                                        {formatNumber(stats.impressions)}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        {formatNumber(stats.clicks)}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        {formatNumber(stats.cost)}원
+                                      </td>
                                     </tr>
                                   ))}
                               </tbody>
@@ -285,14 +351,21 @@ export default function NaverUploadPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-600 mb-3">
-                네이버 광고 시스템에서 다운로드한 월간 리포트 CSV를 업로드하세요.
+                네이버 광고 시스템에서 다운로드한 월간 리포트 CSV를
+                업로드하세요.
               </p>
               <div className="bg-gray-50 p-3 rounded-md text-xs font-mono overflow-x-auto">
                 <p className="text-gray-500 mb-1"># 필수 컬럼:</p>
-                <p>일별, 검색어, 노출수, 클릭수, 클릭률(%), 평균클릭비용, 총비용, 평균노출순위</p>
+                <p>
+                  일별, 검색어, 노출수, 클릭수, 클릭률(%), 평균클릭비용, 총비용,
+                  평균노출순위
+                </p>
               </div>
               <div className="mt-4 flex gap-2">
-                <Link href="/admin" className="text-sm text-blue-600 hover:underline">
+                <Link
+                  href="/admin"
+                  className="text-sm text-blue-600 hover:underline"
+                >
                   ← 관리자 페이지로 돌아가기
                 </Link>
               </div>
@@ -301,5 +374,5 @@ export default function NaverUploadPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }
