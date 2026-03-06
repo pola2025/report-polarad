@@ -117,6 +117,13 @@ export default function NaverUploadPage() {
         body: formData,
       });
 
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          `서버 오류 (${response.status}). 파일이 너무 크거나 처리 시간을 초과했을 수 있습니다.`,
+        );
+      }
+
       const data = await response.json();
       setResult(data);
 
