@@ -16,7 +16,7 @@ import {
 } from "@/lib/airtable";
 import { isAdminRequest } from "@/lib/admin-auth";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // ─── Aggregate (HEA - Meta + Naver) ──────────────────────────
 
@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { year, month, client_id, client_slug } = body;
+    const { year, month, client_id, client_slug, report_type } = body;
 
     if (!year || !month) {
       return NextResponse.json(
@@ -437,18 +437,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Find reports for this period
-    const reports = await getReports({
+    const allReports = await getReports({
       year,
       month,
       clientId: resolvedClientId || undefined,
+      reportType: report_type || undefined,
     });
 
-    if (reports.length === 0) {
+    if (allReports.length === 0) {
       return NextResponse.json(
         { error: "No reports found", year, month },
         { status: 404 },
       );
     }
+
+    // client_slug 필터 (getReports에 slug 필터가 없으므로 후처리)
+    const reports = resolvedClientId
+      ? allReports.filter((r) => r.client_id === resolvedClientId)
+      : allReports;
 
     console.log(
       `Found ${reports.length} reports for ${year}-${String(month).padStart(2, "0")}`,
