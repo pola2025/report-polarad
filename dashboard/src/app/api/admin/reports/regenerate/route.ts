@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { year, month, client_id } = body;
+    const { year, month, client_id, client_slug } = body;
 
     if (!year || !month) {
       return NextResponse.json(
@@ -426,11 +426,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // slug → client_id 변환
+    let resolvedClientId = client_id;
+    if (!resolvedClientId && client_slug) {
+      const slugMap: Record<string, string> = {
+        "hea-pangyo": "h-e-a-\uD310\uAD50",
+        naratton: "\uB098\uB77C\uB618",
+      };
+      resolvedClientId = slugMap[client_slug];
+    }
+
     // 1. Find reports for this period
     const reports = await getReports({
       year,
       month,
-      clientId: client_id || undefined,
+      clientId: resolvedClientId || undefined,
     });
 
     if (reports.length === 0) {
