@@ -1,48 +1,42 @@
-'use client'
+"use client";
 
-import { Card } from '@/components/ui/card'
-import { formatNumber } from '@/lib/utils'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts'
+import { Card } from "@/components/ui/card";
+import { formatNumber } from "@/lib/utils";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 interface MetaCampaign {
-  campaign_name: string
-  impressions: number
-  clicks: number
-  leads: number
-  spend: number
-  ctr: number
-  cpl: number
+  campaign_name: string;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  spend: number;
+  ctr: number;
+  cpl: number;
 }
 
 interface NaverKeyword {
-  keyword: string
-  impressions: number
-  clicks: number
-  totalCost: number
-  ctr: number
-  avgCpc: number
-  avgRank: number
+  keyword: string;
+  impressions: number;
+  clicks: number;
+  totalCost: number;
+  ctr: number;
+  avgCpc: number;
+  avgRank: number;
 }
 
 interface ChannelComparisonSectionProps {
-  metaCampaigns: MetaCampaign[]
-  naverKeywords: NaverKeyword[]
-  usdToKrw?: number
-  videoViews?: number
-  avgWatchTime?: number
-  naverFixedBudget?: number  // 네이버 월정액 (나라똔 등)
+  metaCampaigns: MetaCampaign[];
+  naverKeywords: NaverKeyword[];
+  usdToKrw?: number;
+  videoViews?: number;
+  avgWatchTime?: number;
+  naverFixedBudget?: number; // 네이버 월정액 (나라똔 등)
 }
 
 const COLORS = {
-  meta: '#1877F2',
-  naver: '#03C75A',
-}
+  meta: "#1877F2",
+  naver: "#03C75A",
+};
 
 export function ChannelComparisonSection({
   metaCampaigns,
@@ -60,35 +54,43 @@ export function ChannelComparisonSection({
     spend: metaCampaigns.reduce((sum, c) => sum + c.spend, 0) * usdToKrw,
     ctr: 0,
     cpc: 0,
-  }
-  metaTotal.ctr = metaTotal.impressions > 0 ? (metaTotal.clicks / metaTotal.impressions) * 100 : 0
-  metaTotal.cpc = metaTotal.clicks > 0 ? metaTotal.spend / metaTotal.clicks : 0
+  };
+  metaTotal.ctr =
+    metaTotal.impressions > 0
+      ? (metaTotal.clicks / metaTotal.impressions) * 100
+      : 0;
+  metaTotal.cpc = metaTotal.clicks > 0 ? metaTotal.spend / metaTotal.clicks : 0;
 
   // 네이버 합계 계산 (키워드 비용 + 월정액)
   const naverTotal = {
     impressions: naverKeywords.reduce((sum, k) => sum + k.impressions, 0),
     clicks: naverKeywords.reduce((sum, k) => sum + k.clicks, 0),
-    spend: naverKeywords.reduce((sum, k) => sum + k.totalCost, 0) + naverFixedBudget,
+    spend:
+      naverKeywords.reduce((sum, k) => sum + k.totalCost, 0) + naverFixedBudget,
     ctr: 0,
     cpc: 0,
-  }
-  naverTotal.ctr = naverTotal.impressions > 0 ? (naverTotal.clicks / naverTotal.impressions) * 100 : 0
-  naverTotal.cpc = naverTotal.clicks > 0 ? naverTotal.spend / naverTotal.clicks : 0
+  };
+  naverTotal.ctr =
+    naverTotal.impressions > 0
+      ? (naverTotal.clicks / naverTotal.impressions) * 100
+      : 0;
+  naverTotal.cpc =
+    naverTotal.clicks > 0 ? naverTotal.spend / naverTotal.clicks : 0;
 
   // 총합
-  const totalSpend = metaTotal.spend + naverTotal.spend
-  const metaRatio = totalSpend > 0 ? (metaTotal.spend / totalSpend) * 100 : 0
-  const naverRatio = 100 - metaRatio
+  const totalSpend = metaTotal.spend + naverTotal.spend;
+  const metaRatio = totalSpend > 0 ? (metaTotal.spend / totalSpend) * 100 : 0;
+  const naverRatio = 100 - metaRatio;
 
   // 도넛 차트 데이터
   const pieData = [
-    { name: 'Meta', value: metaTotal.spend, color: COLORS.meta },
-    { name: '네이버', value: naverTotal.spend, color: COLORS.naver },
-  ]
+    { name: "Meta", value: metaTotal.spend, color: COLORS.meta },
+    { name: "네이버", value: naverTotal.spend, color: COLORS.naver },
+  ];
 
   // 데이터가 없으면 렌더링하지 않음
   if (metaCampaigns.length === 0 && naverKeywords.length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -105,28 +107,58 @@ export function ChannelComparisonSection({
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium text-gray-700">총 지출</span>
             <span className="text-sm font-bold text-gray-900">
-              {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(totalSpend)}
+              {new Intl.NumberFormat("ko-KR", {
+                style: "currency",
+                currency: "KRW",
+                maximumFractionDigits: 0,
+              }).format(totalSpend)}
             </span>
           </div>
           <div className="space-y-3">
             {/* Meta 바 */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-medium" style={{ color: COLORS.meta }}>🔵 Meta</span>
-                <span className="text-xs text-gray-600">{formatNumber(metaTotal.spend)}원 ({metaRatio.toFixed(0)}%)</span>
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: COLORS.meta }}
+                >
+                  🔵 Meta
+                </span>
+                <span className="text-xs text-gray-600">
+                  {formatNumber(metaTotal.spend)}원 ({metaRatio.toFixed(0)}%)
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="h-2.5 rounded-full" style={{ width: `${metaRatio}%`, backgroundColor: COLORS.meta }}></div>
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: `${metaRatio}%`,
+                    backgroundColor: COLORS.meta,
+                  }}
+                ></div>
               </div>
             </div>
             {/* 네이버 바 */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-medium" style={{ color: COLORS.naver }}>🟢 네이버</span>
-                <span className="text-xs text-gray-600">{formatNumber(naverTotal.spend)}원 ({naverRatio.toFixed(0)}%)</span>
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: COLORS.naver }}
+                >
+                  🟢 네이버
+                </span>
+                <span className="text-xs text-gray-600">
+                  {formatNumber(naverTotal.spend)}원 ({naverRatio.toFixed(0)}%)
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="h-2.5 rounded-full" style={{ width: `${naverRatio}%`, backgroundColor: COLORS.naver }}></div>
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: `${naverRatio}%`,
+                    backgroundColor: COLORS.naver,
+                  }}
+                ></div>
               </div>
             </div>
           </div>
@@ -137,35 +169,56 @@ export function ChannelComparisonSection({
           {/* Meta 카드 */}
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold" style={{ color: COLORS.meta }}>🔵 Meta</span>
+              <span
+                className="text-xs font-semibold"
+                style={{ color: COLORS.meta }}
+              >
+                🔵 Meta
+              </span>
             </div>
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-500">노출</span>
-                <span className="font-medium">{formatNumber(metaTotal.impressions)}</span>
+                <span className="font-medium">
+                  {formatNumber(metaTotal.impressions)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">클릭</span>
-                <span className="font-medium">{formatNumber(metaTotal.clicks)}</span>
+                <span className="font-medium">
+                  {formatNumber(metaTotal.clicks)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">CTR</span>
                 <span className="font-medium">{metaTotal.ctr.toFixed(2)}%</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-gray-500">지출</span>
+                <span className="font-medium">
+                  {formatNumber(metaTotal.spend)}원
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-gray-500">CPC</span>
-                <span className="font-medium">{formatNumber(metaTotal.cpc)}원</span>
+                <span className="font-medium">
+                  {formatNumber(metaTotal.cpc)}원
+                </span>
               </div>
               {videoViews > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">영상조회</span>
-                  <span className="font-medium">{formatNumber(videoViews)}</span>
+                  <span className="font-medium">
+                    {formatNumber(videoViews)}
+                  </span>
                 </div>
               )}
               {avgWatchTime > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">평균시청</span>
-                  <span className="font-medium">{avgWatchTime.toFixed(1)}초</span>
+                  <span className="font-medium">
+                    {avgWatchTime.toFixed(1)}초
+                  </span>
                 </div>
               )}
             </div>
@@ -173,24 +226,43 @@ export function ChannelComparisonSection({
           {/* 네이버 카드 */}
           <div className="bg-green-50 rounded-lg p-3 border border-green-100">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold" style={{ color: COLORS.naver }}>🟢 네이버</span>
+              <span
+                className="text-xs font-semibold"
+                style={{ color: COLORS.naver }}
+              >
+                🟢 네이버
+              </span>
             </div>
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-500">노출</span>
-                <span className="font-medium">{formatNumber(naverTotal.impressions)}</span>
+                <span className="font-medium">
+                  {formatNumber(naverTotal.impressions)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">클릭</span>
-                <span className="font-medium">{formatNumber(naverTotal.clicks)}</span>
+                <span className="font-medium">
+                  {formatNumber(naverTotal.clicks)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">CTR</span>
-                <span className="font-medium">{naverTotal.ctr.toFixed(2)}%</span>
+                <span className="font-medium">
+                  {naverTotal.ctr.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">지출</span>
+                <span className="font-medium">
+                  {formatNumber(naverTotal.spend)}원
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">CPC</span>
-                <span className="font-medium">{formatNumber(naverTotal.cpc)}원</span>
+                <span className="font-medium">
+                  {formatNumber(naverTotal.cpc)}원
+                </span>
               </div>
             </div>
           </div>
@@ -219,7 +291,11 @@ export function ChannelComparisonSection({
                 </Pie>
                 <Tooltip
                   formatter={(value: number) =>
-                    new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(value)
+                    new Intl.NumberFormat("ko-KR", {
+                      style: "currency",
+                      currency: "KRW",
+                      maximumFractionDigits: 0,
+                    }).format(value)
                   }
                 />
               </PieChart>
@@ -228,19 +304,33 @@ export function ChannelComparisonSection({
               <div className="text-center">
                 <div className="text-xs text-gray-500">총 지출</div>
                 <div className="text-sm font-bold text-gray-800">
-                  {new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 0 }).format(totalSpend)}원
+                  {new Intl.NumberFormat("ko-KR", {
+                    notation: "compact",
+                    maximumFractionDigits: 0,
+                  }).format(totalSpend)}
+                  원
                 </div>
               </div>
             </div>
           </div>
           <div className="flex gap-6 mt-4">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS.meta }}></span>
-              <span className="text-sm text-gray-600">Meta {metaRatio.toFixed(0)}%</span>
+              <span
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: COLORS.meta }}
+              ></span>
+              <span className="text-sm text-gray-600">
+                Meta {metaRatio.toFixed(0)}%
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS.naver }}></span>
-              <span className="text-sm text-gray-600">네이버 {naverRatio.toFixed(0)}%</span>
+              <span
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: COLORS.naver }}
+              ></span>
+              <span className="text-sm text-gray-600">
+                네이버 {naverRatio.toFixed(0)}%
+              </span>
             </div>
           </div>
         </div>
@@ -250,16 +340,33 @@ export function ChannelComparisonSection({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="py-2 px-2 text-left font-semibold text-gray-600 whitespace-nowrap">채널</th>
-                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">노출수</th>
-                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">클릭수</th>
-                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">CTR</th>
-                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">CPC</th>
+                <th className="py-2 px-2 text-left font-semibold text-gray-600 whitespace-nowrap">
+                  채널
+                </th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                  노출수
+                </th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                  클릭수
+                </th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                  CTR
+                </th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                  지출
+                </th>
+                <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                  CPC
+                </th>
                 {videoViews > 0 && (
-                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">영상조회</th>
+                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                    영상조회
+                  </th>
                 )}
                 {avgWatchTime > 0 && (
-                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">평균시청</th>
+                  <th className="py-2 px-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                    평균시청
+                  </th>
                 )}
               </tr>
             </thead>
@@ -267,54 +374,106 @@ export function ChannelComparisonSection({
               {/* Meta */}
               <tr className="border-b border-gray-100 hover:bg-gray-50">
                 <td className="py-2 px-2 whitespace-nowrap">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(24, 119, 242, 0.1)', color: COLORS.meta }}>
+                  <span
+                    className="px-2 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor: "rgba(24, 119, 242, 0.1)",
+                      color: COLORS.meta,
+                    }}
+                  >
                     🔵 Meta
                   </span>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
-                  <div className="font-medium">{formatNumber(metaTotal.impressions)}</div>
+                  <div className="font-medium">
+                    {formatNumber(metaTotal.impressions)}
+                  </div>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
-                  <div className="font-medium">{formatNumber(metaTotal.clicks)}</div>
+                  <div className="font-medium">
+                    {formatNumber(metaTotal.clicks)}
+                  </div>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">{metaTotal.ctr.toFixed(2)}%</div>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">
-                    {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(metaTotal.cpc)}
+                    {new Intl.NumberFormat("ko-KR", {
+                      style: "currency",
+                      currency: "KRW",
+                      maximumFractionDigits: 0,
+                    }).format(metaTotal.spend)}
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-right whitespace-nowrap">
+                  <div className="font-medium">
+                    {new Intl.NumberFormat("ko-KR", {
+                      style: "currency",
+                      currency: "KRW",
+                      maximumFractionDigits: 0,
+                    }).format(metaTotal.cpc)}
                   </div>
                 </td>
                 {videoViews > 0 && (
                   <td className="py-2 px-2 text-right whitespace-nowrap">
-                    <div className="font-medium">{formatNumber(videoViews)}</div>
+                    <div className="font-medium">
+                      {formatNumber(videoViews)}
+                    </div>
                   </td>
                 )}
                 {avgWatchTime > 0 && (
                   <td className="py-2 px-2 text-right whitespace-nowrap">
-                    <div className="font-medium">{avgWatchTime.toFixed(1)}초</div>
+                    <div className="font-medium">
+                      {avgWatchTime.toFixed(1)}초
+                    </div>
                   </td>
                 )}
               </tr>
               {/* 네이버 */}
               <tr className="hover:bg-gray-50">
                 <td className="py-2 px-2 whitespace-nowrap">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(3, 199, 90, 0.1)', color: COLORS.naver }}>
+                  <span
+                    className="px-2 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor: "rgba(3, 199, 90, 0.1)",
+                      color: COLORS.naver,
+                    }}
+                  >
                     🟢 네이버
                   </span>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
-                  <div className="font-medium">{formatNumber(naverTotal.impressions)}</div>
-                </td>
-                <td className="py-2 px-2 text-right whitespace-nowrap">
-                  <div className="font-medium">{formatNumber(naverTotal.clicks)}</div>
-                </td>
-                <td className="py-2 px-2 text-right whitespace-nowrap">
-                  <div className="font-medium">{naverTotal.ctr.toFixed(2)}%</div>
+                  <div className="font-medium">
+                    {formatNumber(naverTotal.impressions)}
+                  </div>
                 </td>
                 <td className="py-2 px-2 text-right whitespace-nowrap">
                   <div className="font-medium">
-                    {new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(naverTotal.cpc)}
+                    {formatNumber(naverTotal.clicks)}
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-right whitespace-nowrap">
+                  <div className="font-medium">
+                    {naverTotal.ctr.toFixed(2)}%
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-right whitespace-nowrap">
+                  <div className="font-medium">
+                    {new Intl.NumberFormat("ko-KR", {
+                      style: "currency",
+                      currency: "KRW",
+                      maximumFractionDigits: 0,
+                    }).format(naverTotal.spend)}
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-right whitespace-nowrap">
+                  <div className="font-medium">
+                    {new Intl.NumberFormat("ko-KR", {
+                      style: "currency",
+                      currency: "KRW",
+                      maximumFractionDigits: 0,
+                    }).format(naverTotal.cpc)}
                   </div>
                 </td>
                 {videoViews > 0 && (
@@ -336,25 +495,35 @@ export function ChannelComparisonSection({
       {/* 인사이트 */}
       <div className="rounded-lg p-4 mt-4 bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500">
         <p className="text-gray-700 text-sm">
-          💡 <strong>인사이트:</strong>{' '}
+          💡 <strong>인사이트:</strong>{" "}
           {metaTotal.spend > naverTotal.spend ? (
             <>Meta가 전체 지출의 {metaRatio.toFixed(0)}%를 차지하며, </>
           ) : (
             <>네이버가 전체 지출의 {naverRatio.toFixed(0)}%를 차지하며, </>
           )}
           {metaTotal.ctr > naverTotal.ctr ? (
-            <>Meta의 CTR({metaTotal.ctr.toFixed(2)}%)이 네이버({naverTotal.ctr.toFixed(2)}%)보다 높습니다.</>
+            <>
+              Meta의 CTR({metaTotal.ctr.toFixed(2)}%)이 네이버(
+              {naverTotal.ctr.toFixed(2)}%)보다 높습니다.
+            </>
           ) : (
-            <>네이버의 CTR({naverTotal.ctr.toFixed(2)}%)이 Meta({metaTotal.ctr.toFixed(2)}%)보다 높습니다.</>
+            <>
+              네이버의 CTR({naverTotal.ctr.toFixed(2)}%)이 Meta(
+              {metaTotal.ctr.toFixed(2)}%)보다 높습니다.
+            </>
           )}
-          {metaTotal.cpc < naverTotal.cpc && metaTotal.clicks > 0 && naverTotal.clicks > 0 && (
-            <> Meta가 클릭당 비용 효율이 더 좋습니다.</>
-          )}
-          {naverTotal.cpc < metaTotal.cpc && metaTotal.clicks > 0 && naverTotal.clicks > 0 && (
-            <> 네이버가 클릭당 비용 효율이 더 좋습니다.</>
-          )}
+          {metaTotal.cpc < naverTotal.cpc &&
+            metaTotal.clicks > 0 &&
+            naverTotal.clicks > 0 && (
+              <> Meta가 클릭당 비용 효율이 더 좋습니다.</>
+            )}
+          {naverTotal.cpc < metaTotal.cpc &&
+            metaTotal.clicks > 0 &&
+            naverTotal.clicks > 0 && (
+              <> 네이버가 클릭당 비용 효율이 더 좋습니다.</>
+            )}
         </p>
       </div>
     </Card>
-  )
+  );
 }
