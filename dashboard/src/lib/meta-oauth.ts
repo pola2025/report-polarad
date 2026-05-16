@@ -16,7 +16,7 @@ const REDIRECT_URI =
 // Meta Graph API 버전
 const API_VERSION = "v22.0";
 
-// OAuth 스코프 (App Review 5개 권한 + public_profile)
+// OAuth 스코프 (App Review 권한)
 const OAUTH_SCOPE = [
   "public_profile",
   "ads_read",
@@ -24,6 +24,8 @@ const OAUTH_SCOPE = [
   "business_management",
   "pages_show_list",
   "pages_read_engagement",
+  "instagram_basic",
+  "instagram_content_publish",
 ].join(",");
 
 /**

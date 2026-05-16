@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Loader2,
   FileText,
@@ -14,75 +14,87 @@ import {
   ArrowRight,
   User,
   Power,
-} from 'lucide-react'
+  Instagram,
+} from "lucide-react";
 
 interface PermissionStatus {
-  user: boolean
-  pages: boolean
-  pageInsights: boolean
-  businesses: boolean
-  adAccounts: boolean
-  adsManagement: boolean
+  user: boolean;
+  pages: boolean;
+  pageInsights: boolean;
+  businesses: boolean;
+  adAccounts: boolean;
+  adsManagement: boolean;
+  instagramPublish: boolean;
 }
 
 const permissions = [
   {
-    href: '/meta/pages-show-list',
-    permission: 'pages_show_list',
-    title: 'Facebook Pages',
-    description: 'List of Pages you manage',
+    href: "/meta/pages-show-list",
+    permission: "pages_show_list",
+    title: "Facebook Pages",
+    description: "List of Pages you manage",
     icon: FileText,
-    key: 'pages' as const,
-    color: 'blue',
+    key: "pages" as const,
+    color: "blue",
   },
   {
-    href: '/meta/pages-read-engagement',
-    permission: 'pages_read_engagement',
-    title: 'Page Insights',
-    description: 'Page engagement metrics and analytics',
+    href: "/meta/pages-read-engagement",
+    permission: "pages_read_engagement",
+    title: "Page Insights",
+    description: "Page engagement metrics and analytics",
     icon: TrendingUp,
-    key: 'pageInsights' as const,
-    color: 'green',
+    key: "pageInsights" as const,
+    color: "green",
   },
   {
-    href: '/meta/business-management',
-    permission: 'business_management',
-    title: 'Business Accounts',
-    description: 'Business Manager information',
+    href: "/meta/business-management",
+    permission: "business_management",
+    title: "Business Accounts",
+    description: "Business Manager information",
     icon: Building2,
-    key: 'businesses' as const,
-    color: 'purple',
+    key: "businesses" as const,
+    color: "purple",
   },
   {
-    href: '/meta/ads-read',
-    permission: 'ads_read',
-    title: 'Ad Accounts',
-    description: 'Ad account data and metrics',
+    href: "/meta/ads-read",
+    permission: "ads_read",
+    title: "Ad Accounts",
+    description: "Ad account data and metrics",
     icon: BarChart3,
-    key: 'adAccounts' as const,
-    color: 'orange',
+    key: "adAccounts" as const,
+    color: "orange",
   },
   {
-    href: '/meta/ads-management',
-    permission: 'ads_management',
-    title: 'Ad Control',
-    description: 'Turn campaigns on/off',
+    href: "/meta/ads-management",
+    permission: "ads_management",
+    title: "Ad Control",
+    description: "Turn campaigns on/off",
     icon: Power,
-    key: 'adsManagement' as const,
-    color: 'rose',
+    key: "adsManagement" as const,
+    color: "rose",
   },
-]
+  {
+    href: "/meta/instagram-publish",
+    permission: "instagram_content_publish",
+    title: "Instagram Publishing",
+    description: "Publish image posts to client IG account",
+    icon: Instagram,
+    key: "instagramPublish" as const,
+    color: "pink",
+  },
+];
 
 const colorClasses = {
-  blue: 'bg-blue-100 text-blue-600 border-blue-200',
-  green: 'bg-green-100 text-green-600 border-green-200',
-  purple: 'bg-purple-100 text-purple-600 border-purple-200',
-  orange: 'bg-orange-100 text-orange-600 border-orange-200',
-  rose: 'bg-rose-100 text-rose-600 border-rose-200',
-}
+  blue: "bg-blue-100 text-blue-600 border-blue-200",
+  green: "bg-green-100 text-green-600 border-green-200",
+  purple: "bg-purple-100 text-purple-600 border-purple-200",
+  orange: "bg-orange-100 text-orange-600 border-orange-200",
+  rose: "bg-rose-100 text-rose-600 border-rose-200",
+  pink: "bg-pink-100 text-pink-600 border-pink-200",
+};
 
 export default function DemoIndexPage() {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<PermissionStatus>({
     user: false,
     pages: false,
@@ -90,16 +102,17 @@ export default function DemoIndexPage() {
     businesses: false,
     adAccounts: false,
     adsManagement: false,
-  })
-  const [userName, setUserName] = useState<string | null>(null)
+    instagramPublish: false,
+  });
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkPermissions() {
       try {
-        const res = await fetch('/api/meta?action=all')
-        const json = await res.json()
+        const res = await fetch("/api/meta?action=all");
+        const json = await res.json();
         if (json.success) {
-          const data = json.data
+          const data = json.data;
           setStatus({
             user: !!data.user,
             pages: data.pages && data.pages.length > 0,
@@ -107,22 +120,23 @@ export default function DemoIndexPage() {
             businesses: data.businesses && data.businesses.length > 0,
             adAccounts: data.adAccounts && data.adAccounts.length > 0,
             adsManagement: data.adAccounts && data.adAccounts.length > 0,
-          })
+            instagramPublish: data.pages && data.pages.length > 0,
+          });
           if (data.user) {
-            setUserName(data.user.name)
+            setUserName(data.user.name);
           }
         }
       } catch (err) {
-        console.error('Failed to check permissions:', err)
+        console.error("Failed to check permissions:", err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    checkPermissions()
-  }, [])
+    checkPermissions();
+  }, []);
 
-  const grantedCount = Object.values(status).filter(Boolean).length
+  const grantedCount = Object.values(status).filter(Boolean).length;
 
   return (
     <div className="space-y-8">
@@ -132,8 +146,9 @@ export default function DemoIndexPage() {
           Connected Meta Services
         </h1>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          POLA-REPORT connects to your Meta accounts to provide comprehensive marketing analytics.
-          Below are the Meta API integrations that power your reports.
+          POLA-REPORT connects to your Meta accounts to provide comprehensive
+          marketing analytics. Below are the Meta API integrations that power
+          your reports.
         </p>
       </div>
 
@@ -151,7 +166,9 @@ export default function DemoIndexPage() {
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
-                <span className="text-sm text-green-600 font-medium">public_profile</span>
+                <span className="text-sm text-green-600 font-medium">
+                  public_profile
+                </span>
               </div>
             </div>
           </CardContent>
@@ -181,7 +198,7 @@ export default function DemoIndexPage() {
                   <div
                     key={key}
                     className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      granted ? 'bg-green-100' : 'bg-gray-100'
+                      granted ? "bg-green-100" : "bg-gray-100"
                     }`}
                   >
                     {granted ? (
@@ -204,8 +221,8 @@ export default function DemoIndexPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {permissions.map((perm) => {
-            const Icon = perm.icon
-            const isGranted = status[perm.key]
+            const Icon = perm.icon;
+            const isGranted = status[perm.key];
 
             return (
               <Link key={perm.href} href={perm.href}>
@@ -225,8 +242,12 @@ export default function DemoIndexPage() {
                         <AlertCircle className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{perm.title}</h3>
-                    <p className="text-sm text-gray-500 mb-3">{perm.description}</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">
+                      {perm.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-3">
+                      {perm.description}
+                    </p>
                     <div className="flex items-center justify-between">
                       <code className="text-xs bg-gray-100 px-2 py-1 rounded">
                         {perm.permission}
@@ -236,7 +257,7 @@ export default function DemoIndexPage() {
                   </CardContent>
                 </Card>
               </Link>
-            )
+            );
           })}
         </div>
       </div>
@@ -244,20 +265,26 @@ export default function DemoIndexPage() {
       {/* Integration Benefits */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-blue-800">Why These Integrations Matter</CardTitle>
+          <CardTitle className="text-blue-800">
+            Why These Integrations Matter
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-blue-700 space-y-2">
-          <p>
-            POLA-REPORT uses Meta APIs to provide you with:
-          </p>
+          <p>POLA-REPORT uses Meta APIs to provide you with:</p>
           <ul className="list-disc list-inside space-y-1 text-sm">
-            <li>Consolidated view of all your Facebook Pages and Ad Accounts</li>
-            <li>Real-time performance metrics without switching between tools</li>
+            <li>
+              Consolidated view of all your Facebook Pages and Ad Accounts
+            </li>
+            <li>
+              Real-time performance metrics without switching between tools
+            </li>
             <li>Automated report generation with accurate Meta data</li>
-            <li>Cross-account analytics for agencies managing multiple clients</li>
+            <li>
+              Cross-account analytics for agencies managing multiple clients
+            </li>
           </ul>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -145,3 +145,31 @@ Data Deletion: https://report.polarad.co.kr/data-deletion
 37
 00:06:12,000 --> 00:06:20,000
 Thank you for the review
+
+38
+00:06:25,000 --> 00:06:35,000
+Bonus — Instagram publishing for the Instagram use case
+
+39
+00:06:35,000 --> 00:06:45,000
+The operator opens /meta/instagram-publish and selects a connected Facebook Page
+
+40
+00:06:45,000 --> 00:06:55,000
+The page exposes the connected Instagram Business account via instagram_basic
+
+41
+00:06:55,000 --> 00:07:05,000
+The operator enters an image URL and caption approved by the client
+
+42
+00:07:05,000 --> 00:07:15,000
+Clicking Publish issues POST /{ig-user-id}/media then /{ig-user-id}/media_publish
+
+43
+00:07:15,000 --> 00:07:25,000
+The dashboard shows the media id and permalink so the operator can verify the post
+
+44
+00:07:25,000 --> 00:07:35,000
+instagram_content_publish — used exclusively to deliver agency-approved creative

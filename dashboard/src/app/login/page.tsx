@@ -344,6 +344,16 @@ function LoginContent() {
                     en: "Read Page engagement insights",
                     scope: "pages_read_engagement",
                   },
+                  {
+                    ko: "Instagram 비즈니스 계정 정보 조회",
+                    en: "Read connected Instagram Business account",
+                    scope: "instagram_basic",
+                  },
+                  {
+                    ko: "Instagram 콘텐츠 발행 (게시물 업로드)",
+                    en: "Publish content to Instagram on your behalf",
+                    scope: "instagram_content_publish",
+                  },
                 ].map((perm) => (
                   <li key={perm.scope} className="flex items-start gap-2">
                     <svg

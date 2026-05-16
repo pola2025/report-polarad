@@ -9,14 +9,14 @@ URL: https://report.polarad.co.kr
 
 ## 1. 거절 사유 요약 (이전 제출)
 
-| 권한 | Meta 거절 사유 | 진짜 원인 |
-|---|---|---|
-| Marketing API Access Tier | 지난 15일간 충분한 Ads API 호출 없음 | API 호출량 부족. **이용사례와 무관 → 별도 트랙** |
-| ads_management | 사용 사례와 일치하지 않는 스크린캐스트 | 목업 스샷 제출, end-to-end 흐름 부재 |
-| ads_read | 동일 | 동일 |
-| business_management | 동일 | 동일 |
-| pages_show_list | 동일 | 동일 |
-| pages_read_engagement | 동일 | 동일 |
+| 권한                      | Meta 거절 사유                         | 진짜 원인                                        |
+| ------------------------- | -------------------------------------- | ------------------------------------------------ |
+| Marketing API Access Tier | 지난 15일간 충분한 Ads API 호출 없음   | API 호출량 부족. **이용사례와 무관 → 별도 트랙** |
+| ads_management            | 사용 사례와 일치하지 않는 스크린캐스트 | 목업 스샷 제출, end-to-end 흐름 부재             |
+| ads_read                  | 동일                                   | 동일                                             |
+| business_management       | 동일                                   | 동일                                             |
+| pages_show_list           | 동일                                   | 동일                                             |
+| pages_read_engagement     | 동일                                   | 동일                                             |
 
 **핵심 한 줄**: 5개 권한은 텍스트 문제가 아니라 **"실제 운영 화면 + 권한 부여 흐름 + end-to-end 데모"가 들어간 스크린캐스트를 다시 찍어야** 통과합니다.
 
@@ -30,17 +30,17 @@ URL: https://report.polarad.co.kr
 
 ```ts
 // 현재
-const OAUTH_SCOPE = 'ads_read'
+const OAUTH_SCOPE = "ads_read";
 
 // 수정
 const OAUTH_SCOPE = [
-  'ads_read',
-  'ads_management',
-  'business_management',
-  'pages_show_list',
-  'pages_read_engagement',
-  'public_profile',
-].join(',')
+  "ads_read",
+  "ads_management",
+  "business_management",
+  "pages_show_list",
+  "pages_read_engagement",
+  "public_profile",
+].join(",");
 ```
 
 이걸 안 하면 영상에서 광고주가 동의 화면을 봐도 권한이 1개만 뜹니다 → Meta 검수자가 "이 앱은 ads_read만 요청하는데?"로 의심.
@@ -74,13 +74,13 @@ App Settings → "User Data Deletion Callback URL" 확인. 비어있으면 `/api
 
 ## 3. 권한별 사용처 매핑 (실제 코드 기반)
 
-| 권한 | Meta API 호출 함수 | UI 표시 위치 | 영상에 보여줄 화면 |
-|---|---|---|---|
-| ads_read | `getAdAccounts`, `getAdCampaigns`, `getCampaignInsights` (`meta-oauth.ts:149,387,447`) | `/meta/ads-read` 카드 + 메인 대시보드 KPI(노출/클릭/지출/CTR) + 리포트 | `/meta/ads-read` → 대시보드 채널별 성과 테이블 |
-| ads_management | `updateCampaignStatus` (`meta-oauth.ts:417`) | `/meta/ads-management` 페이지의 Pause/Activate 버튼 | `/meta/ads-management` → 실제 캠페인 status 토글 동작 |
-| business_management | `getBusinesses`, `getBusinessDetails` (`meta-oauth.ts:248,272`) | `/meta/business-management` Ad Account 목록 | `/meta/business-management` 카드 |
-| pages_show_list | `getPages` (`meta-oauth.ts:223`) | `/meta/pages-show-list` Page 목록 + 클라이언트 설정에서 Page 선택 | `/meta/pages-show-list` 카드 |
-| pages_read_engagement | `getPageInsights`, `getPageDetails` (`meta-oauth.ts:300,360`) | `/meta/pages-read-engagement` 팔로워/도달/참여수 | `/meta/pages-read-engagement` 카드 |
+| 권한                  | Meta API 호출 함수                                                                     | UI 표시 위치                                                           | 영상에 보여줄 화면                                    |
+| --------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
+| ads_read              | `getAdAccounts`, `getAdCampaigns`, `getCampaignInsights` (`meta-oauth.ts:149,387,447`) | `/meta/ads-read` 카드 + 메인 대시보드 KPI(노출/클릭/지출/CTR) + 리포트 | `/meta/ads-read` → 대시보드 채널별 성과 테이블        |
+| ads_management        | `updateCampaignStatus` (`meta-oauth.ts:417`)                                           | `/meta/ads-management` 페이지의 Pause/Activate 버튼                    | `/meta/ads-management` → 실제 캠페인 status 토글 동작 |
+| business_management   | `getBusinesses`, `getBusinessDetails` (`meta-oauth.ts:248,272`)                        | `/meta/business-management` Ad Account 목록                            | `/meta/business-management` 카드                      |
+| pages_show_list       | `getPages` (`meta-oauth.ts:223`)                                                       | `/meta/pages-show-list` Page 목록 + 클라이언트 설정에서 Page 선택      | `/meta/pages-show-list` 카드                          |
+| pages_read_engagement | `getPageInsights`, `getPageDetails` (`meta-oauth.ts:300,360`)                          | `/meta/pages-read-engagement` 팔로워/도달/참여수                       | `/meta/pages-read-engagement` 카드                    |
 
 `/meta` 인덱스 페이지가 이미 5개 카드 + "How POLA-REPORT uses this data" 영문 설명까지 잘 만들어져 있어 영상의 메인 무대로 활용하면 됩니다.
 
@@ -89,6 +89,7 @@ App Settings → "User Data Deletion Callback URL" 확인. 비어있으면 `/api
 ## 4. 통합 스크린캐스트 시나리오 (한 편 5분, 5개 권한 모두 커버)
 
 ### Pre-flight 체크
+
 - [ ] OAuth scope 5개로 수정 + 배포 완료
 - [ ] `/login` 권한 리스트 5개로 업데이트
 - [ ] 화면 영어 UI (또는 메인 흐름은 `/meta/*` 위주)
@@ -97,7 +98,9 @@ App Settings → "User Data Deletion Callback URL" 확인. 비어있으면 `/api
 - [ ] 자막은 영어로 추가 (각 장면 캡션)
 
 ### Scene 1 — Intro (0:00~0:20, 자막만)
+
 화면: 검은 배경 + 영문 텍스트
+
 ```
 POLA-REPORT — Marketing analytics platform for Polarad ad agency
 Used by approved agency staff to view client ad performance
@@ -105,9 +108,11 @@ Server-to-server architecture with System User token
 ```
 
 ### Scene 2 — 광고주가 권한 부여 (0:20~1:30) ★ 가장 중요
+
 이전 거절의 핵심 사유. 두 가지 옵션:
 
 **Option A (권장) — Real OAuth Flow**:
+
 1. 새 시크릿 창에서 https://report.polarad.co.kr/login 접속
 2. "Continue with Meta" 버튼 클릭
 3. Facebook 동의 화면 표시 (5개 권한 모두 노출 확인)
@@ -115,49 +120,67 @@ Server-to-server architecture with System User token
 5. "Continue" 클릭 → callback → `/meta` 인덱스 진입
 
 **Option B — Business Manager 권한 부여 (시스템 사용자 토큰 케이스)**:
+
 1. business.facebook.com → Business Settings → Apps
 2. "Add" → POLA-REPORT 검색 → 추가
 3. Ad accounts → 광고계정 선택 → Assign people and assets → POLA-REPORT 앱 추가, "Manage campaigns" 권한 부여
 4. Pages → 동일하게 POLA-REPORT 추가
-5. 추가 캡션: *"After the client grants Business asset permissions, our system user token can read this data"*
+5. 추가 캡션: _"After the client grants Business asset permissions, our system user token can read this data"_
 
 ### Scene 3 — `/meta` 인덱스 (1:30~2:00)
+
 - "Connected Meta Services" 헤더
 - 5개 권한 카드 + 모두 ✅ 표시
-- 캡션: *"All five permissions are active and the data flows successfully"*
+- 캡션: _"All five permissions are active and the data flows successfully"_
 
 ### Scene 4 — pages_show_list (2:00~2:20)
+
 - "Facebook Pages" 카드 클릭 → `/meta/pages-show-list` 진입
 - 광고주 Page 목록 표시
-- 캡션: *"pages_show_list — listing Pages the user manages, used to map clients to Pages"*
+- 캡션: _"pages_show_list — listing Pages the user manages, used to map clients to Pages"_
 
 ### Scene 5 — pages_read_engagement (2:20~2:40)
+
 - "Page Insights" 카드 → `/meta/pages-read-engagement`
 - Followers, Page Likes, Impressions, Engaged Users 4개 KPI
-- 캡션: *"pages_read_engagement — engagement metrics shown alongside ad performance"*
+- 캡션: _"pages_read_engagement — engagement metrics shown alongside ad performance"_
 
 ### Scene 6 — business_management (2:40~3:00)
+
 - "Business Accounts" 카드 → `/meta/business-management`
 - Ad Account 목록 (이름/ID/Status)
-- 캡션: *"business_management — listing ad accounts under client's Business Manager"*
+- 캡션: _"business_management — listing ad accounts under client's Business Manager"_
 
 ### Scene 7 — ads_read (3:00~3:30)
+
 - "Ad Accounts" 카드 → `/meta/ads-read`
 - Account #1 카드 (이름/ID/Status/Currency/Amount Spent)
-- 캡션: *"ads_read — reading ad account performance for reporting"*
-- (보너스) 메인 대시보드(`/?client=hea-pangyo`)로 이동해서 노출/클릭/지출 KPI 카드 보여주기 — 캡션: *"This data powers the daily client dashboard"*
+- 캡션: _"ads_read — reading ad account performance for reporting"_
+- (보너스) 메인 대시보드(`/?client=hea-pangyo`)로 이동해서 노출/클릭/지출 KPI 카드 보여주기 — 캡션: _"This data powers the daily client dashboard"_
 
 ### Scene 8 — ads_management (3:30~4:30) ★ 두 번째로 중요
+
 - "Ad Control" 카드 → `/meta/ads-management`
 - 캠페인 목록 표시
 - ACTIVE 캠페인의 **"Pause" 버튼 클릭** → status 변경 확인
 - PAUSED → "Activate" 클릭 → 다시 ACTIVE
-- 캡션: *"ads_management — actually toggling campaign status via POST /v22.0/{campaign_id}"*
+- 캡션: _"ads_management — actually toggling campaign status via POST /v22.0/{campaign_id}"_
 - ★ Meta는 "버튼만 있고 동작 안 함" 거절을 자주 함. 실제 status가 바뀌는 걸 보여줘야 함.
 
+### Scene 9.5 — Instagram Publishing (Instagram 이용 사례용, ~6:25~7:35)
+
+- `/meta/instagram-publish` 진입
+- 연결된 Page 선택 → IG Business 계정 자동 표시 (`@username`)
+- 이미지 URL + 캡션 입력 → "Publish to Instagram" 클릭
+- API: `POST /{ig-user-id}/media` → `POST /{ig-user-id}/media_publish`
+- 발행 후 permalink 표시 → "Open on Instagram" 링크로 실제 게시 확인
+- 캡션: _"instagram_basic + instagram_content_publish — agency-approved creative delivered to the client's IG account"_
+
 ### Scene 9 — Outro (4:30~5:00)
+
 - 메인 대시보드(`/`)로 돌아가서 데이터가 표시되는 모습
 - 자막:
+
 ```
 All Meta data is fetched server-to-server via System User token
 Data is used only for ad performance reporting to authorized agency staff
@@ -165,6 +188,7 @@ Privacy Policy: https://report.polarad.co.kr/privacy
 ```
 
 ### 녹화 모범 사례 체크리스트
+
 - [ ] 마우스 커서 강조
 - [ ] 각 장면 영문 자막 또는 캡션
 - [ ] 1080p 60fps
@@ -178,6 +202,7 @@ Privacy Policy: https://report.polarad.co.kr/privacy
 ### 5-1. ads_read
 
 **How will your app use this permission?**
+
 ```
 POLA-REPORT is an internal marketing analytics platform used by Polarad,
 a Meta-certified ad agency, to monitor and report on the ad campaign
@@ -208,6 +233,7 @@ client dashboard.
 ### 5-2. ads_management
 
 **How will your app use this permission?**
+
 ```
 POLA-REPORT uses ads_management to give our agency operators a
 quick "pause underperforming campaigns" control directly inside the
@@ -233,6 +259,7 @@ performance changes.
 ### 5-3. business_management
 
 **How will your app use this permission?**
+
 ```
 POLA-REPORT serves multiple clients, each with their own Business
 Manager. business_management is needed so we can:
@@ -254,6 +281,7 @@ and synchronisation.
 ### 5-4. pages_show_list
 
 **How will your app use this permission?**
+
 ```
 Many of our clients run Facebook Page-based ad campaigns and also
 want their organic Page metrics included in the same report.
@@ -271,6 +299,7 @@ to populate the "Page selection" UI inside the client setup flow.
 ### 5-5. pages_read_engagement
 
 **How will your app use this permission?**
+
 ```
 Once a Page is mapped to a client, POLA-REPORT uses
 pages_read_engagement together with the Page Access Token to read
@@ -288,6 +317,60 @@ Engaged Users) as actually rendered to the operator.
 
 We do not post to the Page, do not read messages, and do not access
 any user-level engagement data — only Page-level aggregate insights.
+```
+
+### 5-6. instagram_basic
+
+**How will your app use this permission?**
+
+```
+POLA-REPORT uses instagram_basic to resolve the Instagram Business
+account that is connected to the client's Facebook Page.
+
+Specifically:
+1. After the client grants Page access on Business Manager, we call
+   GET /{page-id}?fields=instagram_business_account{id,username,name}
+   using the Page Access Token.
+2. The returned IG Business account id and username are displayed in
+   the dashboard so the operator can confirm which IG account they
+   are about to publish to.
+3. We also call GET /{ig-user-id}/media?fields=id,caption,permalink to
+   show the most recent posts on the account for verification.
+
+We do not read individual user data, do not access stories or DMs,
+and do not access any account that is not explicitly connected to
+the client's authorized Facebook Page.
+
+The screencast shows /meta/instagram-publish resolving and displaying
+the IG account @username and a 5-post recent media grid.
+```
+
+### 5-7. instagram_content_publish
+
+**How will your app use this permission?**
+
+```
+POLA-REPORT uses instagram_content_publish so agency operators can
+publish approved image creative to the client's Instagram Business
+account directly from the analytics dashboard, without switching to
+Meta Business Suite or a separate tool.
+
+Flow shown in the screencast:
+1. Operator pastes the image URL (a public JPEG/PNG approved by the
+   client) and the caption into /meta/instagram-publish.
+2. Clicking Publish issues
+   POST /{ig-user-id}/media   { image_url, caption }
+   to create a media container.
+3. Once the container is FINISHED we issue
+   POST /{ig-user-id}/media_publish   { creation_id }
+   to publish it to the IG feed.
+4. The dashboard shows the published media id and permalink so the
+   operator can open it in a new tab to verify the post.
+
+We never publish without the agency operator's explicit click, never
+schedule posts without user interaction, and never publish stories,
+reels or DMs through this permission — only single-image feed posts
+in this implementation.
 ```
 
 ---
@@ -332,10 +415,12 @@ Data Deletion Instructions: https://report.polarad.co.kr/data-deletion
 이건 use case가 아니라 **API 호출량** 문제입니다.
 
 ### 통과 조건 (2026 기준)
+
 - 최근 15일간 Ads API 성공 호출 **1,500회 이상** (앱 토큰 기준)
 - Standard Access는 더 높음 (10,000회 이상 권장)
 
 ### 액션 플랜
+
 1. **현재 호출량 확인**: App Dashboard → App Insights → API Calls
 2. **호출량 늘리기**: backfill cron (`/api/cron/backfill`)이 매일 도는데도 부족하다면 클라이언트 추가 또는 호출 빈도 증가
 3. **15일 대기 후 재신청**: 충분한 데이터가 쌓인 뒤 별도 제출
@@ -346,6 +431,7 @@ Data Deletion Instructions: https://report.polarad.co.kr/data-deletion
 ## 8. 재제출 체크리스트 (최종)
 
 ### 코드
+
 - [ ] `meta-oauth.ts` OAUTH_SCOPE 5개 확장
 - [ ] `/login` 권한 리스트 5개로 업데이트
 - [ ] `/privacy`, `/terms`, `/data-deletion` 영문 버전 확인
@@ -353,6 +439,7 @@ Data Deletion Instructions: https://report.polarad.co.kr/data-deletion
 - [ ] 배포 완료 후 https://report.polarad.co.kr/meta 에서 5개 카드 모두 ✅ 확인
 
 ### 영상
+
 - [ ] Pre-flight 체크 통과
 - [ ] Scene 1~9 모두 녹화
 - [ ] 광고주 권한 부여 흐름 포함 (Scene 2)
@@ -361,6 +448,7 @@ Data Deletion Instructions: https://report.polarad.co.kr/data-deletion
 - [ ] mp4 5분 이내 / 100MB 이내
 
 ### 제출
+
 - [ ] 5개 권한 각각에 위 영문 use case 붙여넣기
 - [ ] Submission Notes에 server-to-server 명시
 - [ ] 스크린캐스트 업로드
@@ -371,6 +459,7 @@ Data Deletion Instructions: https://report.polarad.co.kr/data-deletion
 ---
 
 ## 9. 참고 링크
+
 - [Screen Recording Guidelines](https://developers.facebook.com/docs/app-review/submission-guide/screen-recordings)
 - [Permissions Reference](https://developers.facebook.com/docs/permissions)
 - [Marketing API Access Tier](https://developers.facebook.com/docs/marketing-api/access)
