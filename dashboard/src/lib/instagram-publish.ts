@@ -139,6 +139,54 @@ export async function publishMediaContainer(
 }
 
 /**
+ * Convenience — one-shot Reels (video) publish.
+ * Returns the published media id. Reels take longer to process so we poll
+ * the container status with a generous timeout before publishing.
+ */
+export async function publishReel(params: {
+  igUserId: string;
+  accessToken: string;
+  videoUrl: string;
+  caption?: string;
+}): Promise<{ media_id: string; permalink?: string }> {
+  const container = await createMediaContainer(
+    params.igUserId,
+    params.accessToken,
+    {
+      video_url: params.videoUrl,
+      caption: params.caption,
+      media_type: "REELS",
+    },
+  );
+
+  await waitForContainerReady(container.id, params.accessToken, {
+    intervalMs: 3000,
+    timeoutMs: 120_000,
+  });
+
+  const published = await publishMediaContainer(
+    params.igUserId,
+    container.id,
+    params.accessToken,
+  );
+
+  let permalink: string | undefined;
+  try {
+    const linkRes = await fetch(
+      `${BASE_URL}/${published.id}?fields=permalink&access_token=${params.accessToken}`,
+    );
+    if (linkRes.ok) {
+      const linkData = await linkRes.json();
+      permalink = linkData.permalink;
+    }
+  } catch {
+    // permalink fetch is best-effort
+  }
+
+  return { media_id: published.id, permalink };
+}
+
+/**
  * Convenience — one-shot image publish.
  * Returns the published media id (permalink lives at /{id}?fields=permalink).
  */

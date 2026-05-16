@@ -16,6 +16,7 @@ import {
 import {
   getConnectedInstagramAccount,
   publishImage,
+  publishReel,
   getRecentMedia,
 } from "@/lib/instagram-publish";
 
@@ -259,6 +260,23 @@ export async function POST(request: NextRequest) {
         igUserId,
         accessToken: pageToken || accessToken,
         imageUrl,
+        caption,
+      });
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    if (action === "publish_instagram_reel") {
+      const { igUserId, videoUrl, caption, pageToken } = body;
+      if (!igUserId || !videoUrl) {
+        return NextResponse.json(
+          { success: false, error: "igUserId and videoUrl are required" },
+          { status: 400 },
+        );
+      }
+      const result = await publishReel({
+        igUserId,
+        accessToken: pageToken || accessToken,
+        videoUrl,
         caption,
       });
       return NextResponse.json({ success: true, data: result });

@@ -33,8 +33,11 @@ interface RecentMedia {
 
 const DEFAULT_IMAGE_URL =
   "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?w=1080&h=1080&fit=crop";
+const DEFAULT_VIDEO_URL = "https://download.samplelib.com/mp4/sample-5s.mp4";
 const DEFAULT_CAPTION =
   "Posted from POLA-REPORT — agency demo of instagram_content_publish.";
+
+type MediaKind = "image" | "video";
 
 export default function InstagramPublishPage() {
   const [loading, setLoading] = useState(true);
@@ -44,7 +47,9 @@ export default function InstagramPublishPage() {
   const [igAccount, setIgAccount] = useState<IgAccount | null>(null);
   const [recentMedia, setRecentMedia] = useState<RecentMedia[]>([]);
 
+  const [mediaKind, setMediaKind] = useState<MediaKind>("image");
   const [imageUrl, setImageUrl] = useState(DEFAULT_IMAGE_URL);
+  const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO_URL);
   const [caption, setCaption] = useState(DEFAULT_CAPTION);
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{
@@ -118,13 +123,23 @@ export default function InstagramPublishPage() {
       const res = await fetch("/api/meta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "publish_instagram_image",
-          igUserId: igAccount.id,
-          imageUrl,
-          caption,
-          pageToken: selectedPage.access_token,
-        }),
+        body: JSON.stringify(
+          mediaKind === "image"
+            ? {
+                action: "publish_instagram_image",
+                igUserId: igAccount.id,
+                imageUrl,
+                caption,
+                pageToken: selectedPage.access_token,
+              }
+            : {
+                action: "publish_instagram_reel",
+                igUserId: igAccount.id,
+                videoUrl,
+                caption,
+                pageToken: selectedPage.access_token,
+              },
+        ),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Publish failed");
@@ -210,24 +225,69 @@ export default function InstagramPublishPage() {
           <div className="p-4 border rounded-lg space-y-3">
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
               <ImageIcon className="w-5 h-5 text-pink-500" />
-              Publish an image post
+              Publish a post
             </h4>
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Image URL
-              </label>
-              <input
-                type="url"
-                className="w-full border rounded-md px-3 py-2 text-sm font-mono"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Public URL of a JPEG / PNG (1080×1080 recommended).
-              </p>
+            {/* Media kind toggle */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMediaKind("image")}
+                className={`px-3 py-1.5 text-sm rounded-md border ${
+                  mediaKind === "image"
+                    ? "bg-pink-500 text-white border-pink-500"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-pink-300"
+                }`}
+              >
+                📷 Image
+              </button>
+              <button
+                type="button"
+                onClick={() => setMediaKind("video")}
+                className={`px-3 py-1.5 text-sm rounded-md border ${
+                  mediaKind === "video"
+                    ? "bg-pink-500 text-white border-pink-500"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-pink-300"
+                }`}
+              >
+                🎬 Video (Reels)
+              </button>
             </div>
+
+            {mediaKind === "image" ? (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Image URL
+                </label>
+                <input
+                  type="url"
+                  className="w-full border rounded-md px-3 py-2 text-sm font-mono"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Public URL of a JPEG / PNG (1080×1080 recommended).
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Video URL (Reels)
+                </label>
+                <input
+                  type="url"
+                  className="w-full border rounded-md px-3 py-2 text-sm font-mono"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Public URL of an MP4 (H.264 + AAC, ≤90s, 9:16 vertical
+                  recommended).
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs text-gray-500 mb-1">
@@ -243,11 +303,17 @@ export default function InstagramPublishPage() {
 
             <button
               className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-md text-sm font-medium hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 flex items-center gap-2"
-              disabled={publishing || !imageUrl}
+              disabled={
+                publishing || (mediaKind === "image" ? !imageUrl : !videoUrl)
+              }
               onClick={handlePublish}
             >
               <Send className="w-4 h-4" />
-              {publishing ? "Publishing…" : "Publish to Instagram"}
+              {publishing
+                ? mediaKind === "video"
+                  ? "Processing video…"
+                  : "Publishing…"
+                : `Publish ${mediaKind === "image" ? "image" : "Reel"} to Instagram`}
             </button>
 
             {publishResult && (
