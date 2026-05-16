@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminRequest, getAdminScope, BAS_NARATTON_ALLOWED_SLUGS } from '@/lib/admin-auth'
+import { calculateServiceEndDate } from '@/lib/service-period'
 
 // Airtable 설정
 const AIRTABLE_TOKEN = process.env.AIRTABLE_API_KEY!
@@ -147,7 +148,9 @@ export async function POST(request: NextRequest) {
       naver_show_detail_tab,
       telegram_enabled,
       telegram_chat_id,
-      service_start_date
+      service_start_date,
+      service_duration_months,
+      service_end_date
     } = body
 
     if (!client_name || !slug) {
@@ -156,6 +159,8 @@ export async function POST(request: NextRequest) {
 
     // UUID 생성
     const id = crypto.randomUUID()
+    const serviceStartDate = service_start_date || new Date().toISOString().split('T')[0]
+    const serviceEndDate = service_end_date || calculateServiceEndDate(serviceStartDate, service_duration_months)
 
     const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`, {
       method: 'POST',
@@ -183,7 +188,8 @@ export async function POST(request: NextRequest) {
             naver_show_detail_tab: naver_show_detail_tab ?? true,
             telegram_enabled: telegram_enabled || false,
             telegram_chat_id: telegram_chat_id || null,
-            service_start_date: service_start_date || new Date().toISOString().split('T')[0],
+            service_start_date: serviceStartDate,
+            service_end_date: serviceEndDate,
           }
         }]
       })
@@ -247,7 +253,14 @@ export async function PUT(request: NextRequest) {
     if (updateFields.telegram_enabled !== undefined) fields.telegram_enabled = updateFields.telegram_enabled
     if (updateFields.telegram_chat_id !== undefined) fields.telegram_chat_id = updateFields.telegram_chat_id
     if (updateFields.service_start_date) fields.service_start_date = updateFields.service_start_date
-    if (updateFields.service_end_date) fields.service_end_date = updateFields.service_end_date
+    if (updateFields.service_end_date) {
+      fields.service_end_date = updateFields.service_end_date
+    } else if (updateFields.service_start_date && updateFields.service_duration_months) {
+      fields.service_end_date = calculateServiceEndDate(
+        updateFields.service_start_date,
+        updateFields.service_duration_months
+      )
+    }
 
     const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_CLIENTS_BASE_ID}/${AIRTABLE_CLIENTS_TABLE_ID}`, {
       method: 'PATCH',

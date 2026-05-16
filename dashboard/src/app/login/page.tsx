@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import Image from 'next/image'
-import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Loader2, Mail } from 'lucide-react'
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, Mail } from "lucide-react";
 
 /**
  * 통합 로그인 페이지
@@ -15,100 +15,102 @@ import { Loader2, Mail } from 'lucide-react'
  * - Meta OAuth 로그인: 기존 Meta 계정 연결
  */
 function LoginContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const redirect = searchParams.get('redirect')
-  const isAdminLogin = !!redirect
-  const errorParam = searchParams.get('error')
-  const descParam = searchParams.get('description')
+  const redirect = searchParams.get("redirect");
+  const isAdminLogin = !!redirect;
+  const errorParam = searchParams.get("error");
+  const descParam = searchParams.get("description");
 
   // ─── Admin Login State ──────────────────────────
-  const [checkingSession, setCheckingSession] = useState(isAdminLogin)
+  const [checkingSession, setCheckingSession] = useState(isAdminLogin);
 
   // ─── Email → Telegram OTP State ────────────────
-  const [email, setEmail] = useState('')
-  const [otpCode, setOtpCode] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [email, setEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // ─── Meta OAuth Error State ─────────────────────
-  const [metaError, setMetaError] = useState<string | null>(null)
-  const [metaErrorDescription, setMetaErrorDescription] = useState<string | null>(null)
+  const [metaError, setMetaError] = useState<string | null>(null);
+  const [metaErrorDescription, setMetaErrorDescription] = useState<
+    string | null
+  >(null);
 
   // 이미 로그인되어 있는지 확인 (관리자 모드)
   useEffect(() => {
-    if (!isAdminLogin) return
+    if (!isAdminLogin) return;
 
     async function checkSession() {
       try {
-        const res = await fetch('/api/auth/admin/verify')
+        const res = await fetch("/api/auth/admin/verify");
         if (res.ok) {
-          router.replace(redirect!)
-          return
+          router.replace(redirect!);
+          return;
         }
       } catch {
         // 세션 없음
       }
-      setCheckingSession(false)
+      setCheckingSession(false);
     }
-    checkSession()
-  }, [isAdminLogin, redirect, router])
+    checkSession();
+  }, [isAdminLogin, redirect, router]);
 
   // Meta OAuth 에러 표시
   useEffect(() => {
     if (errorParam) {
-      setMetaError(getErrorMessage(errorParam))
-      setMetaErrorDescription(descParam || null)
+      setMetaError(getErrorMessage(errorParam));
+      setMetaErrorDescription(descParam || null);
     }
-  }, [errorParam, descParam])
+  }, [errorParam, descParam]);
 
   // ─── 텔레그램 OTP 발송 ──────────────────────────
   const handleSendOTP = async () => {
-    setError('')
-    setLoading(true)
+    setError("");
+    setLoading(true);
     try {
-      const res = await fetch('/api/auth/admin/email-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send', email }),
-      })
-      const data = await res.json()
+      const res = await fetch("/api/auth/admin/email-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", email }),
+      });
+      const data = await res.json();
       if (res.ok && data.success) {
-        setOtpSent(true)
+        setOtpSent(true);
       } else {
-        setError(data.error || '인증코드 발송에 실패했습니다.')
+        setError(data.error || "인증코드 발송에 실패했습니다.");
       }
     } catch {
-      setError('서버에 연결할 수 없습니다.')
+      setError("서버에 연결할 수 없습니다.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // ─── 텔레그램 OTP 검증 ──────────────────────────
   const handleVerifyOTP = async () => {
-    setError('')
-    setLoading(true)
+    setError("");
+    setLoading(true);
     try {
-      const res = await fetch('/api/auth/admin/email-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify', email, code: otpCode }),
-      })
-      const data = await res.json()
+      const res = await fetch("/api/auth/admin/email-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", email, code: otpCode }),
+      });
+      const data = await res.json();
       if (res.ok && data.success) {
-        router.replace(redirect || '/')
-        return
+        router.replace(redirect || "/");
+        return;
       }
-      setError(data.error || '인증에 실패했습니다.')
+      setError(data.error || "인증에 실패했습니다.");
     } catch {
-      setError('서버에 연결할 수 없습니다.')
+      setError("서버에 연결할 수 없습니다.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // 세션 확인 중 로딩
   if (checkingSession) {
@@ -116,7 +118,7 @@ function LoginContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#F5A623]" />
       </div>
-    )
+    );
   }
 
   // ─── 관리자 로그인 UI ────────────────────────────
@@ -141,7 +143,10 @@ function LoginContent() {
               {!otpSent ? (
                 /* Step 1: 이메일 입력 → OTP 발송 */
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     <Mail className="inline h-4 w-4 mr-1" />
                     등록된 이메일
                   </label>
@@ -151,12 +156,16 @@ function LoginContent() {
                     placeholder="이메일 주소 입력"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && email && handleSendOTP()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && email && handleSendOTP()
+                    }
                     className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#F5A623] focus:border-transparent"
                     autoComplete="email"
                     autoFocus
                   />
-                  <p className="text-xs text-gray-400 mt-1">등록된 이메일로 텔레그램 인증코드가 발송됩니다</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    등록된 이메일로 텔레그램 인증코드가 발송됩니다
+                  </p>
                 </div>
               ) : (
                 /* Step 2: 6자리 OTP 입력 → 검증 */
@@ -167,7 +176,10 @@ function LoginContent() {
                     </p>
                     <p className="text-xs text-green-600 mt-0.5">{email}</p>
                   </div>
-                  <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="otpCode"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     인증코드 (6자리)
                   </label>
                   <input
@@ -177,14 +189,24 @@ function LoginContent() {
                     maxLength={6}
                     placeholder="000000"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={(e) => e.key === 'Enter' && otpCode.length === 6 && handleVerifyOTP()}
+                    onChange={(e) =>
+                      setOtpCode(e.target.value.replace(/\D/g, ""))
+                    }
+                    onKeyDown={(e) =>
+                      e.key === "Enter" &&
+                      otpCode.length === 6 &&
+                      handleVerifyOTP()
+                    }
                     className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#F5A623] focus:border-transparent text-center text-2xl tracking-[0.5em] font-mono"
                     autoComplete="one-time-code"
                     autoFocus
                   />
                   <button
-                    onClick={() => { setOtpSent(false); setOtpCode(''); setError('') }}
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtpCode("");
+                      setError("");
+                    }}
                     className="text-xs text-gray-400 hover:text-gray-600 mt-2"
                   >
                     다른 이메일로 변경
@@ -193,7 +215,9 @@ function LoginContent() {
               )}
 
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">
+                  {error}
+                </p>
               )}
 
               <Button
@@ -202,13 +226,13 @@ function LoginContent() {
                 className="w-full bg-[#F5A623] hover:bg-[#E09000] disabled:opacity-50"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                {otpSent ? '로그인' : '인증코드 발송'}
+                {otpSent ? "로그인" : "인증코드 발송"}
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   // ─── Meta OAuth 로그인 UI (기존) ─────────────────
@@ -264,9 +288,13 @@ function LoginContent() {
                     />
                   </svg>
                   <div>
-                    <p className="text-sm font-medium text-red-800">{metaError}</p>
+                    <p className="text-sm font-medium text-red-800">
+                      {metaError}
+                    </p>
                     {metaErrorDescription && (
-                      <p className="text-sm text-red-600 mt-1">{metaErrorDescription}</p>
+                      <p className="text-sm text-red-600 mt-1">
+                        {metaErrorDescription}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -287,47 +315,82 @@ function LoginContent() {
             {/* 안내 사항 */}
             <div className="mt-8 pt-6 border-t border-neutral-200">
               <h3 className="text-sm font-medium text-neutral-900 mb-3">
-                연결 시 요청되는 권한
+                연결 시 요청되는 권한 / Permissions requested
               </h3>
               <ul className="space-y-2 text-sm text-neutral-600">
-                <li className="flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  광고 인사이트 데이터 읽기 (ads_read)
-                </li>
+                {[
+                  {
+                    ko: "광고 성과 데이터 읽기",
+                    en: "Read ad performance data",
+                    scope: "ads_read",
+                  },
+                  {
+                    ko: "광고 캠페인 ON/OFF 관리",
+                    en: "Pause / activate ad campaigns",
+                    scope: "ads_management",
+                  },
+                  {
+                    ko: "비즈니스 매니저 자산 조회",
+                    en: "List Business Manager assets",
+                    scope: "business_management",
+                  },
+                  {
+                    ko: "Facebook 페이지 목록 조회",
+                    en: "List Facebook Pages you manage",
+                    scope: "pages_show_list",
+                  },
+                  {
+                    ko: "페이지 인사이트(도달·참여) 읽기",
+                    en: "Read Page engagement insights",
+                    scope: "pages_read_engagement",
+                  },
+                ].map((perm) => (
+                  <li key={perm.scope} className="flex items-start gap-2">
+                    <svg
+                      className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span>
+                      {perm.ko}{" "}
+                      <span className="text-neutral-400">/ {perm.en}</span>{" "}
+                      <code className="text-xs bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-500">
+                        {perm.scope}
+                      </code>
+                    </span>
+                  </li>
+                ))}
               </ul>
             </div>
 
             {/* 부가 정보 */}
             <div className="mt-6 p-4 bg-neutral-50 rounded-lg">
               <p className="text-xs text-neutral-500 leading-relaxed">
-                로그인하면{' '}
+                로그인하면{" "}
                 <Link href="/privacy" className="text-blue-600 hover:underline">
                   개인정보처리방침
                 </Link>
-                과{' '}
+                과{" "}
                 <Link href="/terms" className="text-blue-600 hover:underline">
                   서비스 약관
                 </Link>
-                에 동의하는 것으로 간주됩니다. 귀하의 데이터는 광고 성과 분석에만 사용됩니다.
+                에 동의하는 것으로 간주됩니다. 귀하의 데이터는 광고 성과
+                분석에만 사용됩니다.
               </p>
             </div>
           </div>
 
           {/* 기존 사용자 안내 */}
           <p className="text-center text-sm text-neutral-500 mt-6">
-            이미 연결된 계정이 있나요?{' '}
+            이미 연결된 계정이 있나요?{" "}
             <Link href="/" className="text-blue-600 hover:underline">
               대시보드로 이동
             </Link>
@@ -340,7 +403,7 @@ function LoginContent() {
         &copy; 2024 Polarad. All rights reserved.
       </footer>
     </div>
-  )
+  );
 }
 
 /**
@@ -348,15 +411,17 @@ function LoginContent() {
  */
 function getErrorMessage(errorCode: string): string {
   const errorMessages: Record<string, string> = {
-    oauth_init_failed: 'OAuth 초기화에 실패했습니다. 다시 시도해주세요.',
-    missing_params: '필수 파라미터가 누락되었습니다.',
-    invalid_state: '보안 검증에 실패했습니다. 다시 시도해주세요.',
-    callback_failed: '인증 처리 중 오류가 발생했습니다.',
-    access_denied: '권한이 거부되었습니다. 필요한 권한을 승인해주세요.',
-    user_denied: '로그인이 취소되었습니다.',
-  }
+    oauth_init_failed: "OAuth 초기화에 실패했습니다. 다시 시도해주세요.",
+    missing_params: "필수 파라미터가 누락되었습니다.",
+    invalid_state: "보안 검증에 실패했습니다. 다시 시도해주세요.",
+    callback_failed: "인증 처리 중 오류가 발생했습니다.",
+    access_denied: "권한이 거부되었습니다. 필요한 권한을 승인해주세요.",
+    user_denied: "로그인이 취소되었습니다.",
+  };
 
-  return errorMessages[errorCode] || `알 수 없는 오류가 발생했습니다 (${errorCode})`
+  return (
+    errorMessages[errorCode] || `알 수 없는 오류가 발생했습니다 (${errorCode})`
+  );
 }
 
 /**
@@ -367,7 +432,7 @@ function LoginLoading() {
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
     </div>
-  )
+  );
 }
 
 /**
@@ -378,5 +443,5 @@ export default function LoginPage() {
     <Suspense fallback={<LoginLoading />}>
       <LoginContent />
     </Suspense>
-  )
+  );
 }

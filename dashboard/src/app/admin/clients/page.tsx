@@ -17,6 +17,12 @@ import {
   Copy,
 } from 'lucide-react'
 import Link from 'next/link'
+import {
+  SERVICE_DURATION_MONTH_OPTIONS,
+  calculateServiceEndDate,
+  inferServiceDurationMonths,
+  normalizeServiceDurationMonths,
+} from '@/lib/service-period'
 
 type ClientStatus = 'pending' | 'active' | 'suspended' | 'expired'
 
@@ -69,23 +75,31 @@ interface ClientForm {
   telegram_enabled: boolean
   telegram_chat_id: string
   service_start_date: string
+  service_duration_months: string
+  service_end_date: string
 }
 
-const initialFormState: ClientForm = {
-  client_name: '',
-  slug: '',
-  client_type: 'other',
-  meta_metric_type: 'lead',
-  airtable_base_id: '',
-  airtable_table_id: '',
-  naver_type: 'none',
-  naver_enabled: false,
-  naver_fixed_budget: '',
-  naver_show_keywords: true,
-  naver_show_detail_tab: true,
-  telegram_enabled: false,
-  telegram_chat_id: '',
-  service_start_date: new Date().toISOString().split('T')[0],
+const createInitialFormState = (): ClientForm => {
+  const serviceStartDate = new Date().toISOString().split('T')[0]
+
+  return {
+    client_name: '',
+    slug: '',
+    client_type: 'other',
+    meta_metric_type: 'lead',
+    airtable_base_id: '',
+    airtable_table_id: '',
+    naver_type: 'none',
+    naver_enabled: false,
+    naver_fixed_budget: '',
+    naver_show_keywords: true,
+    naver_show_detail_tab: true,
+    telegram_enabled: false,
+    telegram_chat_id: '',
+    service_start_date: serviceStartDate,
+    service_duration_months: '3',
+    service_end_date: calculateServiceEndDate(serviceStartDate, 3),
+  }
 }
 
 // 클라이언트 유형별 기본 설정
@@ -144,7 +158,7 @@ export default function AdminClientsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [suspendReason, setSuspendReason] = useState('')
-  const [formData, setFormData] = useState<ClientForm>(initialFormState)
+  const [formData, setFormData] = useState<ClientForm>(() => createInitialFormState())
   const [formLoading, setFormLoading] = useState(false)
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
 
@@ -179,6 +193,18 @@ export default function AdminClientsPage() {
       setLoading(false)
     }
   }, [statusFilter])
+
+  const formatDateShort = (date: string | null) => {
+    if (!date) return '-'
+    const [year, month, day] = date.split('-')
+    if (!year || !month || !day) return date
+    return `${year}.${month}.${day}`
+  }
+
+  const formatServicePeriod = (client: Client) => {
+    if (!client.service_start_date) return '-'
+    return `${formatDateShort(client.service_start_date)} ~ ${formatDateShort(client.service_end_date)}`
+  }
 
   useEffect(() => {
     fetchData()
@@ -282,12 +308,17 @@ export default function AdminClientsPage() {
 
   // 클라이언트 추가 모달 열기
   const openAddModal = () => {
-    setFormData(initialFormState)
+    setFormData(createInitialFormState())
     setShowAddModal(true)
   }
 
   // 클라이언트 수정 모달 열기
   const openEditModal = (client: Client) => {
+    const serviceStartDate = client.service_start_date || new Date().toISOString().split('T')[0]
+    const serviceDurationMonths = inferServiceDurationMonths(serviceStartDate, client.service_end_date)
+    const serviceEndDate =
+      client.service_end_date || calculateServiceEndDate(serviceStartDate, serviceDurationMonths)
+
     setSelectedClient(client)
     setFormData({
       client_name: client.client_name || '',
@@ -303,7 +334,9 @@ export default function AdminClientsPage() {
       naver_show_detail_tab: client.naver_show_detail_tab ?? true,
       telegram_enabled: client.telegram_enabled || false,
       telegram_chat_id: client.telegram_chat_id || '',
-      service_start_date: client.service_start_date || new Date().toISOString().split('T')[0],
+      service_start_date: serviceStartDate,
+      service_duration_months: String(serviceDurationMonths),
+      service_end_date: serviceEndDate,
     })
     setShowEditModal(true)
   }
@@ -312,6 +345,22 @@ export default function AdminClientsPage() {
   const handleFormChange = (field: keyof ClientForm, value: string | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
+
+      if (field === 'service_start_date' && typeof value === 'string') {
+        return {
+          ...newData,
+          service_end_date: calculateServiceEndDate(value, prev.service_duration_months),
+        }
+      }
+
+      if (field === 'service_duration_months' && typeof value === 'string') {
+        const durationMonths = normalizeServiceDurationMonths(value)
+        return {
+          ...newData,
+          service_duration_months: String(durationMonths),
+          service_end_date: calculateServiceEndDate(prev.service_start_date, durationMonths),
+        }
+      }
 
       // 클라이언트 유형 변경 시 기본값 자동 적용
       if (field === 'client_type' && typeof value === 'string') {
@@ -364,13 +413,15 @@ export default function AdminClientsPage() {
           telegram_enabled: formData.telegram_enabled,
           telegram_chat_id: formData.telegram_chat_id || null,
           service_start_date: formData.service_start_date,
+          service_duration_months: Number(formData.service_duration_months),
+          service_end_date: formData.service_end_date,
         }),
       })
 
       if (res.ok) {
         alert('클라이언트가 추가되었습니다.')
         setShowAddModal(false)
-        setFormData(initialFormState)
+        setFormData(createInitialFormState())
         fetchData()
       } else {
         const error = await res.json()
@@ -413,6 +464,8 @@ export default function AdminClientsPage() {
           telegram_enabled: formData.telegram_enabled,
           telegram_chat_id: formData.telegram_chat_id || null,
           service_start_date: formData.service_start_date,
+          service_duration_months: Number(formData.service_duration_months),
+          service_end_date: formData.service_end_date,
         }),
       })
 
@@ -566,6 +619,7 @@ export default function AdminClientsPage() {
                     <tr className="border-b">
                       <th className="text-left py-3 px-2 font-medium text-neutral-600">클라이언트</th>
                       <th className="text-left py-3 px-2 font-medium text-neutral-600">상태</th>
+                      <th className="text-left py-3 px-2 font-medium text-neutral-600">서비스 기간</th>
                       <th className="text-left py-3 px-2 font-medium text-neutral-600">광고 계정</th>
                       <th className="text-left py-3 px-2 font-medium text-neutral-600">토큰 만료</th>
                       <th className="text-left py-3 px-2 font-medium text-neutral-600">데이터</th>
@@ -616,6 +670,9 @@ export default function AdminClientsPage() {
                             {getStatusIcon(client.status)}
                             {getStatusLabel(client.status)}
                           </span>
+                        </td>
+                        <td className="py-3 px-2 text-neutral-600 whitespace-nowrap">
+                          {formatServicePeriod(client)}
                         </td>
                         <td className="py-3 px-2 text-neutral-600">
                           {client.meta_ad_account_id || '-'}
@@ -806,16 +863,45 @@ export default function AdminClientsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  서비스 시작일
-                </label>
-                <input
-                  type="date"
-                  value={formData.service_start_date}
-                  onChange={(e) => handleFormChange('service_start_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    서비스 시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.service_start_date}
+                    onChange={(e) => handleFormChange('service_start_date', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    상품 기간
+                  </label>
+                  <select
+                    value={formData.service_duration_months}
+                    onChange={(e) => handleFormChange('service_duration_months', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {SERVICE_DURATION_MONTH_OPTIONS.map((months) => (
+                      <option key={months} value={months}>
+                        {months}개월
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    서비스 종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.service_end_date}
+                    readOnly
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-700"
+                  />
+                </div>
               </div>
 
               {/* Meta 광고 설정 */}
@@ -984,7 +1070,7 @@ export default function AdminClientsPage() {
                 variant="outline"
                 onClick={() => {
                   setShowAddModal(false)
-                  setFormData(initialFormState)
+                  setFormData(createInitialFormState())
                 }}
                 className="flex-1"
               >
@@ -1054,16 +1140,45 @@ export default function AdminClientsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  서비스 시작일
-                </label>
-                <input
-                  type="date"
-                  value={formData.service_start_date}
-                  onChange={(e) => handleFormChange('service_start_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    서비스 시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.service_start_date}
+                    onChange={(e) => handleFormChange('service_start_date', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    상품 기간
+                  </label>
+                  <select
+                    value={formData.service_duration_months}
+                    onChange={(e) => handleFormChange('service_duration_months', e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {SERVICE_DURATION_MONTH_OPTIONS.map((months) => (
+                      <option key={months} value={months}>
+                        {months}개월
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    서비스 종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.service_end_date}
+                    readOnly
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-700"
+                  />
+                </div>
               </div>
 
               {/* Meta 광고 설정 */}
