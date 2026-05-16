@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>co.polarad.meta-warmup</string>
+
+    <!-- 실행할 명령: bash 래퍼가 nvm/Node 22를 PATH에 올린 뒤 스크립트 실행 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>-c</string>
+        <string>cd /Users/REPLACE_USERNAME/polarad-meta &amp;&amp; ./mac-warmup/run.sh</string>
+    </array>
+
+    <!-- 매일 09:00 KST = 한국 시간 09:00 = 시스템 시간이 KST면 그대로 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 시스템이 켜진 시간이 09:00을 지났다면 (예: 자느라 못 돌았으면) 켜질 때 한 번 실행 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- 절전모드에서 Mac을 깨워서 실행. caffeinate 없이도 동작하지만, 추가 보험 -->
+    <key>WakeForRequest</key>
+    <true/>
+
+    <!-- 실행 결과 로그 -->
+    <key>StandardOutPath</key>
+    <string>/Users/REPLACE_USERNAME/Library/Logs/polarad-meta-warmup.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/REPLACE_USERNAME/Library/Logs/polarad-meta-warmup.err.log</string>
+
+    <!-- 실패 시 자동 재실행 안 함 (cron 의도) -->
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

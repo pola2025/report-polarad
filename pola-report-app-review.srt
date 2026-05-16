@@ -1,0 +1,147 @@
+1
+00:00:00,000 --> 00:00:06,000
+POLA-REPORT — Marketing analytics platform for Polarad ad agency
+
+2
+00:00:06,000 --> 00:00:12,000
+Used only by approved agency staff to view client ad performance
+
+3
+00:00:12,000 --> 00:00:20,000
+Server-to-server architecture using a System User access token
+
+4
+00:00:20,000 --> 00:00:28,000
+Scene 2 — How a client grants POLA-REPORT access to their assets
+
+5
+00:00:28,000 --> 00:00:36,000
+The advertiser opens our login page and clicks "Continue with Meta"
+
+6
+00:00:36,000 --> 00:00:48,000
+Facebook displays the consent screen for all five requested permissions
+
+7
+00:00:48,000 --> 00:01:00,000
+ads_read, ads_management, business_management, pages_show_list, pages_read_engagement
+
+8
+00:01:00,000 --> 00:01:12,000
+After consent we exchange the code and store a long-lived token (60 days)
+
+9
+00:01:12,000 --> 00:01:24,000
+Alternative — the client can grant permissions in Business Manager directly
+
+10
+00:01:24,000 --> 00:01:30,000
+Business Settings → Apps → Add → POLA-REPORT → Assign assets
+
+11
+00:01:30,000 --> 00:01:40,000
+Scene 3 — The /meta hub lists all five permissions with live status
+
+12
+00:01:40,000 --> 00:01:48,000
+Each card connects to a demo page that exercises one permission end-to-end
+
+13
+00:01:48,000 --> 00:02:00,000
+Scene 4 — pages_show_list
+
+14
+00:02:00,000 --> 00:02:12,000
+Calls GET /me/accounts to list Pages the user manages
+
+15
+00:02:12,000 --> 00:02:20,000
+Used to map each client to the correct Facebook Page in their setup
+
+16
+00:02:20,000 --> 00:02:30,000
+Scene 5 — pages_read_engagement
+
+17
+00:02:30,000 --> 00:02:42,000
+Reads Page-level aggregate insights: followers, page likes, impressions, engaged users
+
+18
+00:02:42,000 --> 00:02:50,000
+Displayed alongside paid ad performance for a unified report
+
+19
+00:02:50,000 --> 00:03:00,000
+Scene 6 — business_management
+
+20
+00:03:00,000 --> 00:03:12,000
+Calls GET /me/businesses and reads owned_ad_accounts and owned_pages
+
+21
+00:03:12,000 --> 00:03:20,000
+Keeps the client → ad-account mapping in sync as assets are added or removed
+
+22
+00:03:20,000 --> 00:03:30,000
+Scene 7 — ads_read
+
+23
+00:03:30,000 --> 00:03:42,000
+Reads ad-account status, currency, amount spent and campaign-level insights
+
+24
+00:03:42,000 --> 00:03:54,000
+This is the data behind every KPI card on the client dashboard
+
+25
+00:03:54,000 --> 00:04:06,000
+Now switching to the live dashboard for client hea-pangyo
+
+26
+00:04:06,000 --> 00:04:18,000
+Impressions, clicks, spend, CTR — all derived from the ads_read API call above
+
+27
+00:04:18,000 --> 00:04:28,000
+Scene 8 — ads_management
+
+28
+00:04:28,000 --> 00:04:40,000
+The operator can pause an under-performing campaign without leaving the dashboard
+
+29
+00:04:40,000 --> 00:04:52,000
+Clicking Pause issues POST /v22.0/{campaign_id} with status PAUSED
+
+30
+00:04:52,000 --> 00:05:04,000
+The UI updates immediately to reflect the new status returned by the API
+
+31
+00:05:04,000 --> 00:05:16,000
+Clicking Activate reverses the action — POST status ACTIVE
+
+32
+00:05:16,000 --> 00:05:28,000
+ads_management is used only for status flips, never for budget or creative changes
+
+33
+00:05:28,000 --> 00:05:36,000
+All Meta data is fetched server-to-server with a System User token
+
+34
+00:05:36,000 --> 00:05:48,000
+End customers never authenticate with Facebook through this application
+
+35
+00:05:48,000 --> 00:06:00,000
+Privacy Policy: https://report.polarad.co.kr/privacy
+
+36
+00:06:00,000 --> 00:06:12,000
+Data Deletion: https://report.polarad.co.kr/data-deletion
+
+37
+00:06:12,000 --> 00:06:20,000
+Thank you for the review
